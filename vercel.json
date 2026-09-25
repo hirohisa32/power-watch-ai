@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/queues/video-generation/route.ts": {
+      "maxDuration": 120,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "video-generation"
+        }
+      ]
+    }
+  }
+}

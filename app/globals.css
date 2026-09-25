@@ -596,6 +596,48 @@ textarea {
   padding: 14px;
   border: 1px solid var(--line);
 }
+.generation-panel {
+  margin-top: 22px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #0d0e10;
+}
+.generation-head,
+.generation-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.generation-head > span:first-child {
+  color: var(--gold);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+}
+.generation-status {
+  color: var(--muted);
+  font-size: 11px;
+}
+.generation-status.active {
+  color: #e2c37a;
+}
+.generation-status.completed {
+  color: #b6c99a;
+}
+.generation-status.failed {
+  color: #e0a29b;
+}
+.generation-versions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.generation-version {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
 
 @media (max-width: 900px) {
   .grid {

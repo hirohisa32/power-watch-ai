@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { assets, projects } from "@/lib/db/schema";
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
+import { listSceneGenerations } from "@/lib/video/repository";
 import { StoryboardEditor } from "./storyboard-editor";
 
 export const metadata: Metadata = { title: "Storyboard" };
@@ -28,6 +29,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
+  const generations = await listSceneGenerations(id);
   return (
     <main className="content storyboard-page">
       <div className="page-head">
@@ -50,6 +52,12 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           ...scene,
           createdAt: scene.createdAt.toISOString(),
           updatedAt: scene.updatedAt.toISOString(),
+        }))}
+        initialGenerations={generations.map((generation) => ({
+          ...generation,
+          createdAt: generation.createdAt.toISOString(),
+          updatedAt: generation.updatedAt.toISOString(),
+          completedAt: generation.completedAt?.toISOString() ?? null,
         }))}
       />
     </main>

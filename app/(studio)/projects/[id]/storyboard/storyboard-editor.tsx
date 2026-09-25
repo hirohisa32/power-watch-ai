@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { PRESET_NAMES, SCENE_PRESETS, type ScenePresetName } from "@/lib/storyboard/presets";
@@ -29,11 +29,36 @@ type EditorScene = {
   projectId: string;
   createdAt: string;
   updatedAt: string;
+  selectedGenerationId: string | null;
+};
+
+type EditorGeneration = {
+  id: string;
+  projectId: string;
+  sceneId: string;
+  version: number;
+  provider: string;
+  model: string;
+  status: "queued" | "generating" | "completed" | "failed" | "canceled";
+  prompt: string;
+  regenerationInstruction: string | null;
+  referenceAssetIds: string[];
+  requestedDuration: number;
+  outputObjectKey: string | null;
+  estimatedCostCredits: number | null;
+  estimatedCostUsd: number | null;
+  actualCostCredits: number | null;
+  actualCostUsd: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
 };
 
 const blankScene = (): Omit<
   EditorScene,
-  "id" | "order" | "storyboardId" | "projectId" | "createdAt" | "updatedAt"
+  "id" | "order" | "storyboardId" | "projectId" | "createdAt" | "updatedAt" | "selectedGenerationId"
 > => ({
   preset: "HistoricalEvent",
   title: "New Scene",
@@ -60,11 +85,13 @@ export function StoryboardEditor({
   targetDuration,
   assetLabels,
   initialScenes,
+  initialGenerations,
 }: {
   projectId: string;
   targetDuration: number;
   assetLabels: string[];
   initialScenes: EditorScene[];
+  initialGenerations: EditorGeneration[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<EditorScene | null>(null);
@@ -76,6 +103,14 @@ export function StoryboardEditor({
     () => initialScenes.reduce((sum, scene) => sum + scene.duration, 0),
     [initialScenes],
   );
+  const hasActiveGeneration = initialGenerations.some((generation) =>
+    ["queued", "generating"].includes(generation.status),
+  );
+  useEffect(() => {
+    if (!hasActiveGeneration) return;
+    const timer = window.setTimeout(() => router.refresh(), 7_000);
+    return () => window.clearTimeout(timer);
+  }, [hasActiveGeneration, initialGenerations, router]);
   async function request(url: string, options: RequestInit) {
     setPending(true);
     setError("");
@@ -96,6 +131,17 @@ export function StoryboardEditor({
     if (!window.confirm("現在のStoryboardを保持したまま、新しいVersionを生成して置き換えますか？"))
       return;
     await request(`/api/projects/${projectId}/storyboard`, { method: "POST" });
+  }
+  async function generateScene(scene: EditorScene, regenerateVideo = false) {
+    const instruction = regenerateVideo
+      ? window.prompt("再生成の修正指示を入力してください（例: カメラ移動を遅く）")
+      : undefined;
+    if (regenerateVideo && instruction === null) return;
+    await request(`/api/projects/${projectId}/scenes/${scene.id}/generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(instruction ? { instruction } : {}),
+    });
   }
   return (
     <>
@@ -119,6 +165,15 @@ export function StoryboardEditor({
           </button>
           <button className="btn" disabled={pending} onClick={regenerate}>
             <RefreshCw size={14} /> 全再生成
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={pending || total !== targetDuration}
+            onClick={() =>
+              request(`/api/projects/${projectId}/generate-missing`, { method: "POST" })
+            }
+          >
+            未生成Sceneを一括生成
           </button>
         </div>
       </div>
@@ -149,8 +204,17 @@ export function StoryboardEditor({
         />
       )}
       <div className="scene-list">
-        {initialScenes.map((scene, index) =>
-          editing?.id === scene.id ? (
+        {initialScenes.map((scene, index) => {
+          const generations = initialGenerations.filter(
+            (generation) => generation.sceneId === scene.id,
+          );
+          const activeGeneration = generations.find((generation) =>
+            ["queued", "generating"].includes(generation.status),
+          );
+          const completedGeneration = generations.find(
+            (generation) => generation.status === "completed",
+          );
+          return editing?.id === scene.id ? (
             <SceneForm
               key={scene.id}
               value={editing}
@@ -214,6 +278,101 @@ export function StoryboardEditor({
                     {[scene.year, scene.location].filter(Boolean).join(" · ") || "—"}
                   </div>
                 </div>
+                <div className="generation-panel">
+                  <div className="generation-head">
+                    <span>VIDEO GENERATIONS</span>
+                    {activeGeneration ? (
+                      <span className="generation-status active">
+                        {activeGeneration.status === "queued" ? "Queued" : "Generating"}
+                      </span>
+                    ) : completedGeneration ? (
+                      <span className="generation-status completed">Completed</span>
+                    ) : generations[0]?.status === "failed" ? (
+                      <span className="generation-status failed">Failed</span>
+                    ) : (
+                      <span className="generation-status">Not generated</span>
+                    )}
+                  </div>
+                  {generations.length > 0 && (
+                    <div className="generation-versions">
+                      {generations.map((generation) => (
+                        <div className="generation-version" key={generation.id}>
+                          <span>
+                            v{generation.version} · {generation.model} · {generation.status}
+                            {generation.actualCostUsd != null
+                              ? ` · $${generation.actualCostUsd.toFixed(2)}`
+                              : generation.estimatedCostUsd != null
+                                ? ` · est. $${generation.estimatedCostUsd.toFixed(2)}`
+                                : ""}
+                          </span>
+                          <div className="nav-actions">
+                            {generation.status === "completed" && (
+                              <a
+                                className="btn"
+                                href={`/api/generations/${generation.id}/video`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Preview
+                              </a>
+                            )}
+                            {generation.status === "completed" &&
+                              scene.selectedGenerationId !== generation.id && (
+                                <button
+                                  className="btn"
+                                  disabled={pending}
+                                  onClick={() =>
+                                    request(
+                                      `/api/projects/${projectId}/scenes/${scene.id}/generations/${generation.id}/select`,
+                                      { method: "POST" },
+                                    )
+                                  }
+                                >
+                                  Select
+                                </button>
+                              )}
+                            {scene.selectedGenerationId === generation.id && (
+                              <span className="pill">Selected</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {generations[0]?.status === "failed" && (
+                    <p className="error">
+                      {generations[0].errorCode || "GENERATION_FAILED"}:
+                      動画生成に失敗しました。指示を調整して再生成してください。
+                    </p>
+                  )}
+                  <div className="card-actions">
+                    {!completedGeneration && !activeGeneration && (
+                      <button
+                        className="btn btn-primary"
+                        disabled={pending}
+                        onClick={() => generateScene(scene, generations.length > 0)}
+                      >
+                        {generations.length > 0 ? "Regenerate" : "Generate"}
+                      </button>
+                    )}
+                    {completedGeneration && !activeGeneration && (
+                      <button
+                        className="btn"
+                        disabled={pending}
+                        onClick={() => generateScene(scene, true)}
+                      >
+                        Regenerate
+                      </button>
+                    )}
+                    <button
+                      className="btn"
+                      disabled={pending || Boolean(activeGeneration)}
+                      onClick={() => setEditing(scene)}
+                    >
+                      Edit Prompt
+                    </button>
+                  </div>
+                </div>
                 <div className="card-actions">
                   <button className="btn" onClick={() => setEditing(scene)}>
                     <Pencil size={13} /> Edit
@@ -257,8 +416,8 @@ export function StoryboardEditor({
                 </div>
               </div>
             </article>
-          ),
-        )}
+          );
+        })}
       </div>
     </>
   );

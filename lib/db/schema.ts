@@ -24,6 +24,20 @@ export const projectStatus = pgEnum("project_status", [
   "failed",
 ]);
 export const assetType = pgEnum("asset_type", ["watch_image"]);
+export const videoGenerationStatus = pgEnum("video_generation_status", [
+  "queued",
+  "generating",
+  "completed",
+  "failed",
+  "canceled",
+]);
+export const videoJobStatus = pgEnum("video_job_status", [
+  "queued",
+  "processing",
+  "completed",
+  "failed",
+  "canceled",
+]);
 export const scenePreset = pgEnum("scene_preset", [
   "Opening",
   "VintageRoom",
@@ -153,6 +167,7 @@ export const scenes = pgTable(
     preferredAssetLabels: jsonb("preferred_asset_labels").$type<string[]>().default([]).notNull(),
     year: text("year"),
     location: text("location"),
+    selectedGenerationId: uuid("selected_generation_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -160,6 +175,70 @@ export const scenes = pgTable(
     uniqueIndex("scenes_storyboard_order_unique").on(table.storyboardId, table.order),
     index("scenes_project_idx").on(table.projectId),
     check("scenes_duration_check", sql`${table.duration} BETWEEN 3 AND 8`),
+  ],
+);
+
+export const videoGenerations = pgTable(
+  "video_generations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    status: videoGenerationStatus("status").default("queued").notNull(),
+    prompt: text("prompt").notNull(),
+    regenerationInstruction: text("regeneration_instruction"),
+    referenceAssetIds: jsonb("reference_asset_ids").$type<string[]>().default([]).notNull(),
+    requestedDuration: integer("requested_duration").notNull(),
+    outputObjectKey: text("output_object_key"),
+    estimatedCostCredits: real("estimated_cost_credits"),
+    estimatedCostUsd: real("estimated_cost_usd"),
+    actualCostCredits: real("actual_cost_credits"),
+    actualCostUsd: real("actual_cost_usd"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("video_generations_scene_version_unique").on(table.sceneId, table.version),
+    index("video_generations_project_status_idx").on(table.projectId, table.status),
+  ],
+);
+
+export const videoJobs = pgTable(
+  "video_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    generationId: uuid("generation_id")
+      .notNull()
+      .references(() => videoGenerations.id, { onDelete: "cascade" }),
+    providerTaskId: text("provider_task_id"),
+    status: videoJobStatus("status").default("queued").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("video_jobs_generation_unique").on(table.generationId),
+    index("video_jobs_project_status_idx").on(table.projectId, table.status),
   ],
 );
 
@@ -187,3 +266,5 @@ export type Project = typeof projects.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type Storyboard = typeof storyboards.$inferSelect;
 export type Scene = typeof scenes.$inferSelect;
+export type VideoGeneration = typeof videoGenerations.$inferSelect;
+export type VideoJob = typeof videoJobs.$inferSelect;
