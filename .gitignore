@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+.next/
+.vercel/
+coverage/
+.env
+.env.local
+.env.*.local
+*.log
+*.tsbuildinfo
+public/uploads/
+参考クオリティ動画素材フォルダ/
