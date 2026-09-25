@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { assets, projects } from "@/lib/db/schema";
+import { assets, projects, storyboards } from "@/lib/db/schema";
+import { StoryboardButton } from "./storyboard-button";
 
 export const metadata: Metadata = { title: "プロジェクト詳細" };
 export const dynamic = "force-dynamic";
@@ -21,6 +22,11 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     .limit(1);
   if (!project) notFound();
   const images = await db.select().from(assets).where(eq(assets.projectId, project.id));
+  const [activeStoryboard] = await db
+    .select({ id: storyboards.id })
+    .from(storyboards)
+    .where(and(eq(storyboards.projectId, project.id), eq(storyboards.isActive, true)))
+    .limit(1);
   const styles = { cinematic_real: "Cinematic Real", animation: "Animation" } as const;
   const languages = { ja: "Japanese", en: "English", zh: "Chinese" } as const;
   return (
@@ -33,9 +39,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           <p className="eyebrow">Project detail</p>
           <h1>{project.title}</h1>
         </div>
-        <button className="btn btn-primary" disabled title="Phase 2で利用可能になります">
-          Storyboardを作成
-        </button>
+        <StoryboardButton projectId={project.id} exists={Boolean(activeStoryboard)} />
       </div>
       <div className="detail-grid">
         <section className="panel">
@@ -59,7 +63,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             </div>
             <div className="key-value">
               <span>Status</span>
-              <span>Draft</span>
+              <span>{activeStoryboard ? "Storyboard" : "Draft"}</span>
             </div>
           </section>
           <section className="panel" style={{ marginTop: 18 }}>

@@ -10,6 +10,8 @@ export function apiError(
       { error: error.issues[0]?.message ?? "入力内容を確認してください" },
       { status: 400 },
     );
+  if (error instanceof Error && error.name === "StoryboardValidationError")
+    return NextResponse.json({ error: error.message }, { status: 400 });
   if (error instanceof Error && error.message === "INVALID_ORIGIN")
     return NextResponse.json({ error: "リクエストを確認できませんでした" }, { status: 403 });
   console.error("API request failed", {

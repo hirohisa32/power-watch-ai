@@ -1,12 +1,13 @@
 # POWER WATCH Studio
 
-時計の台本と実物画像から、Instagram Reel向けストーリー動画を制作するWebアプリです。現在は **Phase 1 (Foundation)** が完了しており、ログイン、Project CRUD、Cloudflare R2への時計画像登録まで利用できます。
+時計の台本と実物画像から、Instagram Reel向けストーリー動画を制作するWebアプリです。現在は **Phase 2 (AI Storyboard)** まで完了しており、ログイン、Project管理、時計画像登録、Storyboard生成・Scene編集まで利用できます。
 
 ## 技術構成
 
 - Next.js 16 / React 19 / TypeScript strict / App Router
 - PostgreSQL + Drizzle ORM（標準PostgreSQLのため接続先を交換可能）
 - Cloudflare R2（非公開オブジェクト、5分間の署名URL）
+- OpenAI Responses API + Structured Outputs（Zod schema）
 - 独自のDBセッション認証（HttpOnly / Secure / SameSite cookie）
 - Zod、Vitest、ESLint、Prettier
 
@@ -42,6 +43,20 @@ Windows PowerShellでは `Copy-Item .env.example .env.local` を使用してく�
 
 GitHub連携後はPull Request / branch pushごとにPreview Deploymentが作成されます。R2への書き込みはサーバー経由で行うため、R2 credentialsをブラウザへ公開しないでください。
 
+## AI Storyboard
+
+`OPENAI_API_KEY` と `OPENAI_MODEL` はServer Side環境変数としてのみ設定します。既定モデルは品質とコストのバランスを取る `gpt-6-sol` で、環境変数から交換できます。Responses APIの応答保存は無効化しています。
+
+StoryboardはJSON Schema準拠のStructured Outputとして生成し、Scene番号、3〜8秒制約、60/90秒の合計、時計画像Label、固定Openingの文字Overlay規則をServer Sideで再検証します。再生成時は、検証と新VersionのDB保存が成功したトランザクション内でのみActive Versionを切り替えます。
+
+実課金を伴う手動Integration Testは、API Keyを設定した環境で明示的に次を1回実行できます。
+
+```bash
+pnpm test:openai
+```
+
+通常の `pnpm test` はMock / fixtureのみを使用し、OpenAI APIを呼びません。
+
 ## ストレージ規則
 
 Phase 1の時計画像は `projects/{projectId}/source/{uuid}.{ext}` に保存します。Bucketは公開せず、所有者確認後に短時間の署名URLを発行します。Project削除時はR2オブジェクトを先に削除し、失敗した場合はDBレコードを保持して不整合を防ぎます。
@@ -55,7 +70,7 @@ pnpm test
 pnpm build
 ```
 
-## Phase 1の範囲
+## 実装済み範囲
 
 - Login / Logout / session
 - Project List / Create / Detail / Duplicate / Delete
@@ -63,5 +78,10 @@ pnpm build
 - 複数時計画像と各Labelの登録
 - R2 private uploadとsigned read URL
 - PC優先・スマートフォン対応のLuxury UI
+- Responses APIによるStoryboard生成
+- 13種の時計映像Scene Preset
+- Storyboard Versionの安全な置換
+- Scene編集・追加・削除・上下移動
+- OpenAI model / tokens / request ID / durationの利用記録
 
-Storyboard生成以降は意図的に未実装です。Phase 2でOpenAI Structured Outputs、Storyboard schema、Scene editorを追加します。
+Scene動画生成以降は意図的に未実装です。Phase 3でVideo Provider abstraction、Runway、Background Job、Scene Preview、Retryを追加します。
