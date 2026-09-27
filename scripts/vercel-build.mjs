@@ -16,7 +16,7 @@ function prepareFinalRenderAssets() {
   const output = resolve(".vercel-build-assets");
   mkdirSync(output, { recursive: true });
 
-  const ffmpegRoot = packageRoot(require, "@ffmpeg-installer/linux-x64");
+  const ffmpegRoot = dirname(require.resolve("@ffmpeg-installer/linux-x64/package.json"));
   const ffmpegOutput = join(output, "ffmpeg");
   copyFileSync(join(ffmpegRoot, "ffmpeg"), ffmpegOutput);
   chmodSync(ffmpegOutput, 0o755);
