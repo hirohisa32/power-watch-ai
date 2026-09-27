@@ -1,0 +1,35 @@
+import type { SubtitleCue } from "@/lib/audio/timing";
+
+export type RenderScene = {
+  sceneId: string;
+  generationId: string;
+  order: number;
+  preset: string;
+  duration: number;
+  narration: string;
+  subtitle: string;
+  year: string | null;
+  location: string | null;
+  objectKey: string;
+};
+
+export type TextOverlay = {
+  kind: "brand" | "year-location";
+  startMs: number;
+  endMs: number;
+  primary: string;
+  secondary?: string;
+};
+
+export type FinalRenderInput = {
+  width: 1080;
+  height: 1920;
+  fps: 30;
+  language: "ja" | "en" | "zh";
+  bgmKey: string;
+  totalDuration: number;
+  missingSceneCount: number;
+  scenes: RenderScene[];
+  subtitles: SubtitleCue[];
+  overlays: TextOverlay[];
+};

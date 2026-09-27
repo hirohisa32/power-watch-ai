@@ -4,8 +4,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
   apiUsage,
+  audioRecords,
   assets,
+  finalRenders,
   projects,
+  renderJobs,
   scenes,
   storyboards,
   videoGenerations,
@@ -27,7 +30,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     if (!project)
       return NextResponse.json({ error: "プロジェクトが見つかりません" }, { status: 404 });
 
-    const [assetSummary, activeStoryboard, generationRows, jobRows, usageRows] = await Promise.all([
+    const [
+      assetSummary,
+      activeStoryboard,
+      generationRows,
+      jobRows,
+      audioRows,
+      renderRows,
+      renderJobRows,
+      usageRows,
+    ] = await Promise.all([
       db.select({ count: count() }).from(assets).where(eq(assets.projectId, id)),
       db
         .select({
@@ -66,12 +78,54 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         .orderBy(desc(videoJobs.createdAt)),
       db
         .select({
+          id: audioRecords.id,
+          status: audioRecords.status,
+          provider: audioRecords.provider,
+          model: audioRecords.model,
+          language: audioRecords.language,
+          characterCount: audioRecords.characterCount,
+          durationMs: audioRecords.durationMs,
+          estimatedCost: audioRecords.estimatedCost,
+          objectKey: audioRecords.objectKey,
+        })
+        .from(audioRecords)
+        .where(eq(audioRecords.projectId, id))
+        .orderBy(desc(audioRecords.createdAt)),
+      db
+        .select({
+          id: finalRenders.id,
+          version: finalRenders.version,
+          status: finalRenders.status,
+          width: finalRenders.width,
+          height: finalRenders.height,
+          fps: finalRenders.fps,
+          durationMs: finalRenders.durationMs,
+          estimatedCost: finalRenders.estimatedCost,
+          outputObjectKey: finalRenders.outputObjectKey,
+          errorCode: finalRenders.errorCode,
+        })
+        .from(finalRenders)
+        .where(eq(finalRenders.projectId, id))
+        .orderBy(desc(finalRenders.createdAt)),
+      db
+        .select({
+          renderId: renderJobs.renderId,
+          status: renderJobs.status,
+          attempts: renderJobs.attempts,
+          errorCode: renderJobs.errorCode,
+        })
+        .from(renderJobs)
+        .where(eq(renderJobs.projectId, id))
+        .orderBy(desc(renderJobs.createdAt)),
+      db
+        .select({
           provider: apiUsage.provider,
           operation: apiUsage.operation,
           model: apiUsage.model,
           inputTokens: apiUsage.inputTokens,
           cachedInputTokens: apiUsage.cachedInputTokens,
           outputTokens: apiUsage.outputTokens,
+          units: apiUsage.units,
           durationMs: apiUsage.durationMs,
           estimatedCost: apiUsage.estimatedCost,
           requestId: apiUsage.requestId,
@@ -102,6 +156,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         ...job,
         providerTaskRecorded: Boolean(providerTaskId),
       })),
+      audio: audioRows.map(({ objectKey, ...audio }) => ({
+        ...audio,
+        outputStored: Boolean(objectKey),
+      })),
+      renders: renderRows.map(({ outputObjectKey, ...render }) => ({
+        ...render,
+        outputStored: Boolean(outputObjectKey),
+      })),
+      renderJobs: renderJobRows,
       usage: usageRows.map(({ requestId, ...usage }) => ({
         ...usage,
         requestIdRecorded: Boolean(requestId),

@@ -609,6 +609,48 @@ textarea {
   justify-content: space-between;
   gap: 16px;
 }
+.final-render-panel {
+  margin-top: 28px;
+  padding: 28px;
+  border: 1px solid #5b503c;
+  background: var(--panel);
+}
+.final-render-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.final-render-head h2 {
+  margin: 8px 0 10px;
+}
+.render-history {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.render-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.final-preview {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) 1fr;
+  align-items: end;
+  gap: 22px;
+  margin-top: 22px;
+}
+.final-preview video {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background: #000;
+  border: 1px solid var(--line);
+}
 .generation-head > span:first-child {
   color: var(--gold);
   font-size: 9px;
@@ -701,5 +743,12 @@ textarea {
   }
   .scene-copy > div:last-child {
     grid-column: auto;
+  }
+  .final-render-head,
+  .render-row {
+    flex-direction: column;
+  }
+  .final-preview {
+    grid-template-columns: 1fr;
   }
 }

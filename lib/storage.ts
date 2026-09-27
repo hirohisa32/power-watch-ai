@@ -41,9 +41,19 @@ export async function deletePrivateObject(key: string) {
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
-export async function createReadUrl(key: string, expiresIn = 300) {
+export async function createReadUrl(
+  key: string,
+  expiresIn = 300,
+  responseContentDisposition?: string,
+) {
   const { client, bucket } = storageClient();
-  return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
-    expiresIn,
-  });
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ResponseContentDisposition: responseContentDisposition,
+    }),
+    { expiresIn },
+  );
 }

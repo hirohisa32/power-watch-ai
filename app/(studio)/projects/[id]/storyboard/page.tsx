@@ -8,6 +8,8 @@ import { getDb } from "@/lib/db";
 import { assets, projects } from "@/lib/db/schema";
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
+import { listProjectRenders } from "@/lib/render/repository";
+import { FinalRenderPanel } from "./final-render-panel";
 import { StoryboardEditor } from "./storyboard-editor";
 
 export const metadata: Metadata = { title: "Storyboard" };
@@ -29,7 +31,10 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
-  const generations = await listSceneGenerations(id);
+  const [generations, renders] = await Promise.all([
+    listSceneGenerations(id),
+    listProjectRenders(id),
+  ]);
   return (
     <main className="content storyboard-page">
       <div className="page-head">
@@ -58,6 +63,22 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           createdAt: generation.createdAt.toISOString(),
           updatedAt: generation.updatedAt.toISOString(),
           completedAt: generation.completedAt?.toISOString() ?? null,
+        }))}
+      />
+      <FinalRenderPanel
+        projectId={id}
+        renders={renders.map((render) => ({
+          id: render.id,
+          version: render.version,
+          status: render.status,
+          width: render.width,
+          height: render.height,
+          fps: render.fps,
+          durationMs: render.durationMs,
+          estimatedCost: render.estimatedCost,
+          errorCode: render.errorCode,
+          errorMessage: render.errorMessage,
+          createdAt: render.createdAt.toISOString(),
         }))}
       />
     </main>

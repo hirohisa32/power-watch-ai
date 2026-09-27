@@ -1,10 +1,6 @@
 import { GET } from "@/app/api/projects/[id]/audit/route";
 
-export default async function VerificationPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function VerificationPage({ params }: { params: Promise<{ id: string }> }) {
   const result = await GET(new Request("https://power-watch-ai.vercel.app/verification"), {
     params,
   });

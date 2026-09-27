@@ -8,6 +8,15 @@
           "topic": "video-generation"
         }
       ]
+    },
+    "app/api/queues/final-render/route.ts": {
+      "maxDuration": 300,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "final-render"
+        }
+      ]
     }
   }
 }

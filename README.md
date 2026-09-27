@@ -81,6 +81,14 @@ Phase 1の時計画像は `projects/{projectId}/source/{uuid}.{ext}` に保存�
 
 ## 品質確認
 
+### Phase 4 Final Composition
+
+- ElevenLabsの同一Voiceで、選択済みSceneのNarrationを1回のTTSとして生成します。
+- NarrationとFinal MP4は非公開R2オブジェクトとして保存します。
+- Remotion Compositionで9:16字幕・年/場所・POWER WATCH Overlayを定義し、Production JobはFFmpegでH.264 MP4を出力します。
+- Default BGMとPreset SEは決定的に合成される固定音源で、Narration中はSidechain Duckされます。
+- Final RenderはVercel Queueで非同期実行し、Storyboard画面からPreview・Re-render・MP4 Downloadが可能です。
+
 ```bash
 pnpm lint
 pnpm format:check

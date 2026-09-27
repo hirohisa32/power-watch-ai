@@ -38,6 +38,8 @@ export const videoJobStatus = pgEnum("video_job_status", [
   "failed",
   "canceled",
 ]);
+export const audioStatus = pgEnum("audio_status", ["generating", "completed", "failed"]);
+export const renderStatus = pgEnum("render_status", ["queued", "rendering", "completed", "failed"]);
 export const scenePreset = pgEnum("scene_preset", [
   "Opening",
   "VintageRoom",
@@ -94,6 +96,7 @@ export const projects = pgTable(
     style: projectStyle("style").notNull(),
     language: projectLanguage("language").notNull(),
     targetDuration: integer("target_duration").notNull(),
+    bgmKey: text("bgm_key").default("default-ambient").notNull(),
     status: projectStatus("status").default("draft").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -255,6 +258,7 @@ export const apiUsage = pgTable(
     inputTokens: integer("input_tokens"),
     cachedInputTokens: integer("cached_input_tokens"),
     outputTokens: integer("output_tokens"),
+    units: integer("units"),
     requestId: text("request_id"),
     durationMs: integer("duration_ms").notNull(),
     estimatedCost: real("estimated_cost"),
@@ -263,9 +267,102 @@ export const apiUsage = pgTable(
   (table) => [index("api_usage_project_idx").on(table.projectId, table.createdAt)],
 );
 
+export const audioRecords = pgTable(
+  "audio_records",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    storyboardId: uuid("storyboard_id")
+      .notNull()
+      .references(() => storyboards.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    voiceId: text("voice_id").notNull(),
+    language: projectLanguage("language").notNull(),
+    status: audioStatus("status").default("generating").notNull(),
+    script: text("script").notNull(),
+    characterCount: integer("character_count").notNull(),
+    durationMs: integer("duration_ms"),
+    objectKey: text("object_key"),
+    mimeType: text("mime_type"),
+    estimatedCost: real("estimated_cost"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [index("audio_records_project_idx").on(table.projectId, table.createdAt)],
+);
+
+export const finalRenders = pgTable(
+  "final_renders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    storyboardId: uuid("storyboard_id")
+      .notNull()
+      .references(() => storyboards.id, { onDelete: "cascade" }),
+    audioRecordId: uuid("audio_record_id").references(() => audioRecords.id, {
+      onDelete: "set null",
+    }),
+    version: integer("version").notNull(),
+    status: renderStatus("status").default("queued").notNull(),
+    width: integer("width").default(1080).notNull(),
+    height: integer("height").default(1920).notNull(),
+    fps: integer("fps").default(30).notNull(),
+    durationMs: integer("duration_ms"),
+    bgmKey: text("bgm_key").default("default-ambient").notNull(),
+    renderInput: jsonb("render_input").default({}).notNull(),
+    outputObjectKey: text("output_object_key"),
+    estimatedCost: real("estimated_cost").default(0).notNull(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("final_renders_project_version_unique").on(table.projectId, table.version),
+    index("final_renders_project_status_idx").on(table.projectId, table.status),
+  ],
+);
+
+export const renderJobs = pgTable(
+  "render_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    renderId: uuid("render_id")
+      .notNull()
+      .references(() => finalRenders.id, { onDelete: "cascade" }),
+    status: renderStatus("status").default("queued").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("render_jobs_render_unique").on(table.renderId),
+    index("render_jobs_project_status_idx").on(table.projectId, table.status),
+  ],
+);
+
 export type Project = typeof projects.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type Storyboard = typeof storyboards.$inferSelect;
 export type Scene = typeof scenes.$inferSelect;
 export type VideoGeneration = typeof videoGenerations.$inferSelect;
 export type VideoJob = typeof videoJobs.$inferSelect;
+export type AudioRecord = typeof audioRecords.$inferSelect;
+export type FinalRender = typeof finalRenders.$inferSelect;
+export type RenderJob = typeof renderJobs.$inferSelect;
