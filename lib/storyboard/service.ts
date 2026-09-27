@@ -19,11 +19,17 @@ export async function generateAndSaveStoryboard(
 ) {
   const prompt = buildStoryboardPrompt(input);
   const generated = await director.generate(prompt);
-  const storyboard = validateStoryboard(
-    generated.storyboard,
-    input.targetDuration,
-    input.assetLabels,
-  );
+  let storyboard;
+  try {
+    storyboard = validateStoryboard(generated.storyboard, input.targetDuration, input.assetLabels);
+  } catch (error) {
+    await persistence.recordUsage({
+      projectId: input.projectId,
+      operation: "storyboard_generation_failed",
+      usage: generated.usage,
+    });
+    throw error;
+  }
   const saved = await persistence.replace({
     projectId: input.projectId,
     storyboard,

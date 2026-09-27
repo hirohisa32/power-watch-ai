@@ -40,6 +40,13 @@ export class StoryboardValidationError extends Error {
   }
 }
 
+const REQUIRED_WATCH_REFERENCE_PRESETS = new Set([
+  "WatchReveal",
+  "WristShot",
+  "WatchMacro",
+  "ProductHero",
+]);
+
 export function totalStoryboardDuration(storyboard: StoryboardOutput) {
   return storyboard.scenes.reduce((sum, scene) => sum + scene.duration, 0);
 }
@@ -66,6 +73,25 @@ export function rebalanceStoryboardDuration(
   return { scenes };
 }
 
+export function normalizeStoryboardReferences(
+  storyboard: StoryboardOutput,
+  availableAssetLabels: string[],
+): StoryboardOutput {
+  const labels = new Set(availableAssetLabels);
+  return {
+    scenes: storyboard.scenes.map((scene) => {
+      const watchReference =
+        scene.watchReference || REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset);
+      if (!watchReference) return { ...scene, watchReference: false, preferredAssetLabels: [] };
+
+      const preferredAssetLabels = scene.preferredAssetLabels.filter((label) => labels.has(label));
+      if (labels.size > 0 && preferredAssetLabels.length === 0)
+        preferredAssetLabels.push(availableAssetLabels[0]);
+      return { ...scene, watchReference: true, preferredAssetLabels };
+    }),
+  };
+}
+
 export function validateStoryboard(
   value: unknown,
   targetDuration: 60 | 90,
@@ -77,7 +103,10 @@ export function validateStoryboard(
     if (scene.sceneNumber !== index + 1)
       throw new StoryboardValidationError("Scene番号が連続していません");
   }
-  const storyboard = rebalanceStoryboardDuration(parsed.data, targetDuration);
+  const storyboard = normalizeStoryboardReferences(
+    rebalanceStoryboardDuration(parsed.data, targetDuration),
+    availableAssetLabels,
+  );
   if (storyboard.scenes[0]?.preset !== "Opening")
     throw new StoryboardValidationError("StoryboardはOpeningから開始する必要があります");
   if (storyboard.scenes.at(-1)?.preset !== "Ending")
@@ -96,10 +125,7 @@ export function validateStoryboard(
       throw new StoryboardValidationError("Reference不要Sceneに時計画像が指定されています");
     if (scene.watchReference && labels.size > 0 && scene.preferredAssetLabels.length === 0)
       throw new StoryboardValidationError("時計SceneのReference画像が指定されていません");
-    if (
-      ["WatchReveal", "WristShot", "WatchMacro", "ProductHero"].includes(scene.preset) &&
-      !scene.watchReference
-    )
+    if (REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset) && !scene.watchReference)
       throw new StoryboardValidationError("時計を表示するPresetにはReference指定が必要です");
     if (/power\s*watch/i.test(scene.visualPrompt))
       throw new StoryboardValidationError("POWER WATCH文字は映像Promptへ含められません");
@@ -118,9 +144,6 @@ export function validateSceneAssetLabels(
     throw new StoryboardValidationError("存在しない時計画像Labelが指定されています");
   if (!scene.watchReference && scene.preferredAssetLabels.length > 0)
     throw new StoryboardValidationError("Reference不要Sceneに時計画像が指定されています");
-  if (
-    ["WatchReveal", "WristShot", "WatchMacro", "ProductHero"].includes(scene.preset) &&
-    !scene.watchReference
-  )
+  if (REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset) && !scene.watchReference)
     throw new StoryboardValidationError("時計を表示するPresetにはReference指定が必要です");
 }

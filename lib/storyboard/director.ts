@@ -13,6 +13,7 @@ export type StoryboardDirectorResult = {
   usage: {
     model: string;
     inputTokens: number | null;
+    cachedInputTokens: number | null;
     outputTokens: number | null;
     requestId: string | null;
     durationMs: number;
@@ -74,6 +75,7 @@ export class OpenAIStoryboardDirector implements StoryboardDirector {
         usage: {
           model: response.model ?? model,
           inputTokens: response.usage?.input_tokens ?? null,
+          cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens ?? null,
           outputTokens: response.usage?.output_tokens ?? null,
           requestId: requestId ?? null,
           durationMs: Date.now() - startedAt,

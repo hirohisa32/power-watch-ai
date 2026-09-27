@@ -253,6 +253,7 @@ export const apiUsage = pgTable(
     operation: text("operation").notNull(),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens"),
+    cachedInputTokens: integer("cached_input_tokens"),
     outputTokens: integer("output_tokens"),
     requestId: text("request_id"),
     durationMs: integer("duration_ms").notNull(),

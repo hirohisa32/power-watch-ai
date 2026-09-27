@@ -36,14 +36,28 @@ describe("storyboard schema", () => {
     expect(() => validateStoryboard(fixture, 60, [])).toThrow("Scene番号");
   });
 
-  it("rejects unknown watch asset labels", () => {
+  it("replaces unknown watch asset labels with an available asset", () => {
     const fixture = storyboardFixture(60);
     fixture.scenes[2] = {
       ...fixture.scenes[2],
       watchReference: true,
       preferredAssetLabels: ["Invented Angle"],
     };
-    expect(() => validateStoryboard(fixture, 60, ["Front"])).toThrow("存在しない");
+    expect(validateStoryboard(fixture, 60, ["Front"]).scenes[2].preferredAssetLabels).toEqual([
+      "Front",
+    ]);
+  });
+
+  it("normalizes required watch references to an available asset", () => {
+    const fixture = storyboardFixture(60);
+    const hero = fixture.scenes.at(-2)!;
+    hero.watchReference = false;
+    hero.preferredAssetLabels = ["Invented Angle"];
+    const result = validateStoryboard(fixture, 60, ["Front"]);
+    expect(result.scenes.at(-2)).toMatchObject({
+      watchReference: true,
+      preferredAssetLabels: ["Front"],
+    });
   });
 
   it("rejects a missing script before an API call", () => {

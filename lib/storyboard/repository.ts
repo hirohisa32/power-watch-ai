@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, max, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { apiUsage, projects, scenes, storyboards } from "@/lib/db/schema";
+import { estimateOpenAiCost } from "@/lib/storyboard/cost";
 import type { StoryboardDirectorResult } from "@/lib/storyboard/director";
 import type { StoryboardOutput } from "@/lib/storyboard/schema";
 
@@ -11,11 +12,35 @@ export type PersistStoryboardInput = {
   usage: StoryboardDirectorResult["usage"];
 };
 
+export type RecordStoryboardUsageInput = {
+  projectId: string;
+  operation: "storyboard_generation_failed";
+  usage: StoryboardDirectorResult["usage"];
+};
+
 export interface StoryboardPersistence {
   replace(input: PersistStoryboardInput): Promise<{ storyboardId: string; version: number }>;
+  recordUsage(input: RecordStoryboardUsageInput): Promise<void>;
 }
 
 export class DrizzleStoryboardPersistence implements StoryboardPersistence {
+  async recordUsage(input: RecordStoryboardUsageInput) {
+    await getDb()
+      .insert(apiUsage)
+      .values({
+        projectId: input.projectId,
+        provider: "openai",
+        operation: input.operation,
+        model: input.usage.model,
+        inputTokens: input.usage.inputTokens,
+        cachedInputTokens: input.usage.cachedInputTokens,
+        outputTokens: input.usage.outputTokens,
+        requestId: input.usage.requestId,
+        durationMs: input.usage.durationMs,
+        estimatedCost: estimateOpenAiCost(input.usage),
+      });
+  }
+
   async replace(input: PersistStoryboardInput) {
     const db = getDb();
     return db.transaction(async (transaction) => {
@@ -52,9 +77,11 @@ export class DrizzleStoryboardPersistence implements StoryboardPersistence {
         operation: "storyboard_generation",
         model: input.usage.model,
         inputTokens: input.usage.inputTokens,
+        cachedInputTokens: input.usage.cachedInputTokens,
         outputTokens: input.usage.outputTokens,
         requestId: input.usage.requestId,
         durationMs: input.usage.durationMs,
+        estimatedCost: estimateOpenAiCost(input.usage),
       });
       await transaction
         .update(projects)
