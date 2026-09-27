@@ -2,13 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["@ffmpeg-installer/ffmpeg"],
   outputFileTracingIncludes: {
-    "/api/queues/final-render": [
-      "./node_modules/@ffmpeg-installer/ffmpeg/**/*",
-      "./node_modules/@ffmpeg-installer/linux-x64/**/*",
-      "./node_modules/@fontsource/noto-sans-jp/files/**/*",
-    ],
+    "/api/queues/final-render": ["./.vercel-build-assets/**/*"],
   },
   async headers() {
     return [

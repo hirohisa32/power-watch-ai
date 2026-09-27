@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import path from "node:path";
 import type { FinalRenderInput } from "./types";
 import { SOUND_EFFECT_BY_PRESET } from "./plan";
@@ -92,15 +91,12 @@ export async function probeDurationMs(file: string) {
 }
 
 export function resolveFontDirectory() {
-  const require = createRequire(import.meta.url);
-  return path.join(path.dirname(require.resolve("@fontsource/noto-sans-jp/package.json")), "files");
+  return path.join(process.cwd(), ".vercel-build-assets");
 }
 
 function resolveFfmpegPath() {
   if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
-  const require = createRequire(import.meta.url);
-  const installer = require("@ffmpeg-installer/ffmpeg") as { path: string };
-  return installer.path;
+  return path.join(process.cwd(), ".vercel-build-assets", "ffmpeg");
 }
 
 function buildSoundEffectSource(input: FinalRenderInput) {
