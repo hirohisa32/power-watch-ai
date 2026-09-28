@@ -24,7 +24,9 @@ function prepareFinalRenderAssets() {
   const fontRoot = packageRoot(require, "@noto-pdf-ts/fonts-jp");
   const fontFile = findFontFile(fontRoot);
   if (!fontFile) throw new Error("Noto Sans JP font file was not found");
-  copyFileSync(fontFile, join(output, `NotoSansJP${extname(fontFile)}`));
+  const fontOutput = join(output, "fonts");
+  mkdirSync(fontOutput, { recursive: true });
+  copyFileSync(fontFile, join(fontOutput, `NotoSansJP${extname(fontFile)}`));
 }
 
 function packageRoot(require, packageName) {
