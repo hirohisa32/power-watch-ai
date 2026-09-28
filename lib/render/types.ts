@@ -1,4 +1,5 @@
 import type { SubtitleCue } from "@/lib/audio/timing";
+import type { DialogueLine, VoiceAssignment } from "@/lib/audio/voices";
 
 export type RenderScene = {
   sceneId: string;
@@ -7,6 +8,8 @@ export type RenderScene = {
   preset: string;
   duration: number;
   narration: string;
+  narrationTone?: string;
+  dialogue?: DialogueLine[];
   subtitle: string;
   year: string | null;
   location: string | null;
@@ -32,4 +35,5 @@ export type FinalRenderInput = {
   scenes: RenderScene[];
   subtitles: SubtitleCue[];
   overlays: TextOverlay[];
+  voiceAssignments: VoiceAssignment[];
 };

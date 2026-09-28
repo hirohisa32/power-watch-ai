@@ -7,13 +7,13 @@ import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/eleven
 describe("ElevenLabs narration adapter", () => {
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = "test-key";
-    process.env.ELEVENLABS_VOICE_ID = "voice-1";
+    process.env.ELEVENLABS_DEFAULT_VOICE_ID = "voice-1";
     process.env.ELEVENLABS_MODEL = "eleven_multilingual_v2";
   });
 
   afterEach(() => {
     delete process.env.ELEVENLABS_API_KEY;
-    delete process.env.ELEVENLABS_VOICE_ID;
+    delete process.env.ELEVENLABS_DEFAULT_VOICE_ID;
     delete process.env.ELEVENLABS_MODEL;
   });
 
@@ -54,5 +54,34 @@ describe("ElevenLabs narration adapter", () => {
       code: "CREDITS",
       message: "ElevenLabsのクレジット残高を確認してください",
     } satisfies Partial<ElevenLabsError>);
+  });
+
+  it("maps Voice Library results without generating audio", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      Response.json({
+        voices: [
+          {
+            voice_id: "library-1",
+            public_owner_id: "owner-1",
+            name: "Japanese Narrator",
+            gender: "male",
+            description: "calm documentary",
+            preview_url: "https://example.com/preview.mp3",
+          },
+        ],
+        has_more: false,
+        total_count: 1,
+      }),
+    );
+    const provider = new ElevenLabsNarrationProvider(fetcher);
+    await expect(
+      provider.listLibraryVoices({ language: "ja", gender: "male", pageSize: 5 }),
+    ).resolves.toMatchObject({
+      voices: [{ voiceId: "library-1", publicOwnerId: "owner-1" }],
+      hasMore: false,
+      totalCount: 1,
+    });
+    expect(String(fetcher.mock.calls[0][0])).toContain("/v1/shared-voices?");
+    expect(String(fetcher.mock.calls[0][0])).toContain("language=ja");
   });
 });

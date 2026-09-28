@@ -5,10 +5,14 @@ import {
   finalRenders,
   projects,
   renderJobs,
+  sceneVoiceAssignments,
   scenes,
   storyboards,
   videoGenerations,
+  voicePresets,
 } from "@/lib/db/schema";
+import { narrationConfig } from "@/lib/audio/config";
+import { selectVoicePlan, type ApprovedVoicePreset } from "@/lib/audio/voices";
 import { buildFinalRenderInput } from "./plan";
 
 export class RenderRequestError extends Error {
@@ -64,11 +68,88 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         preset: row.scene.preset,
         duration: row.scene.duration,
         narration: row.scene.narration,
+        narrationTone: row.scene.narrationTone,
+        dialogue: row.scene.dialogue,
         subtitle: row.scene.subtitle,
         year: row.scene.year,
         location: row.scene.location,
         objectKey: row.outputObjectKey!,
       }));
+    const presetRows = await transaction
+      .select()
+      .from(voicePresets)
+      .where(eq(voicePresets.approved, true));
+    let voicePlan;
+    try {
+      voicePlan = selectVoicePlan({
+        language: project.language,
+        scenes: renderable.map((scene) => ({
+          sceneId: scene.sceneId,
+          preset: scene.preset,
+          title: rows.find((row) => row.scene.id === scene.sceneId)?.scene.title ?? "",
+          narration: scene.narration,
+          narrationTone: scene.narrationTone,
+          dialogue: scene.dialogue,
+        })),
+        presets: presetRows.map(
+          (preset): ApprovedVoicePreset => ({
+            id: preset.id,
+            key: preset.key,
+            voiceId: preset.voiceId,
+            name: preset.name,
+            gender:
+              preset.gender === "female" || preset.gender === "neutral"
+                ? preset.gender
+                : "male",
+            roles: preset.roles,
+            tones: preset.tones,
+            languages: preset.languages,
+            priority: preset.priority,
+            approved: preset.approved,
+          }),
+        ),
+        defaultVoiceId: narrationConfig().defaultVoiceId,
+        projectNarratorVoiceId: project.narratorVoiceId,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "VOICE_PRESET_REQUIRED")
+        throw new RenderRequestError(
+          "承認済みVoice PresetまたはELEVENLABS_DEFAULT_VOICE_IDを設定してください",
+        );
+      throw error;
+    }
+    if (!project.narratorVoiceId)
+      await transaction
+        .update(projects)
+        .set({ narratorVoiceId: voicePlan.narratorVoiceId, updatedAt: new Date() })
+        .where(eq(projects.id, project.id));
+    for (const assignment of voicePlan.assignments) {
+      await transaction
+        .insert(sceneVoiceAssignments)
+        .values({
+          projectId: project.id,
+          storyboardId: storyboard.id,
+          sceneId: assignment.sceneId,
+          speakerKey: assignment.speakerKey,
+          role: assignment.role,
+          voicePresetId: assignment.voicePresetId,
+          voiceId: assignment.voiceId,
+          tone: assignment.tone,
+        })
+        .onConflictDoUpdate({
+          target: [
+            sceneVoiceAssignments.sceneId,
+            sceneVoiceAssignments.speakerKey,
+            sceneVoiceAssignments.role,
+          ],
+          set: {
+            voicePresetId: assignment.voicePresetId,
+            voiceId: assignment.voiceId,
+            tone: assignment.tone,
+            updatedAt: new Date(),
+          },
+        });
+    }
     let renderInput;
     try {
       renderInput = buildFinalRenderInput({
@@ -76,6 +157,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         bgmKey: project.bgmKey,
         scenes: renderable,
         totalSceneCount: rows.length,
+        voiceAssignments: voicePlan.assignments,
       });
     } catch (error) {
       if (error instanceof Error && error.message === "MISSING_SCENE_VIDEO")

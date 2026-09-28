@@ -12,6 +12,8 @@ type EditorScene = {
   title: string;
   duration: number;
   narration: string;
+  narrationTone: string;
+  dialogue: Array<{ speaker: string; text: string; tone: string }>;
   subtitle: string;
   visualDescription: string;
   visualPrompt: string;
@@ -64,6 +66,8 @@ const blankScene = (): Omit<
   title: "New Scene",
   duration: 5,
   narration: "ナレーションを入力",
+  narrationTone: "documentary",
+  dialogue: [],
   subtitle: "字幕を入力",
   visualDescription: "物語の背景を補足する追加Scene",
   visualPrompt:

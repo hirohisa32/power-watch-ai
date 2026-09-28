@@ -21,22 +21,52 @@ export type NarrationResult = {
 
 export interface NarrationProvider {
   readonly name: string;
-  generate(input: { text: string; speed: number }): Promise<NarrationResult>;
+  generate(input: { text: string; speed: number; voiceId?: string }): Promise<NarrationResult>;
+  listLibraryVoices(input?: VoiceLibraryQuery): Promise<VoiceLibraryResult>;
 }
+
+export type VoiceLibraryQuery = {
+  language?: "ja" | "en" | "zh";
+  gender?: "male" | "female" | "neutral";
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type VoiceLibraryVoice = {
+  voiceId: string;
+  publicOwnerId?: string;
+  name: string;
+  gender?: string;
+  accent?: string;
+  description?: string;
+  previewUrl?: string;
+};
+
+export type VoiceLibraryResult = {
+  voices: VoiceLibraryVoice[];
+  hasMore: boolean;
+  totalCount?: number;
+};
 
 export class ElevenLabsNarrationProvider implements NarrationProvider {
   readonly name = "elevenlabs";
 
   constructor(private readonly fetcher: typeof fetch = fetch) {}
 
-  async generate(input: { text: string; speed: number }): Promise<NarrationResult> {
+  async generate(input: {
+    text: string;
+    speed: number;
+    voiceId?: string;
+  }): Promise<NarrationResult> {
     const config = narrationConfig();
-    if (!config.apiKey || !config.voiceId)
+    const voiceId = input.voiceId || config.defaultVoiceId;
+    if (!config.apiKey || !voiceId)
       throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
     let response: Response;
     try {
       response = await this.fetcher(
-        `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(config.voiceId)}?output_format=mp3_44100_128`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
         {
           method: "POST",
           headers: { "content-type": "application/json", "xi-api-key": config.apiKey },
@@ -84,6 +114,72 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
       characterCost:
         Number.isFinite(headerCost) && headerCost > 0 ? headerCost : [...input.text].length,
       requestId: response.headers.get("request-id") || undefined,
+    };
+  }
+
+  async listLibraryVoices(input: VoiceLibraryQuery = {}): Promise<VoiceLibraryResult> {
+    const config = narrationConfig();
+    if (!config.apiKey)
+      throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
+    const params = new URLSearchParams({
+      page: String(Math.max(0, input.page ?? 0)),
+      page_size: String(Math.min(100, Math.max(1, input.pageSize ?? 30))),
+      sort: "trending",
+    });
+    if (input.language) params.set("language", input.language);
+    if (input.gender) params.set("gender", input.gender);
+    if (input.search?.trim()) params.set("search", input.search.trim());
+    let response: Response;
+    try {
+      response = await this.fetcher(`https://api.elevenlabs.io/v1/shared-voices?${params}`, {
+        headers: { "xi-api-key": config.apiKey },
+        signal: AbortSignal.timeout(config.timeoutMs),
+      });
+    } catch (error) {
+      throw new ElevenLabsError(
+        "NETWORK",
+        error instanceof Error ? error.message : "Voice Libraryへの接続に失敗しました",
+        true,
+      );
+    }
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403)
+        throw new ElevenLabsError("AUTH", "ElevenLabsの認証を確認してください");
+      if (response.status === 429)
+        throw new ElevenLabsError("CREDITS", "ElevenLabsの利用制限を確認してください");
+      throw new ElevenLabsError(
+        "PROVIDER",
+        `Voice Libraryの取得に失敗しました (${response.status})`,
+        response.status >= 500,
+      );
+    }
+    const body = (await response.json()) as {
+      voices?: Array<{
+        voice_id?: string;
+        public_owner_id?: string;
+        name?: string;
+        gender?: string;
+        accent?: string;
+        description?: string;
+        preview_url?: string;
+      }>;
+      has_more?: boolean;
+      total_count?: number;
+    };
+    return {
+      voices: (body.voices ?? [])
+        .filter((voice) => Boolean(voice.voice_id))
+        .map((voice) => ({
+          voiceId: voice.voice_id!,
+          publicOwnerId: voice.public_owner_id,
+          name: voice.name || voice.voice_id!,
+          gender: voice.gender,
+          accent: voice.accent,
+          description: voice.description,
+          previewUrl: voice.preview_url,
+        })),
+      hasMore: Boolean(body.has_more),
+      totalCount: body.total_count,
     };
   }
 }

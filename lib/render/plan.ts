@@ -1,4 +1,5 @@
 import { buildSubtitleCues } from "@/lib/audio/timing";
+import type { VoiceAssignment } from "@/lib/audio/voices";
 import type { FinalRenderInput, RenderScene, TextOverlay } from "./types";
 
 export const SOUND_EFFECT_BY_PRESET: Record<string, { key: string; frequency: number }> = {
@@ -22,6 +23,7 @@ export function buildFinalRenderInput(input: {
   bgmKey: string;
   scenes: RenderScene[];
   totalSceneCount: number;
+  voiceAssignments?: VoiceAssignment[];
 }): FinalRenderInput {
   const scenes = [...input.scenes].sort((a, b) => a.order - b.order);
   if (!scenes.length) throw new Error("MISSING_SCENE_VIDEO");
@@ -65,6 +67,7 @@ export function buildFinalRenderInput(input: {
     scenes,
     subtitles,
     overlays,
+    voiceAssignments: input.voiceAssignments ?? [],
   };
 }
 

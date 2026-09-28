@@ -16,6 +16,8 @@ export function apiError(
     return NextResponse.json({ error: error.message }, { status: 409 });
   if (error instanceof Error && error.name === "RenderRequestError")
     return NextResponse.json({ error: error.message }, { status: 409 });
+  if (error instanceof Error && error.name === "VoicePresetError")
+    return NextResponse.json({ error: error.message }, { status: 409 });
   if (error instanceof Error && error.message === "INVALID_ORIGIN")
     return NextResponse.json({ error: "リクエストを確認できませんでした" }, { status: 403 });
   console.error("API request failed", {

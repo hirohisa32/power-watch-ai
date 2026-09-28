@@ -90,6 +90,30 @@ export async function probeDurationMs(file: string) {
   return Math.round((Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 1000);
 }
 
+export async function concatSpeechAudio(files: string[], output: string) {
+  if (!files.length) throw new Error("AUDIO_SEGMENTS_REQUIRED");
+  if (files.length === 1) {
+    const { copyFile } = await import("node:fs/promises");
+    await copyFile(files[0], output);
+    return;
+  }
+  const args = ["-y", "-hide_banner", "-loglevel", "warning"];
+  files.forEach((file) => args.push("-i", file));
+  const inputs = files.map((_, index) => `[${index}:a]`).join("");
+  args.push(
+    "-filter_complex",
+    `${inputs}concat=n=${files.length}:v=0:a=1,aresample=44100[aout]`,
+    "-map",
+    "[aout]",
+    "-c:a",
+    "libmp3lame",
+    "-b:a",
+    "128k",
+    output,
+  );
+  await run(resolveFfmpegPath(), args, 120_000);
+}
+
 export function resolveFontDirectory() {
   return path.join(process.cwd(), ".vercel-build-assets");
 }

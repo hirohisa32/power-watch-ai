@@ -8,6 +8,16 @@ export const storyboardSceneSchema = z
     title: z.string().trim().min(1).max(120),
     duration: z.number().int().min(3).max(8),
     narration: z.string().trim().min(1).max(1200),
+    narrationTone: z.string().trim().min(1).max(40),
+    dialogue: z
+      .array(
+        z.object({
+          speaker: z.string().trim().min(1).max(80),
+          text: z.string().trim().min(1).max(600),
+          tone: z.string().trim().min(1).max(40),
+        }),
+      )
+      .max(12),
     subtitle: z.string().trim().min(1).max(500),
     visualDescription: z.string().trim().min(10).max(1000),
     visualPrompt: z.string().trim().min(30).max(1600),

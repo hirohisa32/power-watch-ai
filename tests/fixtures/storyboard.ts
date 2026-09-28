@@ -16,6 +16,8 @@ export function storyboardFixture(target: 60 | 90): StoryboardOutput {
       title: `Scene ${index + 1}`,
       duration: 5,
       narration: `Narration for scene ${index + 1}`,
+      narrationTone: "documentary",
+      dialogue: [],
       subtitle: `Subtitle ${index + 1}`,
       visualDescription: "A production-ready cinematic watch story scene.",
       visualPrompt:

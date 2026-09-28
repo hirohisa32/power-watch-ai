@@ -32,6 +32,8 @@ NON-NEGOTIABLE RULES
 8. Use watchReference=true whenever the physical watch is visible. preferredAssetLabels may only use the supplied labels. If no suitable supplied label exists, use an empty list.
 9. Use year and location only when supported by the script. They will be exact post-production overlays, not generated inside the video.
 10. Keep narration speakable within each scene duration. Subtitle should be concise and readable on a phone.
+11. Set narrationTone when a specific delivery such as documentary, solemn, tense, warm, or energetic is useful.
+12. Use dialogue only for words actually supported by the supplied script. Each dialogue item must identify a stable speaker name and tone. Do not turn ordinary narration into invented quotes.
 
 STYLE
 ${styleDirection}

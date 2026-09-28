@@ -8,14 +8,16 @@ import {
   ElevenLabsError,
   ElevenLabsNarrationProvider,
   type NarrationProvider,
+  type NarrationResult,
 } from "@/lib/audio/elevenlabs";
 import { narrationConfig } from "@/lib/audio/config";
 import { buildAudioRecord } from "@/lib/audio/record";
+import { buildSpeechSegments } from "@/lib/audio/voices";
 import { getDb } from "@/lib/db";
 import { apiUsage, audioRecords, finalRenders, renderJobs } from "@/lib/db/schema";
 import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
 import { createAssSubtitles } from "./ass";
-import { probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
+import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
 import { narrationObjectKey, renderObjectKey } from "./plan";
 import type { FinalRenderInput } from "./types";
 
@@ -25,6 +27,7 @@ type WorkerDependencies = {
   sign: typeof createReadUrl;
   render: typeof renderWithFfmpeg;
   probe: typeof probeDurationMs;
+  composeSpeech: typeof concatSpeechAudio;
   download: typeof downloadPrivateMedia;
 };
 
@@ -34,6 +37,7 @@ const defaults = (): WorkerDependencies => ({
   sign: createReadUrl,
   render: renderWithFfmpeg,
   probe: probeDurationMs,
+  composeSpeech: concatSpeechAudio,
   download: downloadPrivateMedia,
 });
 
@@ -72,7 +76,7 @@ export async function processFinalRenderJob(
     "narration";
   const workDir = await mkdtemp(path.join(tmpdir(), "power-watch-render-"));
   try {
-    const script = buildNarrationScript(
+    const narrationScript = buildNarrationScript(
       renderInput.scenes.map((scene) => ({
         id: scene.sceneId,
         duration: scene.duration,
@@ -81,10 +85,21 @@ export async function processFinalRenderJob(
       })),
       renderInput.language,
     );
+    const script = renderInput.scenes
+      .flatMap((scene) => [scene.narration, ...(scene.dialogue ?? []).map((line) => line.text)])
+      .map((text) => text.trim())
+      .filter(Boolean)
+      .join(renderInput.language === "en" ? "\n\n" : "。\n\n")
+      .replace(/。。/g, "。");
     const speed = narrationSpeed(script, renderInput.totalDuration, renderInput.language);
     assertNarrationFits(script, renderInput.totalDuration, speed, renderInput.language);
     const config = narrationConfig();
-    if (!config.voiceId) throw new ElevenLabsError("AUTH", "ElevenLabs Voice IDが未設定です");
+    const narratorVoiceId =
+      (renderInput.voiceAssignments ?? []).find(
+        (assignment) => assignment.role === "narration" && assignment.speakerKey === "narrator",
+      )?.voiceId ?? config.defaultVoiceId;
+    if (!narratorVoiceId)
+      throw new ElevenLabsError("AUTH", "ElevenLabs Voice IDが未設定です");
     const [audio] = await db
       .insert(audioRecords)
       .values(
@@ -93,7 +108,7 @@ export async function processFinalRenderJob(
           storyboardId: row.render.storyboardId,
           provider: dependencies.narration.name,
           model: config.model,
-          voiceId: config.voiceId,
+          voiceId: narratorVoiceId,
           language: renderInput.language,
           script,
         }),
@@ -101,14 +116,45 @@ export async function processFinalRenderJob(
       .returning();
     audioId = audio.id;
     const narrationStarted = Date.now();
-    const generated = await dependencies.narration.generate({ text: script, speed });
+    const speechSegments = buildSpeechSegments({
+      scenes: renderInput.scenes.map((scene) => ({
+        sceneId: scene.sceneId,
+        preset: scene.preset,
+        title: "",
+        narration: scene.narration,
+        narrationTone: scene.narrationTone,
+        dialogue: scene.dialogue,
+      })),
+      assignments: renderInput.voiceAssignments ?? [],
+      narrationScript,
+      narratorVoiceId,
+    });
+    const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
+    for (const [index, segment] of speechSegments.entries()) {
+      const generated = await dependencies.narration.generate({
+        text: segment.text,
+        speed,
+        voiceId: segment.voiceId,
+      });
+      const segmentPath = path.join(workDir, `speech-${index}.mp3`);
+      await writeFile(segmentPath, generated.bytes);
+      generatedSegments.push({ generated, path: segmentPath });
+    }
     const narrationPath = path.join(workDir, "narration.mp3");
-    await writeFile(narrationPath, generated.bytes);
+    await dependencies.composeSpeech(
+      generatedSegments.map((segment) => segment.path),
+      narrationPath,
+    );
     const audioDurationMs = await dependencies.probe(narrationPath);
     stage = "audio-upload";
     const audioKey = narrationObjectKey(row.render.projectId, audio.id);
-    await dependencies.upload(audioKey, generated.bytes, generated.contentType);
-    const narrationCost = (generated.characterCost / 1000) * config.pricePerThousandCharacters;
+    const narrationBytes = new Uint8Array(await readFile(narrationPath));
+    await dependencies.upload(audioKey, narrationBytes, "audio/mpeg");
+    const characterCost = generatedSegments.reduce(
+      (sum, segment) => sum + segment.generated.characterCost,
+      0,
+    );
+    const narrationCost = (characterCost / 1000) * config.pricePerThousandCharacters;
     await db.transaction(async (transaction) => {
       await transaction
         .update(audioRecords)
@@ -116,7 +162,7 @@ export async function processFinalRenderJob(
           status: "completed",
           durationMs: audioDurationMs,
           objectKey: audioKey,
-          mimeType: generated.contentType,
+          mimeType: "audio/mpeg",
           estimatedCost: narrationCost,
           completedAt: new Date(),
           updatedAt: new Date(),
@@ -131,8 +177,11 @@ export async function processFinalRenderJob(
         provider: dependencies.narration.name,
         operation: "narration_generation",
         model: config.model,
-        units: generated.characterCost,
-        requestId: generated.requestId,
+        units: characterCost,
+        requestId: generatedSegments
+          .map((segment) => segment.generated.requestId)
+          .filter(Boolean)
+          .join(",") || undefined,
         durationMs: Date.now() - narrationStarted,
         estimatedCost: narrationCost,
       });

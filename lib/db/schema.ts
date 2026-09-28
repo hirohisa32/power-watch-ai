@@ -40,6 +40,7 @@ export const videoJobStatus = pgEnum("video_job_status", [
 ]);
 export const audioStatus = pgEnum("audio_status", ["generating", "completed", "failed"]);
 export const renderStatus = pgEnum("render_status", ["queued", "rendering", "completed", "failed"]);
+export const voiceRole = pgEnum("voice_role", ["narration", "dialogue"]);
 export const scenePreset = pgEnum("scene_preset", [
   "Opening",
   "VintageRoom",
@@ -97,6 +98,7 @@ export const projects = pgTable(
     language: projectLanguage("language").notNull(),
     targetDuration: integer("target_duration").notNull(),
     bgmKey: text("bgm_key").default("default-ambient").notNull(),
+    narratorVoiceId: text("narrator_voice_id"),
     status: projectStatus("status").default("draft").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -157,6 +159,11 @@ export const scenes = pgTable(
     title: text("title").notNull(),
     duration: integer("duration").notNull(),
     narration: text("narration").notNull(),
+    narrationTone: text("narration_tone").default("documentary").notNull(),
+    dialogue: jsonb("dialogue")
+      .$type<Array<{ speaker: string; text: string; tone: string }>>()
+      .default([])
+      .notNull(),
     subtitle: text("subtitle").notNull(),
     visualDescription: text("visual_description").notNull(),
     visualPrompt: text("visual_prompt").notNull(),
@@ -297,6 +304,63 @@ export const audioRecords = pgTable(
   (table) => [index("audio_records_project_idx").on(table.projectId, table.createdAt)],
 );
 
+export const voicePresets = pgTable(
+  "voice_presets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").notNull(),
+    voiceId: text("voice_id").notNull(),
+    name: text("name").notNull(),
+    gender: text("gender").default("male").notNull(),
+    roles: jsonb("roles").$type<Array<"narration" | "dialogue">>().default([]).notNull(),
+    tones: jsonb("tones").$type<string[]>().default([]).notNull(),
+    languages: jsonb("languages").$type<Array<"ja" | "en" | "zh">>().default([]).notNull(),
+    source: text("source").default("voice-library").notNull(),
+    approved: boolean("approved").default(true).notNull(),
+    priority: integer("priority").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("voice_presets_key_unique").on(table.key),
+    uniqueIndex("voice_presets_voice_id_unique").on(table.voiceId),
+    index("voice_presets_approved_idx").on(table.approved, table.priority),
+  ],
+);
+
+export const sceneVoiceAssignments = pgTable(
+  "scene_voice_assignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    storyboardId: uuid("storyboard_id")
+      .notNull()
+      .references(() => storyboards.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    speakerKey: text("speaker_key").notNull(),
+    role: voiceRole("role").notNull(),
+    voicePresetId: uuid("voice_preset_id").references(() => voicePresets.id, {
+      onDelete: "set null",
+    }),
+    voiceId: text("voice_id").notNull(),
+    tone: text("tone").default("neutral").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("scene_voice_assignment_unique").on(
+      table.sceneId,
+      table.speakerKey,
+      table.role,
+    ),
+    index("scene_voice_assignments_project_idx").on(table.projectId, table.storyboardId),
+  ],
+);
+
 export const finalRenders = pgTable(
   "final_renders",
   {
@@ -364,5 +428,7 @@ export type Scene = typeof scenes.$inferSelect;
 export type VideoGeneration = typeof videoGenerations.$inferSelect;
 export type VideoJob = typeof videoJobs.$inferSelect;
 export type AudioRecord = typeof audioRecords.$inferSelect;
+export type VoicePreset = typeof voicePresets.$inferSelect;
+export type SceneVoiceAssignment = typeof sceneVoiceAssignments.$inferSelect;
 export type FinalRender = typeof finalRenders.$inferSelect;
 export type RenderJob = typeof renderJobs.$inferSelect;
