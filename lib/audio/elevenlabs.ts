@@ -28,6 +28,11 @@ export interface NarrationProvider {
 export type VoiceLibraryQuery = {
   language?: "ja" | "en" | "zh";
   gender?: "male" | "female" | "neutral";
+  age?: string;
+  category?: "professional" | "famous" | "high_quality";
+  accent?: string;
+  useCases?: string[];
+  descriptives?: string[];
   search?: string;
   page?: number;
   pageSize?: number;
@@ -38,7 +43,14 @@ export type VoiceLibraryVoice = {
   publicOwnerId?: string;
   name: string;
   gender?: string;
+  language?: string;
+  locale?: string;
+  age?: string;
+  category?: string;
   accent?: string;
+  useCases: string[];
+  descriptives: string[];
+  verifiedLanguages: string[];
   description?: string;
   previewUrl?: string;
 };
@@ -97,7 +109,7 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
         throw new ElevenLabsError("AUTH", "ElevenLabsの認証を確認してください");
       if (response.status === 402 || response.status === 429)
         throw new ElevenLabsError("CREDITS", "ElevenLabsのクレジット残高を確認してください");
-      if (response.status === 400 || response.status === 422)
+      if (response.status === 400 || response.status === 404 || response.status === 422)
         throw new ElevenLabsError("INVALID_REQUEST", "ナレーション原稿を確認してください");
       throw new ElevenLabsError(
         "PROVIDER",
@@ -128,6 +140,11 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
     });
     if (input.language) params.set("language", input.language);
     if (input.gender) params.set("gender", input.gender);
+    if (input.age) params.set("age", input.age);
+    if (input.category) params.set("category", input.category);
+    if (input.accent) params.set("accent", input.accent);
+    input.useCases?.forEach((value) => params.append("use_cases", value));
+    input.descriptives?.forEach((value) => params.append("descriptives", value));
     if (input.search?.trim()) params.set("search", input.search.trim());
     let response: Response;
     try {
@@ -159,7 +176,15 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
         public_owner_id?: string;
         name?: string;
         gender?: string;
+        language?: string;
+        locale?: string;
+        age?: string;
+        category?: string;
         accent?: string;
+        use_case?: string;
+        use_cases?: string[];
+        descriptives?: string[];
+        verified_languages?: Array<{ language?: string; locale?: string }>;
         description?: string;
         preview_url?: string;
       }>;
@@ -174,7 +199,16 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
           publicOwnerId: voice.public_owner_id,
           name: voice.name || voice.voice_id!,
           gender: voice.gender,
+          language: voice.language,
+          locale: voice.locale,
+          age: voice.age,
+          category: voice.category,
           accent: voice.accent,
+          useCases: voice.use_cases ?? (voice.use_case ? [voice.use_case] : []),
+          descriptives: voice.descriptives ?? [],
+          verifiedLanguages: (voice.verified_languages ?? [])
+            .flatMap((item) => [item.language, item.locale])
+            .filter((value): value is string => Boolean(value)),
           description: voice.description,
           previewUrl: voice.preview_url,
         })),

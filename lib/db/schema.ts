@@ -99,6 +99,7 @@ export const projects = pgTable(
     targetDuration: integer("target_duration").notNull(),
     bgmKey: text("bgm_key").default("default-ambient").notNull(),
     narratorVoiceId: text("narrator_voice_id"),
+    narratorSelectionReason: text("narrator_selection_reason"),
     status: projectStatus("status").default("draft").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -163,6 +164,12 @@ export const scenes = pgTable(
     dialogue: jsonb("dialogue")
       .$type<Array<{ speaker: string; text: string; tone: string }>>()
       .default([])
+      .notNull(),
+    voiceId: text("voice_id"),
+    voiceSelectionSource: text("voice_selection_source"),
+    voiceSelectionMetadata: jsonb("voice_selection_metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
       .notNull(),
     subtitle: text("subtitle").notNull(),
     visualDescription: text("visual_description").notNull(),
@@ -348,6 +355,13 @@ export const sceneVoiceAssignments = pgTable(
     }),
     voiceId: text("voice_id").notNull(),
     tone: text("tone").default("neutral").notNull(),
+    selectionSource: text("selection_source").default("default_fallback").notNull(),
+    selectionReason: text("selection_reason"),
+    selectionMetadata: jsonb("selection_metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    manualOverride: boolean("manual_override").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

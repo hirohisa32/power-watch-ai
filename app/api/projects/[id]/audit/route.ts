@@ -9,6 +9,7 @@ import {
   finalRenders,
   projects,
   renderJobs,
+  sceneVoiceAssignments,
   scenes,
   storyboards,
   videoGenerations,
@@ -23,7 +24,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const { id } = await params;
     const db = getDb();
     const [project] = await db
-      .select({ id: projects.id, status: projects.status, targetDuration: projects.targetDuration })
+      .select({
+        id: projects.id,
+        status: projects.status,
+        targetDuration: projects.targetDuration,
+        narratorVoiceId: projects.narratorVoiceId,
+        narratorSelectionReason: projects.narratorSelectionReason,
+      })
       .from(projects)
       .where(and(eq(projects.id, id), eq(projects.userId, user.id)))
       .limit(1);
@@ -38,6 +45,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       audioRows,
       renderRows,
       renderJobRows,
+      voiceAssignmentRows,
       usageRows,
     ] = await Promise.all([
       db.select({ count: count() }).from(assets).where(eq(assets.projectId, id)),
@@ -119,6 +127,21 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         .orderBy(desc(renderJobs.createdAt)),
       db
         .select({
+          sceneId: sceneVoiceAssignments.sceneId,
+          speakerKey: sceneVoiceAssignments.speakerKey,
+          role: sceneVoiceAssignments.role,
+          voiceId: sceneVoiceAssignments.voiceId,
+          tone: sceneVoiceAssignments.tone,
+          selectionSource: sceneVoiceAssignments.selectionSource,
+          selectionReason: sceneVoiceAssignments.selectionReason,
+          selectionMetadata: sceneVoiceAssignments.selectionMetadata,
+          manualOverride: sceneVoiceAssignments.manualOverride,
+        })
+        .from(sceneVoiceAssignments)
+        .where(eq(sceneVoiceAssignments.projectId, id))
+        .orderBy(desc(sceneVoiceAssignments.updatedAt)),
+      db
+        .select({
           provider: apiUsage.provider,
           operation: apiUsage.operation,
           model: apiUsage.model,
@@ -165,6 +188,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         outputStored: Boolean(outputObjectKey),
       })),
       renderJobs: renderJobRows,
+      voiceAssignments: voiceAssignmentRows,
       usage: usageRows.map(({ requestId, ...usage }) => ({
         ...usage,
         requestIdRecorded: Boolean(requestId),

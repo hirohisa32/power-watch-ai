@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
+  apiUsage,
   finalRenders,
   projects,
   renderJobs,
@@ -12,7 +13,9 @@ import {
   voicePresets,
 } from "@/lib/db/schema";
 import { narrationConfig } from "@/lib/audio/config";
-import { selectVoicePlan, type ApprovedVoicePreset } from "@/lib/audio/voices";
+import { ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
+import { VoiceRouter } from "@/lib/audio/router";
+import type { ApprovedVoicePreset } from "@/lib/audio/voices";
 import { buildFinalRenderInput } from "./plan";
 
 export class RenderRequestError extends Error {
@@ -79,10 +82,24 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       .select()
       .from(voicePresets)
       .where(eq(voicePresets.approved, true));
+    const savedAssignmentRows = await transaction
+      .select({
+        speakerKey: sceneVoiceAssignments.speakerKey,
+        role: sceneVoiceAssignments.role,
+        voiceId: sceneVoiceAssignments.voiceId,
+        selectionSource: sceneVoiceAssignments.selectionSource,
+        selectionReason: sceneVoiceAssignments.selectionReason,
+        selectionMetadata: sceneVoiceAssignments.selectionMetadata,
+        manualOverride: sceneVoiceAssignments.manualOverride,
+      })
+      .from(sceneVoiceAssignments)
+      .where(eq(sceneVoiceAssignments.projectId, project.id));
     let voicePlan;
+    const voiceRouteStarted = Date.now();
     try {
-      voicePlan = selectVoicePlan({
+      voicePlan = await new VoiceRouter(new ElevenLabsNarrationProvider()).select({
         language: project.language,
+        style: project.style,
         scenes: renderable.map((scene) => ({
           sceneId: scene.sceneId,
           preset: scene.preset,
@@ -90,6 +107,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
           narration: scene.narration,
           narrationTone: scene.narrationTone,
           dialogue: scene.dialogue,
+          characterContext: rows.find((row) => row.scene.id === scene.sceneId)?.scene.title ?? "",
         })),
         presets: presetRows.map(
           (preset): ApprovedVoicePreset => ({
@@ -110,18 +128,34 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         ),
         defaultVoiceId: narrationConfig().defaultVoiceId,
         projectNarratorVoiceId: project.narratorVoiceId,
+        projectNarratorSelectionReason: project.narratorSelectionReason,
+        savedAssignments: savedAssignmentRows,
       });
     } catch (error) {
-      if (error instanceof Error && error.message === "VOICE_PRESET_REQUIRED")
+      if (error instanceof Error && error.message === "ELEVENLABS_DEFAULT_VOICE_ID_REQUIRED")
         throw new RenderRequestError(
-          "承認済みVoice PresetまたはELEVENLABS_DEFAULT_VOICE_IDを設定してください",
+          "ELEVENLABS_DEFAULT_VOICE_IDを設定してください",
         );
       throw error;
     }
-    if (!project.narratorVoiceId)
+    if (voicePlan.librarySearch.performed)
+      await transaction.insert(apiUsage).values({
+        projectId: project.id,
+        provider: "elevenlabs",
+        operation: "voice_library_search",
+        model: "shared-voices-v1",
+        units: voicePlan.librarySearch.candidateCount,
+        durationMs: Date.now() - voiceRouteStarted,
+        estimatedCost: 0,
+      });
+    if (!project.narratorVoiceId || !project.narratorSelectionReason)
       await transaction
         .update(projects)
-        .set({ narratorVoiceId: voicePlan.narratorVoiceId, updatedAt: new Date() })
+        .set({
+          narratorVoiceId: voicePlan.narratorVoiceId,
+          narratorSelectionReason: voicePlan.narratorSelectionReason,
+          updatedAt: new Date(),
+        })
         .where(eq(projects.id, project.id));
     for (const assignment of voicePlan.assignments) {
       await transaction
@@ -135,6 +169,10 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
           voicePresetId: assignment.voicePresetId,
           voiceId: assignment.voiceId,
           tone: assignment.tone,
+          selectionSource: assignment.selectionSource,
+          selectionReason: assignment.selectionReason,
+          selectionMetadata: assignment.selectionMetadata,
+          manualOverride: assignment.manualOverride ?? false,
         })
         .onConflictDoUpdate({
           target: [
@@ -146,9 +184,23 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
             voicePresetId: assignment.voicePresetId,
             voiceId: assignment.voiceId,
             tone: assignment.tone,
+            selectionSource: assignment.selectionSource,
+            selectionReason: assignment.selectionReason,
+            selectionMetadata: assignment.selectionMetadata,
+            manualOverride: assignment.manualOverride ?? false,
             updatedAt: new Date(),
           },
         });
+      if (assignment.role === "narration")
+        await transaction
+          .update(scenes)
+          .set({
+            voiceId: assignment.voiceId,
+            voiceSelectionSource: assignment.selectionSource,
+            voiceSelectionMetadata: assignment.selectionMetadata,
+            updatedAt: new Date(),
+          })
+          .where(eq(scenes.id, assignment.sceneId));
     }
     let renderInput;
     try {

@@ -2,7 +2,7 @@ import "server-only";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { assertNarrationFits, buildNarrationScript, narrationSpeed } from "@/lib/audio/timing";
 import {
   ElevenLabsError,
@@ -14,7 +14,15 @@ import { narrationConfig } from "@/lib/audio/config";
 import { buildAudioRecord } from "@/lib/audio/record";
 import { buildSpeechSegments } from "@/lib/audio/voices";
 import { getDb } from "@/lib/db";
-import { apiUsage, audioRecords, finalRenders, renderJobs } from "@/lib/db/schema";
+import {
+  apiUsage,
+  audioRecords,
+  finalRenders,
+  projects,
+  renderJobs,
+  scenes,
+  sceneVoiceAssignments,
+} from "@/lib/db/schema";
 import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
 import { createAssSubtitles } from "./ass";
 import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
@@ -130,12 +138,42 @@ export async function processFinalRenderJob(
       narratorVoiceId,
     });
     const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
+    const unavailableVoiceFallbacks: Array<{
+      sceneId: string | null;
+      speakerKey: string;
+      role: "narration" | "dialogue";
+      originalVoiceId: string;
+    }> = [];
     for (const [index, segment] of speechSegments.entries()) {
-      const generated = await dependencies.narration.generate({
-        text: segment.text,
-        speed,
-        voiceId: segment.voiceId,
-      });
+      let generated: NarrationResult;
+      try {
+        generated = await dependencies.narration.generate({
+          text: segment.text,
+          speed,
+          voiceId: segment.voiceId,
+        });
+      } catch (error) {
+        if (
+          error instanceof ElevenLabsError &&
+          error.code === "INVALID_REQUEST" &&
+          config.defaultVoiceId &&
+          segment.voiceId !== config.defaultVoiceId
+        ) {
+          generated = await dependencies.narration.generate({
+            text: segment.text,
+            speed,
+            voiceId: config.defaultVoiceId,
+          });
+          unavailableVoiceFallbacks.push({
+            sceneId: segment.sceneId,
+            speakerKey: segment.speakerKey,
+            role: segment.role,
+            originalVoiceId: segment.voiceId,
+          });
+        } else {
+          throw error;
+        }
+      }
       const segmentPath = path.join(workDir, `speech-${index}.mp3`);
       await writeFile(segmentPath, generated.bytes);
       generatedSegments.push({ generated, path: segmentPath });
@@ -156,10 +194,63 @@ export async function processFinalRenderJob(
     );
     const narrationCost = (characterCost / 1000) * config.pricePerThousandCharacters;
     await db.transaction(async (transaction) => {
+      for (const fallback of unavailableVoiceFallbacks) {
+        const reason = `選択Voice ${fallback.originalVoiceId} が利用不可のためELEVENLABS_DEFAULT_VOICE_IDへFallback`;
+        const assignmentCondition = fallback.sceneId
+          ? and(
+              eq(sceneVoiceAssignments.projectId, row.render.projectId),
+              eq(sceneVoiceAssignments.sceneId, fallback.sceneId),
+              eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
+              eq(sceneVoiceAssignments.role, fallback.role),
+            )
+          : and(
+              eq(sceneVoiceAssignments.projectId, row.render.projectId),
+              eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
+              eq(sceneVoiceAssignments.role, fallback.role),
+            );
+        await transaction
+          .update(sceneVoiceAssignments)
+          .set({
+            voiceId: config.defaultVoiceId!,
+            selectionSource: "default_fallback",
+            selectionReason: reason,
+            selectionMetadata: {
+              source: "default_fallback",
+              unavailableVoiceId: fallback.originalVoiceId,
+            },
+            updatedAt: new Date(),
+          })
+          .where(assignmentCondition);
+        if (fallback.role === "narration")
+          await transaction
+            .update(projects)
+            .set({
+              narratorVoiceId: config.defaultVoiceId!,
+              narratorSelectionReason: reason,
+              updatedAt: new Date(),
+            })
+            .where(eq(projects.id, row.render.projectId));
+        if (fallback.role === "narration")
+          await transaction
+            .update(scenes)
+            .set({
+              voiceId: config.defaultVoiceId!,
+              voiceSelectionSource: "default_fallback",
+              voiceSelectionMetadata: {
+                source: "default_fallback",
+                unavailableVoiceId: fallback.originalVoiceId,
+              },
+              updatedAt: new Date(),
+            })
+            .where(eq(scenes.projectId, row.render.projectId));
+      }
       await transaction
         .update(audioRecords)
         .set({
           status: "completed",
+          voiceId: unavailableVoiceFallbacks.some((item) => item.role === "narration")
+            ? config.defaultVoiceId!
+            : narratorVoiceId,
           durationMs: audioDurationMs,
           objectKey: audioKey,
           mimeType: "audio/mpeg",

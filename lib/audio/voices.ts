@@ -26,6 +26,7 @@ export type VoiceScene = {
   narration: string;
   narrationTone?: string;
   dialogue?: DialogueLine[];
+  characterContext?: string;
 };
 
 export type VoiceAssignment = {
@@ -35,7 +36,18 @@ export type VoiceAssignment = {
   voicePresetId?: string;
   voiceId: string;
   tone: string;
+  selectionSource?: VoiceSelectionSource;
+  selectionReason?: string;
+  selectionMetadata?: Record<string, unknown>;
+  manualOverride?: boolean;
 };
+
+export type VoiceSelectionSource =
+  | "manual_override"
+  | "saved"
+  | "approved_preset"
+  | "voice_library"
+  | "default_fallback";
 
 export type VoicePlan = {
   narratorVoiceId: string;
