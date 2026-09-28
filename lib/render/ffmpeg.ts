@@ -38,8 +38,8 @@ export function buildFfmpegArgs(
   const concat = `${input.scenes.map((_, index) => `[v${index}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[base]`;
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
   const audio = [
-    `[${narrationIndex}:a]atrim=0:${input.totalDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]volume=0.11[bgm]`,
+    `[${narrationIndex}:a]atrim=0:${input.totalDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asplit=2[narrmix][side]`,
+    `[${bgmIndex}:a]volume=0.11,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm]`,
     `[bgm][side]sidechaincompress=threshold=0.018:ratio=10:attack=20:release=450[ducked]`,
     `[${seIndex}:a]volume=0.24[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
