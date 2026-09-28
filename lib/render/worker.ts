@@ -2,7 +2,7 @@ import "server-only";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { assertNarrationFits, buildNarrationScript, narrationSpeed } from "@/lib/audio/timing";
 import {
   ElevenLabsError,
@@ -106,177 +106,205 @@ export async function processFinalRenderJob(
       (renderInput.voiceAssignments ?? []).find(
         (assignment) => assignment.role === "narration" && assignment.speakerKey === "narrator",
       )?.voiceId ?? config.defaultVoiceId;
-    if (!narratorVoiceId)
-      throw new ElevenLabsError("AUTH", "ElevenLabs Voice IDが未設定です");
-    const [audio] = await db
-      .insert(audioRecords)
-      .values(
-        buildAudioRecord({
-          projectId: row.render.projectId,
-          storyboardId: row.render.storyboardId,
-          provider: dependencies.narration.name,
-          model: config.model,
-          voiceId: narratorVoiceId,
-          language: renderInput.language,
-          script,
-        }),
+    if (!narratorVoiceId) throw new ElevenLabsError("AUTH", "ElevenLabs Voice IDが未設定です");
+    const narrationPath = path.join(workDir, "narration.mp3");
+    const [cachedAudio] = await db
+      .select()
+      .from(audioRecords)
+      .where(
+        and(
+          eq(audioRecords.projectId, row.render.projectId),
+          eq(audioRecords.storyboardId, row.render.storyboardId),
+          eq(audioRecords.provider, dependencies.narration.name),
+          eq(audioRecords.model, config.model),
+          eq(audioRecords.voiceId, narratorVoiceId),
+          eq(audioRecords.language, renderInput.language),
+          eq(audioRecords.script, script),
+          isNotNull(audioRecords.objectKey),
+        ),
       )
-      .returning();
-    audioId = audio.id;
-    const narrationStarted = Date.now();
-    const speechSegments = buildSpeechSegments({
-      scenes: renderInput.scenes.map((scene) => ({
-        sceneId: scene.sceneId,
-        preset: scene.preset,
-        title: "",
-        narration: scene.narration,
-        narrationTone: scene.narrationTone,
-        dialogue: scene.dialogue,
-      })),
-      assignments: renderInput.voiceAssignments ?? [],
-      narrationScript,
-      narratorVoiceId,
-    });
-    const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
-    const unavailableVoiceFallbacks: Array<{
-      sceneId: string | null;
-      speakerKey: string;
-      role: "narration" | "dialogue";
-      originalVoiceId: string;
-    }> = [];
-    for (const [index, segment] of speechSegments.entries()) {
-      let generated: NarrationResult;
-      try {
-        generated = await dependencies.narration.generate({
-          text: segment.text,
-          speed,
-          voiceId: segment.voiceId,
-        });
-      } catch (error) {
-        if (
-          error instanceof ElevenLabsError &&
-          error.code === "INVALID_REQUEST" &&
-          config.defaultVoiceId &&
-          segment.voiceId !== config.defaultVoiceId
-        ) {
+      .orderBy(desc(audioRecords.createdAt))
+      .limit(1);
+    if (cachedAudio?.objectKey) {
+      audioId = cachedAudio.id;
+      const audioUrl = await dependencies.sign(cachedAudio.objectKey, 15 * 60);
+      const narrationBytes = await dependencies.download(audioUrl, 25 * 1024 * 1024);
+      await writeFile(narrationPath, narrationBytes);
+      await db
+        .update(finalRenders)
+        .set({ audioRecordId: cachedAudio.id, estimatedCost: 0, updatedAt: new Date() })
+        .where(eq(finalRenders.id, row.render.id));
+    } else {
+      const [audio] = await db
+        .insert(audioRecords)
+        .values(
+          buildAudioRecord({
+            projectId: row.render.projectId,
+            storyboardId: row.render.storyboardId,
+            provider: dependencies.narration.name,
+            model: config.model,
+            voiceId: narratorVoiceId,
+            language: renderInput.language,
+            script,
+          }),
+        )
+        .returning();
+      audioId = audio.id;
+      const narrationStarted = Date.now();
+      const speechSegments = buildSpeechSegments({
+        scenes: renderInput.scenes.map((scene) => ({
+          sceneId: scene.sceneId,
+          preset: scene.preset,
+          title: "",
+          narration: scene.narration,
+          narrationTone: scene.narrationTone,
+          dialogue: scene.dialogue,
+        })),
+        assignments: renderInput.voiceAssignments ?? [],
+        narrationScript,
+        narratorVoiceId,
+      });
+      const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
+      const unavailableVoiceFallbacks: Array<{
+        sceneId: string | null;
+        speakerKey: string;
+        role: "narration" | "dialogue";
+        originalVoiceId: string;
+      }> = [];
+      for (const [index, segment] of speechSegments.entries()) {
+        let generated: NarrationResult;
+        try {
           generated = await dependencies.narration.generate({
             text: segment.text,
             speed,
-            voiceId: config.defaultVoiceId,
+            voiceId: segment.voiceId,
           });
-          unavailableVoiceFallbacks.push({
-            sceneId: segment.sceneId,
-            speakerKey: segment.speakerKey,
-            role: segment.role,
-            originalVoiceId: segment.voiceId,
-          });
-        } else {
-          throw error;
+        } catch (error) {
+          if (
+            error instanceof ElevenLabsError &&
+            error.code === "INVALID_REQUEST" &&
+            config.defaultVoiceId &&
+            segment.voiceId !== config.defaultVoiceId
+          ) {
+            generated = await dependencies.narration.generate({
+              text: segment.text,
+              speed,
+              voiceId: config.defaultVoiceId,
+            });
+            unavailableVoiceFallbacks.push({
+              sceneId: segment.sceneId,
+              speakerKey: segment.speakerKey,
+              role: segment.role,
+              originalVoiceId: segment.voiceId,
+            });
+          } else {
+            throw error;
+          }
         }
+        const segmentPath = path.join(workDir, `speech-${index}.mp3`);
+        await writeFile(segmentPath, generated.bytes);
+        generatedSegments.push({ generated, path: segmentPath });
       }
-      const segmentPath = path.join(workDir, `speech-${index}.mp3`);
-      await writeFile(segmentPath, generated.bytes);
-      generatedSegments.push({ generated, path: segmentPath });
-    }
-    const narrationPath = path.join(workDir, "narration.mp3");
-    await dependencies.composeSpeech(
-      generatedSegments.map((segment) => segment.path),
-      narrationPath,
-    );
-    const audioDurationMs = await dependencies.probe(narrationPath);
-    stage = "audio-upload";
-    const audioKey = narrationObjectKey(row.render.projectId, audio.id);
-    const narrationBytes = new Uint8Array(await readFile(narrationPath));
-    await dependencies.upload(audioKey, narrationBytes, "audio/mpeg");
-    const characterCost = generatedSegments.reduce(
-      (sum, segment) => sum + segment.generated.characterCost,
-      0,
-    );
-    const narrationCost = (characterCost / 1000) * config.pricePerThousandCharacters;
-    await db.transaction(async (transaction) => {
-      for (const fallback of unavailableVoiceFallbacks) {
-        const reason = `選択Voice ${fallback.originalVoiceId} が利用不可のためELEVENLABS_DEFAULT_VOICE_IDへFallback`;
-        const assignmentCondition = fallback.sceneId
-          ? and(
-              eq(sceneVoiceAssignments.projectId, row.render.projectId),
-              eq(sceneVoiceAssignments.sceneId, fallback.sceneId),
-              eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
-              eq(sceneVoiceAssignments.role, fallback.role),
-            )
-          : and(
-              eq(sceneVoiceAssignments.projectId, row.render.projectId),
-              eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
-              eq(sceneVoiceAssignments.role, fallback.role),
-            );
-        await transaction
-          .update(sceneVoiceAssignments)
-          .set({
-            voiceId: config.defaultVoiceId!,
-            selectionSource: "default_fallback",
-            selectionReason: reason,
-            selectionMetadata: {
-              source: "default_fallback",
-              unavailableVoiceId: fallback.originalVoiceId,
-            },
-            updatedAt: new Date(),
-          })
-          .where(assignmentCondition);
-        if (fallback.role === "narration")
+      await dependencies.composeSpeech(
+        generatedSegments.map((segment) => segment.path),
+        narrationPath,
+      );
+      const audioDurationMs = await dependencies.probe(narrationPath);
+      stage = "audio-upload";
+      const audioKey = narrationObjectKey(row.render.projectId, audio.id);
+      const narrationBytes = new Uint8Array(await readFile(narrationPath));
+      await dependencies.upload(audioKey, narrationBytes, "audio/mpeg");
+      const characterCost = generatedSegments.reduce(
+        (sum, segment) => sum + segment.generated.characterCost,
+        0,
+      );
+      const narrationCost = (characterCost / 1000) * config.pricePerThousandCharacters;
+      await db.transaction(async (transaction) => {
+        for (const fallback of unavailableVoiceFallbacks) {
+          const reason = `選択Voice ${fallback.originalVoiceId} が利用不可のためELEVENLABS_DEFAULT_VOICE_IDへFallback`;
+          const assignmentCondition = fallback.sceneId
+            ? and(
+                eq(sceneVoiceAssignments.projectId, row.render.projectId),
+                eq(sceneVoiceAssignments.sceneId, fallback.sceneId),
+                eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
+                eq(sceneVoiceAssignments.role, fallback.role),
+              )
+            : and(
+                eq(sceneVoiceAssignments.projectId, row.render.projectId),
+                eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
+                eq(sceneVoiceAssignments.role, fallback.role),
+              );
           await transaction
-            .update(projects)
-            .set({
-              narratorVoiceId: config.defaultVoiceId!,
-              narratorSelectionReason: reason,
-              updatedAt: new Date(),
-            })
-            .where(eq(projects.id, row.render.projectId));
-        if (fallback.role === "narration")
-          await transaction
-            .update(scenes)
+            .update(sceneVoiceAssignments)
             .set({
               voiceId: config.defaultVoiceId!,
-              voiceSelectionSource: "default_fallback",
-              voiceSelectionMetadata: {
+              selectionSource: "default_fallback",
+              selectionReason: reason,
+              selectionMetadata: {
                 source: "default_fallback",
                 unavailableVoiceId: fallback.originalVoiceId,
               },
               updatedAt: new Date(),
             })
-            .where(eq(scenes.projectId, row.render.projectId));
-      }
-      await transaction
-        .update(audioRecords)
-        .set({
-          status: "completed",
-          voiceId: unavailableVoiceFallbacks.some((item) => item.role === "narration")
-            ? config.defaultVoiceId!
-            : narratorVoiceId,
-          durationMs: audioDurationMs,
-          objectKey: audioKey,
-          mimeType: "audio/mpeg",
+            .where(assignmentCondition);
+          if (fallback.role === "narration")
+            await transaction
+              .update(projects)
+              .set({
+                narratorVoiceId: config.defaultVoiceId!,
+                narratorSelectionReason: reason,
+                updatedAt: new Date(),
+              })
+              .where(eq(projects.id, row.render.projectId));
+          if (fallback.role === "narration")
+            await transaction
+              .update(scenes)
+              .set({
+                voiceId: config.defaultVoiceId!,
+                voiceSelectionSource: "default_fallback",
+                voiceSelectionMetadata: {
+                  source: "default_fallback",
+                  unavailableVoiceId: fallback.originalVoiceId,
+                },
+                updatedAt: new Date(),
+              })
+              .where(eq(scenes.projectId, row.render.projectId));
+        }
+        await transaction
+          .update(audioRecords)
+          .set({
+            status: "completed",
+            voiceId: unavailableVoiceFallbacks.some((item) => item.role === "narration")
+              ? config.defaultVoiceId!
+              : narratorVoiceId,
+            durationMs: audioDurationMs,
+            objectKey: audioKey,
+            mimeType: "audio/mpeg",
+            estimatedCost: narrationCost,
+            completedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(audioRecords.id, audio.id));
+        await transaction
+          .update(finalRenders)
+          .set({ audioRecordId: audio.id, estimatedCost: narrationCost, updatedAt: new Date() })
+          .where(eq(finalRenders.id, row.render.id));
+        await transaction.insert(apiUsage).values({
+          projectId: row.render.projectId,
+          provider: dependencies.narration.name,
+          operation: "narration_generation",
+          model: config.model,
+          units: characterCost,
+          requestId:
+            generatedSegments
+              .map((segment) => segment.generated.requestId)
+              .filter(Boolean)
+              .join(",") || undefined,
+          durationMs: Date.now() - narrationStarted,
           estimatedCost: narrationCost,
-          completedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(audioRecords.id, audio.id));
-      await transaction
-        .update(finalRenders)
-        .set({ audioRecordId: audio.id, estimatedCost: narrationCost, updatedAt: new Date() })
-        .where(eq(finalRenders.id, row.render.id));
-      await transaction.insert(apiUsage).values({
-        projectId: row.render.projectId,
-        provider: dependencies.narration.name,
-        operation: "narration_generation",
-        model: config.model,
-        units: characterCost,
-        requestId: generatedSegments
-          .map((segment) => segment.generated.requestId)
-          .filter(Boolean)
-          .join(",") || undefined,
-        durationMs: Date.now() - narrationStarted,
-        estimatedCost: narrationCost,
+        });
       });
-    });
+    }
 
     stage = "scene-download";
     const videoPaths: string[] = [];
@@ -338,6 +366,12 @@ export async function processFinalRenderJob(
       });
     });
   } catch (error) {
+    console.error("Final render job failed", {
+      jobId,
+      renderId: row.render.id,
+      stage,
+      error: error instanceof Error ? error.message : String(error),
+    });
     await failFinalRender(jobId, row.render.id, audioId, stage, error);
   } finally {
     await rm(workDir, { recursive: true, force: true });
