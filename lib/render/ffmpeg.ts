@@ -42,7 +42,7 @@ export function buildFfmpegArgs(
     `[${bgmIndex}:a]volume=0.11[bgm]`,
     `[bgm][side]sidechaincompress=threshold=0.018:ratio=10:attack=20:release=450[ducked]`,
     `[${seIndex}:a]volume=0.24[se]`,
-    `[narrmix][ducked][se]amix=inputs=3:duration=longest:normalize=0,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
+    `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
   ];
   args.push("-filter_complex", [...videoFilters, concat, subtitle, ...audio].join(";"));
   args.push(
