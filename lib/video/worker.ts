@@ -68,7 +68,7 @@ export async function processVideoJob(
         model: row.generation.model,
         prompt: row.generation.prompt,
         duration: row.generation.requestedDuration,
-        ratio: "1280:720",
+        ratio: "720:1280",
         referenceImageUrl,
       });
       await db.transaction(async (transaction) => {

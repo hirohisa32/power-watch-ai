@@ -2,7 +2,7 @@ import RunwayML from "@runwayml/sdk";
 import type { VideoGenerationInput, VideoProvider } from "./types";
 import { VideoProviderError } from "./types";
 
-type RunwayClient = Pick<RunwayML, "imageToVideo" | "tasks">;
+type RunwayClient = Pick<RunwayML, "imageToVideo" | "textToVideo" | "tasks">;
 
 export class RunwayVideoProvider implements VideoProvider {
   readonly name = "runway";
@@ -17,16 +17,19 @@ export class RunwayVideoProvider implements VideoProvider {
           "UNSUPPORTED_MODEL",
         );
       }
-      const task = await this.client.imageToVideo.create({
-        model: "gen4.5",
+      const common = {
+        model: "gen4.5" as const,
         promptText: input.prompt,
-        // The API supports text-to-video by omitting this value; the generated SDK
-        // currently types the field as required even for Gen-4.5 text-only requests.
-        promptImage: input.referenceImageUrl as string,
         duration: input.duration,
         ratio: input.ratio,
-        outputFormat: "mp4",
-      });
+        outputFormat: "mp4" as const,
+      };
+      const task = input.referenceImageUrl
+        ? await this.client.imageToVideo.create({
+            ...common,
+            promptImage: input.referenceImageUrl,
+          })
+        : await this.client.textToVideo.create(common);
       return { taskId: task.id, estimatedCostCredits: task.estimatedCost?.credits };
     } catch (error) {
       throw normalizeRunwayError(error);
