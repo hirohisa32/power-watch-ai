@@ -64,10 +64,19 @@ export function FinalRenderPanel({
             選択済みSceneを順番に結合し、ElevenLabs Narration・字幕・BGM・SEをMixします。
           </p>
         </div>
-        <button className="btn btn-primary" disabled={pending || active} onClick={startRender}>
-          {active ? <RefreshCw size={14} /> : <Film size={14} />}
-          {active ? "Rendering…" : completed ? "Re-render" : "Final Render"}
-        </button>
+        <form
+          action={`/api/projects/${projectId}/renders`}
+          method="post"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void startRender();
+          }}
+        >
+          <button className="btn btn-primary" type="submit" disabled={pending || active}>
+            {active ? <RefreshCw size={14} /> : <Film size={14} />}
+            {active ? "Rendering…" : completed ? "Re-render" : "Final Render"}
+          </button>
+        </form>
       </div>
       {error && <p className="error">{error}</p>}
       {renders.length > 0 && (
