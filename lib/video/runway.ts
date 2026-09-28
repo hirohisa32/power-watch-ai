@@ -113,5 +113,12 @@ function normalizeRunwayError(error: unknown) {
     typeof error === "object" && error && "status" in error ? Number(error.status) : undefined;
   const retryable = status === 429 || status === 502 || status === 503 || status === 504;
   const message = error instanceof Error ? error.message : "Runway request failed";
+  if (/enough credits/i.test(message)) {
+    return new VideoProviderError(
+      "Runway creditsが不足しています。管理者へ追加を依頼してください。",
+      false,
+      "INSUFFICIENT_CREDITS",
+    );
+  }
   return new VideoProviderError(message, retryable, status ? `HTTP_${status}` : "RUNWAY_ERROR");
 }

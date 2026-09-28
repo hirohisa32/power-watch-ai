@@ -365,8 +365,10 @@ export function StoryboardEditor({
                   )}
                   {generations[0]?.status === "failed" && (
                     <p className="error">
-                      {generations[0].errorCode || "GENERATION_FAILED"}:
-                      動画生成に失敗しました。指示を調整して再生成してください。
+                      {generations[0].errorCode === "INSUFFICIENT_CREDITS" ||
+                      generations[0].errorMessage?.toLowerCase().includes("enough credits")
+                        ? "Runway creditsが不足しています。管理者へ追加を依頼してください。"
+                        : "動画生成に失敗しました。指示を調整して再生成してください。"}
                     </p>
                   )}
                   <div className="card-actions">

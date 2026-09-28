@@ -97,4 +97,28 @@ describe("Runway provider adapter", () => {
     expect(isRetryableFailureCode("SAFETY.INPUT.TEXT")).toBe(false);
     expect(isRetryableFailureCode("ASSET.INVALID")).toBe(false);
   });
+
+  it("reports exhausted credits as a non-retryable actionable error", async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValue(new Error('400 {"error":"You do not have enough credits to run this task."}'));
+    const provider = providerWith({
+      imageToVideo: {},
+      textToVideo: { create },
+      tasks: {},
+    });
+
+    await expect(
+      provider.generate({
+        model: "gen4.5",
+        prompt: "period workshop",
+        duration: 4,
+        ratio: "720:1280",
+      }),
+    ).rejects.toMatchObject({
+      code: "INSUFFICIENT_CREDITS",
+      retryable: false,
+      message: "Runway creditsが不足しています。管理者へ追加を依頼してください。",
+    });
+  });
 });
