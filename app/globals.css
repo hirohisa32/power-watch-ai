@@ -602,6 +602,10 @@ textarea {
   border: 1px solid var(--line);
   background: #0d0e10;
 }
+.regeneration-instruction {
+  flex: 1 1 320px;
+  min-width: 220px;
+}
 .generation-head,
 .generation-version {
   display: flex;

@@ -103,6 +103,9 @@ export function StoryboardEditor({
   const [draft, setDraft] = useState(blankScene());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [regenerationInstructions, setRegenerationInstructions] = useState<Record<string, string>>(
+    {},
+  );
   const total = useMemo(
     () => initialScenes.reduce((sum, scene) => sum + scene.duration, 0),
     [initialScenes],
@@ -146,11 +149,15 @@ export function StoryboardEditor({
       return;
     await request(`/api/projects/${projectId}/storyboard`, { method: "POST" });
   }
-  async function generateScene(scene: EditorScene, regenerateVideo = false) {
+  async function generateScene(
+    scene: EditorScene,
+    regenerateVideo = false,
+    requestedInstruction?: string,
+  ) {
     const instruction = regenerateVideo
-      ? window.prompt("再生成の修正指示を入力してください（例: カメラ移動を遅く）")
+      ? requestedInstruction?.trim() ||
+        "前回の構図を改善し、主題を安定させ、自然で控えめなカメラ移動にしてください"
       : undefined;
-    if (regenerateVideo && instruction === null) return;
     await request(`/api/projects/${projectId}/scenes/${scene.id}/generate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -373,13 +380,29 @@ export function StoryboardEditor({
                       </button>
                     )}
                     {completedGeneration && !activeGeneration && (
-                      <button
-                        className="btn"
-                        disabled={pending}
-                        onClick={() => generateScene(scene, true)}
-                      >
-                        このSceneを再生成
-                      </button>
+                      <>
+                        <input
+                          aria-label={`Scene ${scene.order} 再生成の修正指示`}
+                          className="regeneration-instruction"
+                          placeholder="修正したい点（例：時計の形を固定、動きをゆっくり）"
+                          value={regenerationInstructions[scene.id] ?? ""}
+                          onChange={(event) =>
+                            setRegenerationInstructions((current) => ({
+                              ...current,
+                              [scene.id]: event.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          className="btn"
+                          disabled={pending}
+                          onClick={() =>
+                            generateScene(scene, true, regenerationInstructions[scene.id])
+                          }
+                        >
+                          このSceneを再生成
+                        </button>
+                      </>
                     )}
                     <button
                       className="btn"
