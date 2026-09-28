@@ -3,18 +3,11 @@ import type { VoiceAssignment } from "@/lib/audio/voices";
 import type { FinalRenderInput, RenderScene, TextOverlay } from "./types";
 
 export const SOUND_EFFECT_BY_PRESET: Record<string, { key: string; frequency: number }> = {
-  Opening: { key: "clock-tick", frequency: 880 },
   VintageRoom: { key: "door", frequency: 196 },
   OldBook: { key: "book", frequency: 330 },
   WatchReveal: { key: "watch-mechanical", frequency: 1040 },
-  HistoricalCharacter: { key: "dust", frequency: 240 },
-  HistoricalEvent: { key: "crowd", frequency: 180 },
   Racing: { key: "race", frequency: 120 },
-  CityEraEstablishing: { key: "wind", frequency: 260 },
-  WristShot: { key: "clock-tick", frequency: 920 },
   WatchMacro: { key: "watch-mechanical", frequency: 1100 },
-  ProductHero: { key: "transition", frequency: 660 },
-  YearLocationTitle: { key: "transition", frequency: 520 },
   Ending: { key: "clock-tick", frequency: 780 },
 };
 

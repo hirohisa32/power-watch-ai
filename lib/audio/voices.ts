@@ -43,11 +43,7 @@ export type VoiceAssignment = {
 };
 
 export type VoiceSelectionSource =
-  | "manual_override"
-  | "saved"
-  | "approved_preset"
-  | "voice_library"
-  | "default_fallback";
+  "manual_override" | "saved" | "approved_preset" | "voice_library" | "default_fallback";
 
 export type VoicePlan = {
   narratorVoiceId: string;
@@ -69,18 +65,6 @@ export function buildSpeechSegments(input: {
   narrationScript: string;
   narratorVoiceId: string;
 }): SpeechSegment[] {
-  const hasDialogue = input.scenes.some((scene) => (scene.dialogue?.length ?? 0) > 0);
-  if (!hasDialogue)
-    return [
-      {
-        sceneId: null,
-        speakerKey: "narrator",
-        role: "narration",
-        voiceId: input.narratorVoiceId,
-        text: input.narrationScript,
-        tone: "documentary",
-      },
-    ];
   const segments: SpeechSegment[] = [];
   for (const scene of input.scenes) {
     const narrator = findAssignment(input.assignments, scene.sceneId, "narrator", "narration");
@@ -125,10 +109,7 @@ export function selectVoicePlan(input: {
   );
   const narrationTone = dominantTone(
     input.scenes.map((scene) =>
-      inferTone(
-        scene.narrationTone,
-        `${scene.preset} ${scene.title} ${scene.narration}`,
-      ),
+      inferTone(scene.narrationTone, `${scene.preset} ${scene.title} ${scene.narration}`),
     ),
   );
   const narrator =
@@ -145,9 +126,7 @@ export function selectVoicePlan(input: {
       scene.narrationTone,
       `${scene.preset} ${scene.title} ${scene.narration}`,
     );
-    assignments.push(
-      toAssignment(scene.sceneId, "narrator", "narration", narrator, sceneTone),
-    );
+    assignments.push(toAssignment(scene.sceneId, "narrator", "narration", narrator, sceneTone));
     for (const line of scene.dialogue ?? []) {
       const speakerKey = normalizeSpeaker(line.speaker);
       const dialogueTone = inferTone(
@@ -167,9 +146,7 @@ export function selectVoicePlan(input: {
           narrator;
         speakerVoices.set(speakerKey, preset);
       }
-      assignments.push(
-        toAssignment(scene.sceneId, speakerKey, "dialogue", preset, dialogueTone),
-      );
+      assignments.push(toAssignment(scene.sceneId, speakerKey, "dialogue", preset, dialogueTone));
     }
   }
   return { narratorVoiceId: narrator.voiceId, assignments };

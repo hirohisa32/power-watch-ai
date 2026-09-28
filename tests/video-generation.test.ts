@@ -10,6 +10,7 @@ import {
 import { buildVideoPrompt } from "@/lib/video/prompt";
 
 const scene = {
+  preset: "ProductHero",
   visualPrompt: "A watch emerges from an archival book in a 1960s study.",
   camera: "slow dolly in",
   shotType: "macro close-up",
@@ -35,6 +36,7 @@ describe("video generation domain", () => {
       "front, crown",
       "make the move slower",
       "Do not redesign",
+      "stable silhouette",
     ]) {
       expect(prompt).toContain(value);
     }

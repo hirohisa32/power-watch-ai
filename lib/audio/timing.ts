@@ -57,12 +57,19 @@ export function buildSubtitleCues(scenes: NarrationScene[]): SubtitleCue[] {
     const sentences = splitSentences(text);
     const weights = sentences.map((sentence) => Math.max(1, [...sentence].length));
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-    let cursor = sceneStartMs;
+    const sceneEndMs = sceneStartMs + scene.duration * 1000;
+    const leadInMs = Math.min(280, scene.duration * 50);
+    const clearTailMs = Math.min(320, scene.duration * 60);
+    const estimatedReadingMs = Math.max(1_100, [...text.replace(/\s/g, "")].length * 145);
+    const availableMs = Math.max(600, scene.duration * 1000 - leadInMs - clearTailMs);
+    const displayMs = Math.min(availableMs, estimatedReadingMs);
+    let cursor = sceneStartMs + leadInMs;
     sentences.forEach((sentence, index) => {
-      const sceneEndMs = sceneStartMs + scene.duration * 1000;
-      const durationMs = Math.round((scene.duration * 1000 * weights[index]) / totalWeight);
+      const durationMs = Math.round((displayMs * weights[index]) / totalWeight);
       const endMs =
-        index === sentences.length - 1 ? sceneEndMs : Math.min(sceneEndMs, cursor + durationMs);
+        index === sentences.length - 1
+          ? Math.min(sceneEndMs - clearTailMs, sceneStartMs + leadInMs + displayMs)
+          : Math.min(sceneEndMs - clearTailMs, cursor + durationMs);
       cues.push({ sceneId: scene.id, startMs: cursor, endMs, text: sentence });
       cursor = endMs;
     });

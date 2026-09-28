@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildSpeechSegments,
-  selectVoicePlan,
-  type ApprovedVoicePreset,
-} from "@/lib/audio/voices";
+import { buildSpeechSegments, selectVoicePlan, type ApprovedVoicePreset } from "@/lib/audio/voices";
 
 const presets: ApprovedVoicePreset[] = [
   {
@@ -113,5 +109,23 @@ describe("multi voice direction", () => {
       ["narration", "voice-documentary"],
       ["dialogue", "voice-energetic"],
     ]);
+  });
+
+  it("keeps narration aligned as one speech segment per scene", () => {
+    const narrationOnly = scenes.map((scene) => ({ ...scene, dialogue: [] }));
+    const plan = selectVoicePlan({ language: "ja", scenes: narrationOnly, presets });
+    const segments = buildSpeechSegments({
+      scenes: narrationOnly,
+      assignments: plan.assignments,
+      narrationScript: "連結済み原稿はScene音声生成には使わない",
+      narratorVoiceId: plan.narratorVoiceId,
+    });
+    expect(segments).toHaveLength(narrationOnly.length);
+    expect(segments.map((segment) => segment.sceneId)).toEqual(
+      narrationOnly.map((scene) => scene.sceneId),
+    );
+    expect(new Set(segments.map((segment) => segment.voiceId))).toEqual(
+      new Set([plan.narratorVoiceId]),
+    );
   });
 });

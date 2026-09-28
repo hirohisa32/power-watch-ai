@@ -69,8 +69,9 @@ describe("Phase 4 final render", () => {
       { id: "s", duration: 4, narration: "A。B。", subtitle: "A。B。" },
     ]);
     expect(cues).toHaveLength(2);
-    expect(cues[0].startMs).toBe(0);
-    expect(cues[1].endMs).toBe(4000);
+    expect(cues[0].startMs).toBeGreaterThan(0);
+    expect(cues[1].endMs).toBeLessThan(4000);
+    expect(cues[0].endMs).toBeLessThanOrEqual(cues[1].startMs);
   });
 
   it("adds POWER WATCH and year/location overlays", () => {
@@ -114,6 +115,8 @@ describe("Phase 4 final render", () => {
     );
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("concat=n=2");
+    expect(args.filter((value) => value === "-stream_loop")).toHaveLength(2);
+    expect(filters).toContain("fade=t=out");
     expect(filters).toContain("sidechaincompress");
     expect(filters).toContain("loudnorm");
   });

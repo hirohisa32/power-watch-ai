@@ -69,6 +69,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         generationId: row.generationId!,
         order: row.scene.order,
         preset: row.scene.preset,
+        transition: row.scene.transition,
         duration: row.scene.duration,
         narration: row.scene.narration,
         narrationTone: row.scene.narrationTone,
@@ -109,23 +110,19 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
           dialogue: scene.dialogue,
           characterContext: rows.find((row) => row.scene.id === scene.sceneId)?.scene.title ?? "",
         })),
-        presets: presetRows.map(
-          (preset): ApprovedVoicePreset => ({
-            id: preset.id,
-            key: preset.key,
-            voiceId: preset.voiceId,
-            name: preset.name,
-            gender:
-              preset.gender === "female" || preset.gender === "neutral"
-                ? preset.gender
-                : "male",
-            roles: preset.roles,
-            tones: preset.tones,
-            languages: preset.languages,
-            priority: preset.priority,
-            approved: preset.approved,
-          }),
-        ),
+        presets: presetRows.map((preset): ApprovedVoicePreset => ({
+          id: preset.id,
+          key: preset.key,
+          voiceId: preset.voiceId,
+          name: preset.name,
+          gender:
+            preset.gender === "female" || preset.gender === "neutral" ? preset.gender : "male",
+          roles: preset.roles,
+          tones: preset.tones,
+          languages: preset.languages,
+          priority: preset.priority,
+          approved: preset.approved,
+        })),
         defaultVoiceId: narrationConfig().defaultVoiceId,
         projectNarratorVoiceId: project.narratorVoiceId,
         projectNarratorSelectionReason: project.narratorSelectionReason,
@@ -133,9 +130,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       });
     } catch (error) {
       if (error instanceof Error && error.message === "ELEVENLABS_DEFAULT_VOICE_ID_REQUIRED")
-        throw new RenderRequestError(
-          "ELEVENLABS_DEFAULT_VOICE_IDを設定してください",
-        );
+        throw new RenderRequestError("ELEVENLABS_DEFAULT_VOICE_IDを設定してください");
       throw error;
     }
     if (voicePlan.librarySearch.performed)

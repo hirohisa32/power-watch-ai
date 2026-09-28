@@ -99,8 +99,8 @@ export async function processFinalRenderJob(
       .filter(Boolean)
       .join(renderInput.language === "en" ? "\n\n" : "。\n\n")
       .replace(/。。/g, "。");
-    const speed = narrationSpeed(script, renderInput.totalDuration, renderInput.language);
-    assertNarrationFits(script, renderInput.totalDuration, speed, renderInput.language);
+    const overallSpeed = narrationSpeed(script, renderInput.totalDuration, renderInput.language);
+    assertNarrationFits(script, renderInput.totalDuration, overallSpeed, renderInput.language);
     const config = narrationConfig();
     const narratorVoiceId =
       (renderInput.voiceAssignments ?? []).find(
@@ -165,6 +165,7 @@ export async function processFinalRenderJob(
         narratorVoiceId,
       });
       const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
+      const segmentDurations = allocateSpeechSegmentDurations(renderInput, speechSegments);
       const unavailableVoiceFallbacks: Array<{
         sceneId: string | null;
         speakerKey: string;
@@ -172,6 +173,9 @@ export async function processFinalRenderJob(
         originalVoiceId: string;
       }> = [];
       for (const [index, segment] of speechSegments.entries()) {
+        const segmentDuration = segmentDurations[index];
+        const speed = narrationSpeed(segment.text, segmentDuration, renderInput.language);
+        assertNarrationFits(segment.text, segmentDuration, speed, renderInput.language);
         let generated: NarrationResult;
         try {
           generated = await dependencies.narration.generate({
@@ -208,6 +212,7 @@ export async function processFinalRenderJob(
       await dependencies.composeSpeech(
         generatedSegments.map((segment) => segment.path),
         narrationPath,
+        segmentDurations,
       );
       const audioDurationMs = await dependencies.probe(narrationPath);
       stage = "audio-upload";
@@ -376,6 +381,29 @@ export async function processFinalRenderJob(
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
+}
+
+export function allocateSpeechSegmentDurations(
+  input: FinalRenderInput,
+  segments: Array<{ sceneId: string | null; text: string }>,
+) {
+  const result = new Array<number>(segments.length).fill(0);
+  for (const scene of input.scenes) {
+    const indexes = segments
+      .map((segment, index) => ({ segment, index }))
+      .filter(({ segment }) => segment.sceneId === scene.sceneId);
+    if (!indexes.length) continue;
+    const weights = indexes.map(({ segment }) => Math.max(1, [...segment.text].length));
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    indexes.forEach(({ index }, localIndex) => {
+      result[index] = Number(((scene.duration * weights[localIndex]) / total).toFixed(3));
+    });
+  }
+  const unassigned = result.map((value, index) => ({ value, index })).filter(({ value }) => !value);
+  const assignedTotal = result.reduce((sum, value) => sum + value, 0);
+  const remaining = Math.max(0.5, input.totalDuration - assignedTotal);
+  unassigned.forEach(({ index }) => (result[index] = remaining / unassigned.length));
+  return result;
 }
 
 async function failFinalRender(

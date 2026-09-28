@@ -110,6 +110,16 @@ export function StoryboardEditor({
   const hasActiveGeneration = initialGenerations.some((generation) =>
     ["queued", "generating"].includes(generation.status),
   );
+  const completedSceneCount = new Set(
+    initialGenerations
+      .filter((generation) => generation.status === "completed")
+      .map((generation) => generation.sceneId),
+  ).size;
+  const activeSceneCount = new Set(
+    initialGenerations
+      .filter((generation) => ["queued", "generating"].includes(generation.status))
+      .map((generation) => generation.sceneId),
+  ).size;
   useEffect(() => {
     if (!hasActiveGeneration) return;
     const timer = window.setTimeout(() => router.refresh(), 7_000);
@@ -152,9 +162,12 @@ export function StoryboardEditor({
       <div className="storyboard-toolbar">
         <div>
           <span className={`duration-meter ${total === targetDuration ? "valid" : "invalid"}`}>
-            {total} / {targetDuration} sec
+            {total} / {targetDuration} 秒
           </span>
-          <span className="hint">{initialScenes.length} Scenes</span>
+          <span className="hint">
+            {completedSceneCount} / {initialScenes.length} Scene 完了
+            {activeSceneCount > 0 ? ` · ${activeSceneCount} Sceneを生成中` : ""}
+          </span>
         </div>
         <div className="nav-actions">
           <button
@@ -250,51 +263,51 @@ export function StoryboardEditor({
                 </div>
                 <div className="scene-copy">
                   <div>
-                    <span>Narration</span>
+                    <span>ナレーション</span>
                     <p>{scene.narration}</p>
                   </div>
                   <div>
-                    <span>Subtitle</span>
+                    <span>字幕</span>
                     <p>{scene.subtitle}</p>
                   </div>
                   <div>
-                    <span>Visual Summary</span>
+                    <span>映像イメージ</span>
                     <p>{scene.visualDescription}</p>
                   </div>
                 </div>
                 <div className="scene-specs">
                   <div>
-                    <span>Camera</span>
+                    <span>カメラ</span>
                     {scene.camera}
                   </div>
                   <div>
-                    <span>Lighting</span>
+                    <span>ライティング</span>
                     {scene.lighting}
                   </div>
                   <div>
-                    <span>Watch Reference</span>
+                    <span>時計画像の参照</span>
                     {scene.watchReference
-                      ? `Yes${scene.preferredAssetLabels.length ? ` · ${scene.preferredAssetLabels.join(", ")}` : ""}`
-                      : "No"}
+                      ? `使用${scene.preferredAssetLabels.length ? ` · ${scene.preferredAssetLabels.join(", ")}` : ""}`
+                      : "なし"}
                   </div>
                   <div>
-                    <span>Year / Location</span>
+                    <span>年代 / 場所</span>
                     {[scene.year, scene.location].filter(Boolean).join(" · ") || "—"}
                   </div>
                 </div>
                 <div className="generation-panel">
                   <div className="generation-head">
-                    <span>VIDEO GENERATIONS</span>
+                    <span>生成動画</span>
                     {activeGeneration ? (
                       <span className="generation-status active">
-                        {activeGeneration.status === "queued" ? "Queued" : "Generating"}
+                        {activeGeneration.status === "queued" ? "開始待ち" : "生成中"}
                       </span>
                     ) : completedGeneration ? (
-                      <span className="generation-status completed">Completed</span>
+                      <span className="generation-status completed">完了</span>
                     ) : generations[0]?.status === "failed" ? (
-                      <span className="generation-status failed">Failed</span>
+                      <span className="generation-status failed">要確認</span>
                     ) : (
-                      <span className="generation-status">Not generated</span>
+                      <span className="generation-status">未生成</span>
                     )}
                   </div>
                   {generations.length > 0 && (
@@ -317,7 +330,7 @@ export function StoryboardEditor({
                                 target="_blank"
                                 rel="noreferrer"
                               >
-                                Preview
+                                動画を見る
                               </a>
                             )}
                             {generation.status === "completed" &&
@@ -332,11 +345,11 @@ export function StoryboardEditor({
                                     )
                                   }
                                 >
-                                  Select
+                                  この動画を使用
                                 </button>
                               )}
                             {scene.selectedGenerationId === generation.id && (
-                              <span className="pill">Selected</span>
+                              <span className="pill">使用中</span>
                             )}
                           </div>
                         </div>
@@ -356,7 +369,7 @@ export function StoryboardEditor({
                         disabled={pending}
                         onClick={() => generateScene(scene, generations.length > 0)}
                       >
-                        {generations.length > 0 ? "Regenerate" : "Generate"}
+                        {generations.length > 0 ? "もう一度生成" : "動画を生成"}
                       </button>
                     )}
                     {completedGeneration && !activeGeneration && (
@@ -365,7 +378,7 @@ export function StoryboardEditor({
                         disabled={pending}
                         onClick={() => generateScene(scene, true)}
                       >
-                        Regenerate
+                        このSceneを再生成
                       </button>
                     )}
                     <button
@@ -373,13 +386,13 @@ export function StoryboardEditor({
                       disabled={pending || Boolean(activeGeneration)}
                       onClick={() => setEditing(scene)}
                     >
-                      Edit Prompt
+                      映像設定
                     </button>
                   </div>
                 </div>
                 <div className="card-actions">
                   <button className="btn" onClick={() => setEditing(scene)}>
-                    <Pencil size={13} /> Edit
+                    <Pencil size={13} /> Scene編集
                   </button>
                   <button
                     className="btn"
@@ -415,7 +428,7 @@ export function StoryboardEditor({
                       request(`/api/projects/${projectId}/scenes/${scene.id}`, { method: "DELETE" })
                     }
                   >
-                    <Trash2 size={13} /> Delete
+                    <Trash2 size={13} /> 削除
                   </button>
                 </div>
               </div>

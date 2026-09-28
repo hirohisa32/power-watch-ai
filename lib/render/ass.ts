@@ -42,10 +42,22 @@ function assTime(ms: number) {
 }
 
 function escapeAss(text: string | undefined) {
-  return (text || "")
+  const escaped = (text || "")
     .replace(/\\/g, "\\\\")
     .replace(/{/g, "\\{")
     .replace(/}/g, "\\}")
     .replace(/\r?\n/g, "\\N")
     .trim();
+  if (escaped.includes("\\N") || [...escaped].length <= 22) return escaped;
+  const midpoint = Math.floor([...escaped].length / 2);
+  const breakpoints = [...escaped]
+    .map((character, index) => ({ character, index }))
+    .filter(({ character }) => /[、。！？,.!? ]/.test(character));
+  const splitAt = breakpoints.sort(
+    (a, b) => Math.abs(a.index - midpoint) - Math.abs(b.index - midpoint),
+  )[0]?.index;
+  if (!splitAt || splitAt < 8 || splitAt > [...escaped].length - 8) return escaped;
+  return `${[...escaped].slice(0, splitAt + 1).join("")}\\N${[...escaped]
+    .slice(splitAt + 1)
+    .join("")}`;
 }

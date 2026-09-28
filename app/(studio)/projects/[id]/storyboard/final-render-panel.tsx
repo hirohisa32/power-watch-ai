@@ -33,6 +33,12 @@ export function FinalRenderPanel({
     () => renders.find((render) => render.status === "completed"),
     [renders],
   );
+  const statusLabel: Record<RenderSummary["status"], string> = {
+    queued: "開始待ち",
+    rendering: "音声・字幕・映像を結合中",
+    completed: "完成",
+    failed: "要確認",
+  };
   useEffect(() => {
     if (!active) return;
     const timer = window.setTimeout(() => router.refresh(), 6_000);
@@ -58,11 +64,9 @@ export function FinalRenderPanel({
     <section className="final-render-panel">
       <div className="final-render-head">
         <div>
-          <p className="eyebrow">FINAL COMPOSITION</p>
-          <h2>1080 × 1920 Final MP4</h2>
-          <p className="hint">
-            選択済みSceneを順番に結合し、ElevenLabs Narration・字幕・BGM・SEをMixします。
-          </p>
+          <p className="eyebrow">完成動画</p>
+          <h2>1080 × 1920 縦型MP4</h2>
+          <p className="hint">Sceneを順番に結合し、ナレーション・字幕・BGM・効果音を仕上げます。</p>
         </div>
         <form
           action={`/api/projects/${projectId}/renders`}
@@ -74,7 +78,7 @@ export function FinalRenderPanel({
         >
           <button className="btn btn-primary" type="submit" disabled={pending || active}>
             {active ? <RefreshCw size={14} /> : <Film size={14} />}
-            {active ? "Rendering…" : completed ? "Re-render" : "Final Render"}
+            {active ? "完成動画を作成中…" : completed ? "完成動画を再作成" : "完成動画を作成"}
           </button>
         </form>
       </div>
@@ -84,14 +88,14 @@ export function FinalRenderPanel({
           {renders.map((render) => (
             <div className="render-row" key={render.id}>
               <span>
-                v{render.version} · {render.status} · {render.width}×{render.height} · {render.fps}
-                fps
-                {render.durationMs != null ? ` · ${(render.durationMs / 1000).toFixed(1)}s` : ""}
-                {render.estimatedCost > 0 ? ` · $${render.estimatedCost.toFixed(6)}` : ""}
+                バージョン {render.version} · {statusLabel[render.status]} · {render.width}×
+                {render.height} · {render.fps}fps
+                {render.durationMs != null ? ` · ${(render.durationMs / 1000).toFixed(1)}秒` : ""}
               </span>
               {render.status === "failed" && (
                 <span className="error">
-                  {render.errorCode}: {render.errorMessage}
+                  {render.errorMessage ||
+                    "完成動画を作成できませんでした。もう一度お試しください。"}
                 </span>
               )}
             </div>
@@ -108,10 +112,10 @@ export function FinalRenderPanel({
           />
           <div className="nav-actions">
             <a className="btn" href={`/api/renders/${completed.id}/video`} target="_blank">
-              Preview
+              大きく見る
             </a>
             <a className="btn btn-primary" href={`/api/renders/${completed.id}/download`}>
-              <Download size={14} /> Download MP4
+              <Download size={14} /> MP4をダウンロード
             </a>
           </div>
         </div>
