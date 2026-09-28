@@ -80,6 +80,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           attempts: videoJobs.attempts,
           providerTaskId: videoJobs.providerTaskId,
           errorCode: videoJobs.errorCode,
+          errorMessage: videoJobs.errorMessage,
         })
         .from(videoJobs)
         .where(eq(videoJobs.projectId, id))
