@@ -256,6 +256,10 @@ async function render(
     const narrationPath = path.join(work, "narration.mp3");
     await writeFile(narrationPath, generated.bytes);
     const elevenCost = (generated.characterCost / 1000) * config.pricePerThousandCharacters;
+    await db
+      .update(openingPreviews)
+      .set({ narrationObjectKey: narrationKey, elevenlabsCostUsd: elevenCost, updatedAt: new Date() })
+      .where(eq(openingPreviews.id, row.preview.id));
     await db.insert(apiUsage).values({
       projectId: row.preview.projectId,
       provider: "elevenlabs",

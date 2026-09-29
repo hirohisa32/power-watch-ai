@@ -49,7 +49,7 @@ export function buildOpeningFfmpegArgs(files: OpeningRenderFiles, fontDirectory:
     "[5:a]highpass=f=35,lowpass=f=6000,volume=0.075,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm]",
     "[bgm][side]sidechaincompress=threshold=0.012:ratio=10:attack=18:release=500[ducked]",
     "[6:a]highpass=f=35,lowpass=f=7500,volume=0.18[se]",
-    "[narr][ducked][se]amix=inputs=3:duration=longest:normalize=0,alimiter=limit=0.93,loudnorm=I=-13:TP=-1:LRA=9[aout]",
+    "[narr][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.93,loudnorm=I=-13:TP=-1:LRA=9[aout]",
   ].join(";");
   args.push("-filter_complex", filter, "-map", "[vout]", "-map", "[aout]");
   args.push(

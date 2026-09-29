@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   assets,
@@ -31,6 +31,34 @@ export async function createOpeningPreview(input: { projectId: string; userId: s
     )
     .limit(1);
   if (active) throw new Error("OPENING_PREVIEW_ALREADY_ACTIVE");
+
+  const [retryable] = await db
+    .select({ preview: openingPreviews, job: openingPreviewJobs })
+    .from(openingPreviews)
+    .innerJoin(openingPreviewJobs, eq(openingPreviewJobs.previewId, openingPreviews.id))
+    .where(
+      and(
+        eq(openingPreviews.projectId, input.projectId),
+        eq(openingPreviews.status, "failed"),
+        isNotNull(openingPreviews.watchObjectKey),
+      ),
+    )
+    .orderBy(desc(openingPreviews.createdAt))
+    .limit(1);
+  if (retryable) {
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx
+        .update(openingPreviews)
+        .set({ status: "queued", stage: "audio-and-render", errorCode: null, errorMessage: null, completedAt: null, updatedAt: now })
+        .where(eq(openingPreviews.id, retryable.preview.id));
+      await tx
+        .update(openingPreviewJobs)
+        .set({ status: "queued", errorCode: null, errorMessage: null, completedAt: null, updatedAt: now })
+        .where(eq(openingPreviewJobs.id, retryable.job.id));
+    });
+    return { preview: retryable.preview, job: retryable.job };
+  }
 
   const projectAssets = await db
     .select()

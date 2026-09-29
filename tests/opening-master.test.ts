@@ -54,6 +54,7 @@ describe("POWER WATCH fixed opening master", () => {
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("sidechaincompress");
     expect(filters).toContain(`loudnorm=I=${OPENING_AUDIO_MIX.narrationTargetLufs}`);
+    expect(filters).not.toContain("normalize=");
     expect(args).toContain("aac");
     expect(args).toContain("192k");
     expect(args).toContain("2");
