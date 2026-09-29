@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { SCENE_PRESETS, type ScenePresetName } from "@/lib/storyboard/presets";
 import { friendlyError, GENERATION_STATUS_LABELS } from "@/lib/ui/presentation";
+import { isFixedOpeningPreset } from "@/lib/opening/policy";
 
 type EditorScene = {
   id: string;
@@ -126,17 +127,27 @@ export function StoryboardEditor({
     () => initialScenes.reduce((sum, scene) => sum + scene.duration, 0),
     [initialScenes],
   );
-  const hasActiveGeneration = initialGenerations.some((generation) =>
-    ["queued", "generating"].includes(generation.status),
+  const bodySceneIds = new Set(
+    initialScenes.filter((scene) => !isFixedOpeningPreset(scene.preset)).map((scene) => scene.id),
+  );
+  const hasActiveGeneration = initialGenerations.some(
+    (generation) =>
+      bodySceneIds.has(generation.sceneId) && ["queued", "generating"].includes(generation.status),
   );
   const completedSceneCount = new Set(
     initialGenerations
-      .filter((generation) => generation.status === "completed")
+      .filter(
+        (generation) => bodySceneIds.has(generation.sceneId) && generation.status === "completed",
+      )
       .map((generation) => generation.sceneId),
   ).size;
   const activeSceneCount = new Set(
     initialGenerations
-      .filter((generation) => ["queued", "generating"].includes(generation.status))
+      .filter(
+        (generation) =>
+          bodySceneIds.has(generation.sceneId) &&
+          ["queued", "generating"].includes(generation.status),
+      )
       .map((generation) => generation.sceneId),
   ).size;
   useEffect(() => {
@@ -155,14 +166,17 @@ export function StoryboardEditor({
       setAdding(false);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? friendlyError(cause.message) : "操作を完了できませんでした。もう一度お試しください。");
+      setError(
+        cause instanceof Error
+          ? friendlyError(cause.message)
+          : "操作を完了できませんでした。もう一度お試しください。",
+      );
     } finally {
       setPending(false);
     }
   }
   async function regenerate() {
-    if (!window.confirm("現在の動画構成を残したまま、新しい構成を作成します。続けますか？"))
-      return;
+    if (!window.confirm("現在の動画構成を残したまま、新しい構成を作成します。続けますか？")) return;
     await request(`/api/projects/${projectId}/storyboard`, { method: "POST" });
   }
   async function generateScene(
@@ -190,7 +204,7 @@ export function StoryboardEditor({
             {hasCompletedRender ? `${total}秒 · 完成尺` : `${total} / ${targetDuration} 秒`}
           </span>
           <span className="hint">
-            {completedSceneCount} / {initialScenes.length} シーン完成
+            {completedSceneCount} / {bodySceneIds.size} 本編シーン完成 · Opening固定Master
             {activeSceneCount > 0 ? ` · ${activeSceneCount}シーンを生成中` : ""}
           </span>
         </div>
@@ -247,6 +261,7 @@ export function StoryboardEditor({
       )}
       <div className="scene-list" id="scene-list">
         {initialScenes.map((scene, index) => {
+          const fixedOpening = isFixedOpeningPreset(scene.preset);
           const allGenerations = initialGenerations.filter(
             (generation) => generation.sceneId === scene.id,
           );
@@ -318,7 +333,9 @@ export function StoryboardEditor({
                 <div className="generation-panel">
                   <div className="generation-head">
                     <span>生成動画</span>
-                    {activeGeneration ? (
+                    {fixedOpening ? (
+                      <span className="generation-status completed">固定Master</span>
+                    ) : activeGeneration ? (
                       <span className="generation-status active">
                         {GENERATION_STATUS_LABELS[activeGeneration.status]}
                       </span>
@@ -335,7 +352,8 @@ export function StoryboardEditor({
                       {generations.map((generation) => (
                         <div className="generation-version" key={generation.id}>
                           <span>
-                            バージョン {generation.version} · {GENERATION_STATUS_LABELS[generation.status]}
+                            バージョン {generation.version} ·{" "}
+                            {GENERATION_STATUS_LABELS[generation.status]}
                             {showTechnical && generation.model ? ` · ${generation.model}` : ""}
                             {showTechnical && generation.actualCostUsd != null
                               ? ` · $${generation.actualCostUsd.toFixed(2)}`
@@ -359,7 +377,8 @@ export function StoryboardEditor({
                                 <button
                                   className="btn"
                                   disabled={pending}
-                                  onClick={() => window.confirm("このバージョンを使用しますか？") &&
+                                  onClick={() =>
+                                    window.confirm("このバージョンを使用しますか？") &&
                                     request(
                                       `/api/projects/${projectId}/scenes/${scene.id}/generations/${generation.id}/select`,
                                       { method: "POST" },
@@ -386,7 +405,7 @@ export function StoryboardEditor({
                     </p>
                   )}
                   <div className="card-actions">
-                    {!completedGeneration && !activeGeneration && (
+                    {!fixedOpening && !completedGeneration && !activeGeneration && (
                       <button
                         className="btn btn-primary"
                         disabled={pending}
@@ -395,11 +414,22 @@ export function StoryboardEditor({
                         {generations.length > 0 ? "もう一度試す" : "映像を作る"}
                       </button>
                     )}
-                    {completedGeneration && !activeGeneration && (
+                    {!fixedOpening && completedGeneration && !activeGeneration && (
                       <>
                         <div className="quick-options" aria-label="修正候補">
                           {QUICK_OPTIONS.map((option) => (
-                            <button key={option} type="button" onClick={() => setRegenerationInstructions((current) => ({ ...current, [scene.id]: option }))}>{option}</button>
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() =>
+                                setRegenerationInstructions((current) => ({
+                                  ...current,
+                                  [scene.id]: option,
+                                }))
+                              }
+                            >
+                              {option}
+                            </button>
                           ))}
                         </div>
                         <input
@@ -468,7 +498,9 @@ export function StoryboardEditor({
                     className="btn btn-danger"
                     disabled={pending}
                     onClick={() =>
-                      window.confirm(`シーン ${scene.order}を削除しますか？この操作は取り消せません。`) &&
+                      window.confirm(
+                        `シーン ${scene.order}を削除しますか？この操作は取り消せません。`,
+                      ) &&
                       request(`/api/projects/${projectId}/scenes/${scene.id}`, { method: "DELETE" })
                     }
                   >
@@ -515,8 +547,17 @@ function SceneForm({
             onChange={(e) => set("duration", Number(e.target.value))}
           />
         </div>
-        <TextField label="シーンタイトル" value={value.title} onChange={(v) => set("title", v)} full />
-        <TextArea label="ナレーション" value={value.narration} onChange={(v) => set("narration", v)} />
+        <TextField
+          label="シーンタイトル"
+          value={value.title}
+          onChange={(v) => set("title", v)}
+          full
+        />
+        <TextArea
+          label="ナレーション"
+          value={value.narration}
+          onChange={(v) => set("narration", v)}
+        />
         <TextArea label="字幕" value={value.subtitle} onChange={(v) => set("subtitle", v)} />
         <TextArea
           label="映像イメージ"

@@ -9,10 +9,8 @@ import { assets, projects } from "@/lib/db/schema";
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
-import { listOpeningPreviews } from "@/lib/opening/repository";
 import { isAdminEmail } from "@/lib/ui/presentation";
 import { FinalRenderPanel } from "./final-render-panel";
-import { OpeningPreviewPanel } from "./opening-preview-panel";
 import { StoryboardEditor } from "./storyboard-editor";
 
 export const metadata: Metadata = { title: "動画構成" };
@@ -35,10 +33,9 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
-  const [generations, renders, openingPreviews] = await Promise.all([
+  const [generations, renders] = await Promise.all([
     listSceneGenerations(id),
     listProjectRenders(id),
-    listOpeningPreviews(id),
   ]);
   return (
     <main className="content storyboard-page">
@@ -72,23 +69,6 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
         }))}
         showTechnical={isAdmin}
       />
-      {isAdmin && <OpeningPreviewPanel
-        projectId={id}
-        previews={openingPreviews.map(({ preview, master, asset }) => ({
-          id: preview.id,
-          status: preview.status,
-          stage: preview.stage,
-          durationMs: preview.durationMs,
-          assetLabel: asset.label,
-          masterVersion: master.version,
-          masterStatus: master.status,
-          runwayCredits: preview.runwayCredits,
-          runwayCostUsd: preview.runwayCostUsd,
-          elevenlabsCostUsd: preview.elevenlabsCostUsd,
-          audioMetrics: preview.audioMetrics,
-          errorMessage: preview.errorMessage,
-        }))}
-      />}
       <FinalRenderPanel
         projectId={id}
         renders={renders.map((render) => ({

@@ -17,6 +17,7 @@ import { ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
 import { VoiceRouter } from "@/lib/audio/router";
 import type { ApprovedVoicePreset } from "@/lib/audio/voices";
 import { buildFinalRenderInput } from "./plan";
+import { isFixedOpeningPreset } from "@/lib/opening/policy";
 
 export class RenderRequestError extends Error {
   name = "RenderRequestError";
@@ -60,7 +61,8 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       .leftJoin(videoGenerations, eq(videoGenerations.id, scenes.selectedGenerationId))
       .where(eq(scenes.storyboardId, storyboard.id))
       .orderBy(scenes.order);
-    const renderable = rows
+    const bodyRows = rows.filter((row) => !isFixedOpeningPreset(row.scene.preset));
+    const renderable = bodyRows
       .filter(
         (row) => row.generationId && row.generationStatus === "completed" && row.outputObjectKey,
       )
@@ -203,7 +205,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         language: project.language,
         bgmKey: project.bgmKey,
         scenes: renderable,
-        totalSceneCount: rows.length,
+        totalSceneCount: bodyRows.length,
         voiceAssignments: voicePlan.assignments,
       });
     } catch (error) {

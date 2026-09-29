@@ -13,6 +13,7 @@ import { buildVideoPrompt } from "./prompt";
 import { estimateVideoCost } from "./cost";
 import { modelForStyle, videoConfig } from "./config";
 import { pickReferenceAssetIds } from "./orchestration";
+import { isFixedOpeningPreset } from "@/lib/opening/policy";
 
 export class GenerationRequestError extends Error {
   name = "GenerationRequestError";
@@ -42,6 +43,8 @@ export async function createGenerationJob(input: {
       )
       .limit(1);
     if (!owned) throw new GenerationRequestError("Sceneが見つかりません");
+    if (isFixedOpeningPreset(owned.scene.preset))
+      throw new GenerationRequestError("Openingは固定System Assetのため生成できません");
     const active = await transaction
       .select({ id: videoGenerations.id })
       .from(videoGenerations)

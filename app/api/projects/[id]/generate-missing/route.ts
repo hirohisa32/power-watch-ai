@@ -7,6 +7,7 @@ import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { VercelVideoJobQueue } from "@/lib/video/queue";
 import { createGenerationJob, markEnqueueFailed } from "@/lib/video/repository";
+import { isFixedOpeningPreset } from "@/lib/opening/policy";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const db = getDb();
     const candidates = await db
-      .select({ id: scenes.id })
+      .select({ id: scenes.id, preset: scenes.preset })
       .from(scenes)
       .innerJoin(projects, eq(projects.id, scenes.projectId))
       .innerJoin(storyboards, eq(storyboards.id, scenes.storyboardId))
@@ -36,7 +37,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
     const queue = new VercelVideoJobQueue();
     const queued: string[] = [];
-    for (const scene of candidates.filter((item) => !blocked.has(item.id))) {
+    for (const scene of candidates.filter(
+      (item) => !isFixedOpeningPreset(item.preset) && !blocked.has(item.id),
+    )) {
       const created = await createGenerationJob({
         projectId: id,
         sceneId: scene.id,

@@ -29,6 +29,7 @@ import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
 import { narrationObjectKey, renderObjectKey } from "./plan";
 import type { FinalRenderInput } from "./types";
 import { settleCompletedRender } from "@/lib/billing/service";
+import { fixedOpeningMasterPath } from "@/lib/opening/fixed-master";
 
 type WorkerDependencies = {
   narration: NarrationProvider;
@@ -85,6 +86,7 @@ export async function processFinalRenderJob(
     "narration";
   const workDir = await mkdtemp(path.join(tmpdir(), "power-watch-render-"));
   try {
+    const bodyDuration = renderInput.scenes.reduce((sum, scene) => sum + scene.duration, 0);
     const narrationScript = buildNarrationScript(
       renderInput.scenes.map((scene) => ({
         id: scene.sceneId,
@@ -104,8 +106,8 @@ export async function processFinalRenderJob(
           .filter(Boolean)
           .join("\n\n")
       : narrationScript;
-    const overallSpeed = narrationSpeed(script, renderInput.totalDuration, renderInput.language);
-    assertNarrationFits(script, renderInput.totalDuration, overallSpeed, renderInput.language);
+    const overallSpeed = narrationSpeed(script, bodyDuration, renderInput.language);
+    assertNarrationFits(script, bodyDuration, overallSpeed, renderInput.language);
     const config = narrationConfig();
     const narratorVoiceId =
       (renderInput.voiceAssignments ?? []).find(
@@ -331,6 +333,7 @@ export async function processFinalRenderJob(
     stage = "ffmpeg";
     const renderStarted = Date.now();
     await dependencies.render(renderInput, {
+      opening: fixedOpeningMasterPath(),
       videos: videoPaths,
       narration: narrationPath,
       subtitles: subtitlePath,

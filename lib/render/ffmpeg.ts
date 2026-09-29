@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
+import { createReadStream, createWriteStream } from "node:fs";
+import { copyFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import type { FinalRenderInput } from "./types";
 import { SOUND_EFFECT_BY_PRESET } from "./plan";
 
 export type FfmpegRenderFiles = {
+  opening: string;
   videos: string[];
   narration: string;
   subtitles: string;
@@ -14,7 +18,9 @@ export function buildFfmpegArgs(
   input: FinalRenderInput,
   files: FfmpegRenderFiles,
   fontDirectory: string,
+  bodyOutput = files.output,
 ) {
+  const bodyDuration = input.scenes.reduce((sum, scene) => sum + scene.duration, 0);
   const args = ["-y", "-hide_banner", "-loglevel", "warning"];
   // Loop defensively so a provider clip that is a few frames short still fills its
   // storyboard slot. The following trim keeps normally sized clips unchanged.
@@ -27,11 +33,11 @@ export function buildFfmpegArgs(
     "-f",
     "lavfi",
     "-t",
-    String(input.totalDuration),
+    String(bodyDuration),
     "-i",
-    "aevalsrc='(0.018*sin(2*PI*55*t)+0.011*sin(2*PI*82.41*t)+0.006*sin(2*PI*110*t)+0.004*sin(2*PI*220*t))*(0.82+0.18*sin(2*PI*0.045*t))':s=44100:c=stereo",
+    "aevalsrc='(0.018*sin(2*PI*55*t)+0.011*sin(2*PI*82.41*t)+0.006*sin(2*PI*110*t)+0.004*sin(2*PI*220*t))*(0.82+0.18*sin(2*PI*0.045*t))':s=32000:c=stereo",
   );
-  args.push("-f", "lavfi", "-t", String(input.totalDuration), "-i", buildSoundEffectSource(input));
+  args.push("-f", "lavfi", "-t", String(bodyDuration), "-i", buildSoundEffectSource(input));
 
   const videoFilters = input.scenes.map((scene, index) => {
     const incoming = index > 0 ? transitionFadeSeconds(input.scenes[index - 1].transition) : 0;
@@ -42,13 +48,13 @@ export function buildFfmpegArgs(
         ? `fade=t=out:st=${Math.max(0, scene.duration - outgoing).toFixed(3)}:d=${outgoing}`
         : "",
     ].filter(Boolean);
-    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,format=yuv420p,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
+    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=${input.fps},format=yuv420p10le,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
   });
   const concat = `${input.scenes.map((_, index) => `[v${index}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[base]`;
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
   const audio = [
-    `[${narrationIndex}:a]atrim=0:${input.totalDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]highpass=f=35,lowpass=f=6500,volume=0.055,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm]`,
+    `[${narrationIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo,asplit=2[narrmix][side]`,
+    `[${bgmIndex}:a]highpass=f=35,lowpass=f=6500,volume=0.055,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
     `[bgm][side]sidechaincompress=threshold=0.014:ratio=12:attack=25:release=520[ducked]`,
     `[${seIndex}:a]highpass=f=40,lowpass=f=7000,volume=0.11[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
@@ -60,26 +66,116 @@ export function buildFfmpegArgs(
     "-map",
     "[aout]",
     "-t",
-    String(input.totalDuration),
+    String(bodyDuration),
     "-r",
     String(input.fps),
     "-c:v",
-    "libx264",
+    "libx265",
     "-preset",
-    "veryfast",
+    "medium",
     "-crf",
-    "23",
+    "20",
     "-pix_fmt",
-    "yuv420p",
+    "yuv420p10le",
+    "-tag:v",
+    "hvc1",
+    "-video_track_timescale",
+    "12288",
     "-c:a",
     "aac",
     "-b:a",
     "192k",
+    "-ar",
+    "32000",
+    "-movflags",
+    "+faststart",
+    bodyOutput,
+  );
+  return args;
+}
+
+export function buildFixedOpeningConcatArgs(
+  files: FfmpegRenderFiles,
+  combinedTransportStream: string,
+  combinedAudio: string,
+) {
+  return [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-fflags",
+    "+genpts",
+    "-i",
+    combinedTransportStream,
+    "-i",
+    combinedAudio,
+    "-map",
+    "0:v:0",
+    "-map",
+    "1:a:0",
+    "-c",
+    "copy",
     "-movflags",
     "+faststart",
     files.output,
-  );
-  return args;
+  ];
+}
+
+export function buildCompatibilityConcatArgs(concatList: string, output: string) {
+  return [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    concatList,
+    "-c",
+    "copy",
+    output,
+  ];
+}
+
+export function buildPrimingTrimArgs(input: string, output: string) {
+  return [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-ss",
+    "0.032",
+    "-i",
+    input,
+    "-c",
+    "copy",
+    output,
+  ];
+}
+
+export function buildTransportStreamArgs(input: string, output: string) {
+  return [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-i",
+    input,
+    "-map",
+    "0:v:0",
+    "-map",
+    "0:a:0",
+    "-c",
+    "copy",
+    "-bsf:v",
+    "hevc_mp4toannexb",
+    "-f",
+    "mpegts",
+    output,
+  ];
 }
 
 export async function renderWithFfmpeg(
@@ -88,7 +184,47 @@ export async function renderWithFfmpeg(
   fontDirectory = resolveFontDirectory(),
 ) {
   const executable = resolveFfmpegPath();
-  await run(executable, buildFfmpegArgs(input, files, fontDirectory), 270_000);
+  const bodyOutput = path.join(path.dirname(files.output), "body-master-compatible.mp4");
+  const openingTransport = path.join(path.dirname(files.output), "fixed-opening.ts");
+  const bodyTransport = path.join(path.dirname(files.output), "body-master-compatible.ts");
+  const combinedTransport = path.join(path.dirname(files.output), "fixed-opening-and-body.ts");
+  const concatList = path.join(path.dirname(files.output), "fixed-opening-audio-concat.txt");
+  const rawCombinedMedia = path.join(path.dirname(files.output), "fixed-opening-and-body-raw.mp4");
+  const combinedMedia = path.join(path.dirname(files.output), "fixed-opening-and-body.mp4");
+  try {
+    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput), 270_000);
+    await run(executable, buildTransportStreamArgs(files.opening, openingTransport), 60_000);
+    await run(executable, buildTransportStreamArgs(bodyOutput, bodyTransport), 60_000);
+    await copyFile(openingTransport, combinedTransport);
+    await pipeline(
+      createReadStream(bodyTransport),
+      createWriteStream(combinedTransport, { flags: "a" }),
+    );
+    await writeFile(
+      concatList,
+      [files.opening, bodyOutput]
+        .map((file) => `file '${file.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`)
+        .join("\n"),
+      "utf8",
+    );
+    await run(executable, buildCompatibilityConcatArgs(concatList, rawCombinedMedia), 60_000);
+    await run(executable, buildPrimingTrimArgs(rawCombinedMedia, combinedMedia), 60_000);
+    await run(
+      executable,
+      buildFixedOpeningConcatArgs(files, combinedTransport, combinedMedia),
+      60_000,
+    );
+  } finally {
+    await Promise.all([
+      rm(bodyOutput, { force: true }),
+      rm(openingTransport, { force: true }),
+      rm(bodyTransport, { force: true }),
+      rm(combinedTransport, { force: true }),
+      rm(concatList, { force: true }),
+      rm(rawCombinedMedia, { force: true }),
+      rm(combinedMedia, { force: true }),
+    ]);
+  }
 }
 
 export async function probeDurationMs(file: string) {
@@ -170,7 +306,7 @@ function buildSoundEffectSource(input: FinalRenderInput) {
       `(0.045*sin(2*PI*${effect.frequency}*t)+0.012*(2*random(0)-1))*exp(-10*${elapsed})*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
     ];
   });
-  return `aevalsrc='${terms.join("+") || "0"}':s=44100:c=stereo`;
+  return `aevalsrc='${terms.join("+") || "0"}':s=32000:c=stereo`;
 }
 
 export function transitionFadeSeconds(transition?: string) {

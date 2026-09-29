@@ -28,7 +28,7 @@ export type TextOverlay = {
 export type FinalRenderInput = {
   width: 1080;
   height: 1920;
-  fps: 30;
+  fps: 24;
   language: "ja" | "en" | "zh";
   bgmKey: string;
   totalDuration: number;
@@ -37,4 +37,11 @@ export type FinalRenderInput = {
   subtitles: SubtitleCue[];
   overlays: TextOverlay[];
   voiceAssignments: VoiceAssignment[];
+  fixedOpening: {
+    version: number;
+    duration: number;
+    systemAsset: string;
+    sha256: string;
+    credits: 0;
+  };
 };

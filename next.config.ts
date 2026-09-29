@@ -3,7 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingIncludes: {
-    "/api/queues/final-render": ["./.vercel-build-assets/**/*"],
+    "/api/queues/final-render": [
+      "./.vercel-build-assets/**/*",
+      "./assets/opening/opening-master.mp4",
+      "./assets/opening/opening-master.json",
+    ],
   },
   async headers() {
     return [
