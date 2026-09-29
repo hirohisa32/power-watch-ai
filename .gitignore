@@ -9,4 +9,6 @@ coverage/
 *.log
 *.tsbuildinfo
 public/uploads/
+artifacts/
+client-demo/
 参考クオリティ動画素材フォルダ/

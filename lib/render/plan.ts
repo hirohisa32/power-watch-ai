@@ -33,12 +33,20 @@ export function buildFinalRenderInput(input: {
   let cursorMs = 0;
   scenes.forEach((scene) => {
     const durationMs = scene.duration * 1000;
-    if (scene.preset === "OldBook" && !overlays.some((overlay) => overlay.kind === "brand"))
+    if (scene.preset === "OldBook")
       overlays.push({
         kind: "brand",
         startMs: cursorMs + Math.min(450, durationMs * 0.12),
         endMs: Math.min(cursorMs + 2350, cursorMs + durationMs - 250),
         primary: "POWER WATCH",
+      });
+    if (scene.preset === "Ending")
+      overlays.push({
+        kind: "brand",
+        startMs: cursorMs + Math.min(650, durationMs * 0.18),
+        endMs: cursorMs + durationMs - 300,
+        primary: "POWER WATCH",
+        secondary: "TIME, REMEMBERED.",
       });
     if (scene.year || scene.location)
       overlays.push({

@@ -44,6 +44,18 @@ const scenes = [
     location: null,
     objectKey: "a.mp4",
   },
+  {
+    sceneId: "scene-ending",
+    generationId: "generation-ending",
+    order: 4,
+    preset: "Ending",
+    duration: 4,
+    narration: "時を、記憶する。",
+    subtitle: "時を、記憶する。",
+    year: null,
+    location: null,
+    objectKey: "ending.mp4",
+  },
 ];
 
 describe("Phase 4 final render", () => {
@@ -52,7 +64,7 @@ describe("Phase 4 final render", () => {
       language: "ja",
       bgmKey: "default-ambient",
       scenes,
-      totalSceneCount: 3,
+      totalSceneCount: 4,
     });
     expect(
       buildNarrationScript(
@@ -87,17 +99,18 @@ describe("Phase 4 final render", () => {
     expect(cues[0].endMs).toBeLessThanOrEqual(cues[1].startMs);
   });
 
-  it("adds POWER WATCH only on the closed-book scene and year/location overlays", () => {
+  it("adds POWER WATCH only on the closed-book and ending scenes with year/location overlays", () => {
     const plan = buildFinalRenderInput({
       language: "ja",
       bgmKey: "default-ambient",
       scenes,
-      totalSceneCount: 3,
+      totalSceneCount: 4,
     });
-    const brand = plan.overlays.find((item) => item.primary === "POWER WATCH");
-    expect(brand).toBeDefined();
-    expect(brand!.startMs).toBeGreaterThan(3000);
-    expect(brand!.endMs).toBeLessThanOrEqual(7000);
+    const brands = plan.overlays.filter((item) => item.primary === "POWER WATCH");
+    expect(brands).toHaveLength(2);
+    expect(brands[0]!.startMs).toBeGreaterThan(3000);
+    expect(brands[0]!.endMs).toBeLessThanOrEqual(7000);
+    expect(brands[1]!.secondary).toBe("TIME, REMEMBERED.");
     expect(
       plan.overlays.some((item) => item.primary === "1967" && item.secondary === "BOLIVIA"),
     ).toBe(true);
@@ -108,7 +121,7 @@ describe("Phase 4 final render", () => {
       language: "ja",
       bgmKey: "default-ambient",
       scenes,
-      totalSceneCount: 3,
+      totalSceneCount: 4,
     });
     const ass = createAssSubtitles(plan);
     expect(ass).toContain("Noto Sans JP");
@@ -122,13 +135,18 @@ describe("Phase 4 final render", () => {
       language: "ja",
       bgmKey: "default-ambient",
       scenes,
-      totalSceneCount: 3,
+      totalSceneCount: 4,
     });
-    expect(plan.scenes.map((scene) => scene.sceneId)).toEqual(["scene-a", "scene-book", "scene-b"]);
+    expect(plan.scenes.map((scene) => scene.sceneId)).toEqual([
+      "scene-a",
+      "scene-book",
+      "scene-b",
+      "scene-ending",
+    ]);
     const args = buildFfmpegArgs(
       plan,
       {
-        videos: ["a.mp4", "book.mp4", "b.mp4"],
+        videos: ["a.mp4", "book.mp4", "b.mp4", "ending.mp4"],
         narration: "n.mp3",
         subtitles: "s.ass",
         output: "o.mp4",
@@ -136,8 +154,9 @@ describe("Phase 4 final render", () => {
       "/fonts",
     );
     const filters = args[args.indexOf("-filter_complex") + 1];
-    expect(filters).toContain("concat=n=3");
-    expect(args.filter((value) => value === "-stream_loop")).toHaveLength(3);
+    expect(filters).toContain("concat=n=4");
+    expect(filters).toContain("setsar=1");
+    expect(args.filter((value) => value === "-stream_loop")).toHaveLength(4);
     expect(filters).toContain("fade=t=out");
     expect(filters).not.toContain("xfade=");
     expect(filters).toContain("sidechaincompress");
@@ -155,8 +174,8 @@ describe("Phase 4 final render", () => {
       width: 1080,
       height: 1920,
       fps: 30,
-      totalDuration: 11,
-      missingSceneCount: 1,
+      totalDuration: 15,
+      missingSceneCount: 0,
     });
   });
 

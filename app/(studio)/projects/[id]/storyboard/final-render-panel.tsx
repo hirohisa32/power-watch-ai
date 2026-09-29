@@ -33,6 +33,9 @@ export function FinalRenderPanel({
     () => renders.find((render) => render.status === "completed"),
     [renders],
   );
+  const visibleRenders = completed
+    ? renders.filter((render) => render.status === "completed")
+    : renders;
   const statusLabel: Record<RenderSummary["status"], string> = {
     queued: "開始待ち",
     rendering: "音声・字幕・映像を結合中",
@@ -83,9 +86,9 @@ export function FinalRenderPanel({
         </form>
       </div>
       {error && <p className="error">{error}</p>}
-      {renders.length > 0 && (
+      {visibleRenders.length > 0 && (
         <div className="render-history">
-          {renders.map((render) => (
+          {visibleRenders.map((render) => (
             <div className="render-row" key={render.id}>
               <span>
                 バージョン {render.version} · {statusLabel[render.status]} · {render.width}×

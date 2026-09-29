@@ -35,15 +35,14 @@ export function buildFfmpegArgs(
 
   const videoFilters = input.scenes.map((scene, index) => {
     const incoming = index > 0 ? transitionFadeSeconds(input.scenes[index - 1].transition) : 0;
-    const outgoing =
-      index < input.scenes.length - 1 ? transitionFadeSeconds(scene.transition) : 0;
+    const outgoing = index < input.scenes.length - 1 ? transitionFadeSeconds(scene.transition) : 0;
     const fades = [
       incoming > 0 ? `fade=t=in:st=0:d=${incoming}` : "",
       outgoing > 0
         ? `fade=t=out:st=${Math.max(0, scene.duration - outgoing).toFixed(3)}:d=${outgoing}`
         : "",
     ].filter(Boolean);
-    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,format=yuv420p,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
+    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,format=yuv420p,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
   });
   const concat = `${input.scenes.map((_, index) => `[v${index}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[base]`;
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;

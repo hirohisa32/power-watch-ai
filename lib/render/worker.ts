@@ -419,6 +419,7 @@ async function failFinalRender(
 ) {
   const db = getDb();
   const details = renderError(stage, error);
+  const technicalMessage = error instanceof Error ? error.message : String(error);
   const now = new Date();
   await db.transaction(async (transaction) => {
     await transaction
@@ -426,7 +427,7 @@ async function failFinalRender(
       .set({
         status: "failed",
         errorCode: details.code,
-        errorMessage: details.message,
+        errorMessage: `${details.message} [${technicalMessage.slice(-1800)}]`,
         updatedAt: now,
         completedAt: now,
       })
