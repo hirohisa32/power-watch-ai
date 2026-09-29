@@ -52,6 +52,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
       <StoryboardEditor
         projectId={id}
         targetDuration={project.targetDuration}
+        hasCompletedRender={renders.some((render) => render.status === "completed")}
         assetLabels={watchAssets.map((asset) => asset.label)}
         initialScenes={active.scenes.map((scene) => ({
           ...scene,

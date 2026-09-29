@@ -87,12 +87,14 @@ const blankScene = (): Omit<
 export function StoryboardEditor({
   projectId,
   targetDuration,
+  hasCompletedRender,
   assetLabels,
   initialScenes,
   initialGenerations,
 }: {
   projectId: string;
   targetDuration: number;
+  hasCompletedRender: boolean;
   assetLabels: string[];
   initialScenes: EditorScene[];
   initialGenerations: EditorGeneration[];
@@ -168,8 +170,10 @@ export function StoryboardEditor({
     <>
       <div className="storyboard-toolbar">
         <div>
-          <span className={`duration-meter ${total === targetDuration ? "valid" : "invalid"}`}>
-            {total} / {targetDuration} 秒
+          <span
+            className={`duration-meter ${total === targetDuration || hasCompletedRender ? "valid" : "invalid"}`}
+          >
+            {hasCompletedRender ? `${total}秒 · 完成尺` : `${total} / ${targetDuration} 秒`}
           </span>
           <span className="hint">
             {completedSceneCount} / {initialScenes.length} Scene 完了
@@ -201,7 +205,7 @@ export function StoryboardEditor({
           </button>
         </div>
       </div>
-      {total !== targetDuration && (
+      {total !== targetDuration && !hasCompletedRender && (
         <p className="duration-warning">
           Scene合計が目標尺と一致していません。生成前にDurationを調整してください。
         </p>
@@ -229,14 +233,17 @@ export function StoryboardEditor({
       )}
       <div className="scene-list">
         {initialScenes.map((scene, index) => {
-          const generations = initialGenerations.filter(
+          const allGenerations = initialGenerations.filter(
             (generation) => generation.sceneId === scene.id,
           );
+          const completedGeneration = allGenerations.find(
+            (generation) => generation.status === "completed",
+          );
+          const generations = completedGeneration
+            ? allGenerations.filter((generation) => generation.status !== "failed")
+            : allGenerations;
           const activeGeneration = generations.find((generation) =>
             ["queued", "generating"].includes(generation.status),
-          );
-          const completedGeneration = generations.find(
-            (generation) => generation.status === "completed",
           );
           return editing?.id === scene.id ? (
             <SceneForm
