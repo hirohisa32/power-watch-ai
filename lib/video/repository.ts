@@ -12,6 +12,7 @@ import {
 import { buildVideoPrompt } from "./prompt";
 import { estimateVideoCost } from "./cost";
 import { modelForStyle, videoConfig } from "./config";
+import { pickReferenceAssetIds } from "./orchestration";
 
 export class GenerationRequestError extends Error {
   name = "GenerationRequestError";
@@ -66,9 +67,11 @@ export async function createGenerationJob(input: {
             ),
           )
       : [];
-    if (owned.scene.watchReference && !matchingAssets.length) {
-      throw new GenerationRequestError("時計参照Sceneに利用可能な登録画像がありません");
-    }
+    const referenceAssetIds = pickReferenceAssetIds(
+      matchingAssets,
+      owned.scene.preferredAssetLabels,
+      owned.scene.preset,
+    );
     const [latest] = await transaction
       .select({ version: max(videoGenerations.version) })
       .from(videoGenerations)
@@ -76,7 +79,7 @@ export async function createGenerationJob(input: {
     const version = (latest.version ?? 0) + 1;
     const model = modelForStyle(owned.project.style);
     const prompt = buildVideoPrompt(
-      owned.scene,
+      { ...owned.scene, referenceAvailable: referenceAssetIds.length > 0 },
       owned.project.style,
       input.regenerationInstruction,
     );
@@ -91,7 +94,7 @@ export async function createGenerationJob(input: {
         model,
         prompt,
         regenerationInstruction: input.regenerationInstruction,
-        referenceAssetIds: matchingAssets.map((asset) => asset.id),
+        referenceAssetIds,
         requestedDuration: owned.scene.duration,
         estimatedCostCredits: estimate.credits,
         estimatedCostUsd: estimate.usd,

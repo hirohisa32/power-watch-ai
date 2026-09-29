@@ -131,8 +131,7 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
 
   async listLibraryVoices(input: VoiceLibraryQuery = {}): Promise<VoiceLibraryResult> {
     const config = narrationConfig();
-    if (!config.apiKey)
-      throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
+    if (!config.apiKey) throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
     const params = new URLSearchParams({
       page: String(Math.max(0, input.page ?? 0)),
       page_size: String(Math.min(100, Math.max(1, input.pageSize ?? 30))),

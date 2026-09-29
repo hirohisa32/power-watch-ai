@@ -5,13 +5,24 @@ import { getDb } from "@/lib/db";
 import { voicePresets } from "@/lib/db/schema";
 
 export const voicePresetInputSchema = z.object({
-  key: z.string().trim().min(1).max(50).regex(/^[a-z0-9-]+$/),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/),
   voiceId: z.string().trim().min(3).max(100),
   name: z.string().trim().min(1).max(100),
   gender: z.enum(["male", "female", "neutral"]).default("male"),
-  roles: z.array(z.enum(["narration", "dialogue"])).min(1).max(2),
+  roles: z
+    .array(z.enum(["narration", "dialogue"]))
+    .min(1)
+    .max(2),
   tones: z.array(z.string().trim().min(1).max(40)).max(12),
-  languages: z.array(z.enum(["ja", "en", "zh"])).min(1).max(3),
+  languages: z
+    .array(z.enum(["ja", "en", "zh"]))
+    .min(1)
+    .max(3),
   approved: z.boolean().default(true),
   priority: z.number().int().min(-100).max(100).default(0),
 });

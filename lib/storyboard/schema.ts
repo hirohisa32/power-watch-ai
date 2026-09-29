@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PRESET_NAMES } from "@/lib/storyboard/presets";
+import { sceneDurationRule } from "@/lib/storyboard/styles/epoca-story";
 
 export const storyboardSceneSchema = z
   .object({
@@ -65,22 +66,60 @@ export function rebalanceStoryboardDuration(
   storyboard: StoryboardOutput,
   targetDuration: 60 | 90,
 ): StoryboardOutput {
-  const scenes = storyboard.scenes.map((scene, index) => ({ ...scene, sceneNumber: index + 1 }));
+  const scenes = storyboard.scenes.map((scene, index) => {
+    const rule = sceneDurationRule(scene.preset);
+    return {
+      ...scene,
+      sceneNumber: index + 1,
+      duration: Math.min(rule.max, Math.max(rule.min, scene.duration)),
+    };
+  });
   let remaining = targetDuration - scenes.reduce((sum, scene) => sum + scene.duration, 0);
-  const direction = Math.sign(remaining);
-  while (remaining !== 0) {
-    let changed = false;
-    for (let index = scenes.length - 1; index >= 0 && remaining !== 0; index -= 1) {
-      const next = scenes[index].duration + direction;
-      if (next >= 3 && next <= 8) {
-        scenes[index] = { ...scenes[index], duration: next };
-        remaining -= direction;
-        changed = true;
+  for (const useStyleLimits of [true, false]) {
+    const direction = Math.sign(remaining);
+    while (remaining !== 0) {
+      let changed = false;
+      for (let index = scenes.length - 1; index >= 0 && remaining !== 0; index -= 1) {
+        const rule = sceneDurationRule(scenes[index].preset);
+        const min = useStyleLimits ? rule.min : 3;
+        const max = useStyleLimits ? rule.max : 8;
+        const next = scenes[index].duration + direction;
+        if (next >= min && next <= max) {
+          scenes[index] = { ...scenes[index], duration: next };
+          remaining -= direction;
+          changed = true;
+        }
       }
+      if (!changed) break;
     }
-    if (!changed) throw new StoryboardValidationError("Scene数では目標尺へ調整できません");
+    if (remaining === 0) break;
   }
+  if (remaining !== 0) throw new StoryboardValidationError("Scene数では目標尺へ調整できません");
   return { scenes };
+}
+
+const INTERNAL_NARRATION_PATTERN =
+  /^(?:scene|shot|cut|preset|camera|visual|opening|ending|product\s*hero|シーン|カット|映像|画面|カメラ|演出|構図)\s*[:：#\-–—\d]*/iu;
+
+export function validateNarrationContinuity(storyboard: StoryboardOutput) {
+  let previous = "";
+  for (const scene of storyboard.scenes) {
+    const narration = scene.narration.replace(/\s+/g, " ").trim();
+    if (INTERNAL_NARRATION_PATTERN.test(narration))
+      throw new StoryboardValidationError("Narrationに内部Sceneラベルを含めることはできません");
+    if (narration === scene.title.trim() || narration === scene.visualDescription.trim())
+      throw new StoryboardValidationError("NarrationにScene説明をそのまま使用できません");
+    const comparable = narration.toLocaleLowerCase().replace(/[\s。！？.!?]/g, "");
+    if (comparable && comparable === previous)
+      throw new StoryboardValidationError("同じNarrationが連続しています");
+    previous = comparable;
+  }
+}
+
+export function narrationOnlySubtitles(storyboard: StoryboardOutput): StoryboardOutput {
+  return {
+    scenes: storyboard.scenes.map((scene) => ({ ...scene, subtitle: scene.narration.trim() })),
+  };
 }
 
 export function normalizeStoryboardReferences(
@@ -113,12 +152,17 @@ export function validateStoryboard(
     if (scene.sceneNumber !== index + 1)
       throw new StoryboardValidationError("Scene番号が連続していません");
   }
-  const storyboard = normalizeStoryboardReferences(
-    rebalanceStoryboardDuration(parsed.data, targetDuration),
-    availableAssetLabels,
+  const storyboard = narrationOnlySubtitles(
+    normalizeStoryboardReferences(
+      rebalanceStoryboardDuration(parsed.data, targetDuration),
+      availableAssetLabels,
+    ),
   );
-  if (storyboard.scenes[0]?.preset !== "Opening")
-    throw new StoryboardValidationError("StoryboardはOpeningから開始する必要があります");
+  const openingPresets = storyboard.scenes.slice(0, 4).map((scene) => scene.preset);
+  if (openingPresets.join(",") !== "Opening,VintageRoom,OldBook,WatchReveal")
+    throw new StoryboardValidationError(
+      "StoryboardはOpening(Door)、Room、Book、Watch Revealの順で開始する必要があります",
+    );
   if (storyboard.scenes.at(-1)?.preset !== "Ending")
     throw new StoryboardValidationError("StoryboardはEndingで終了する必要があります");
   if (
@@ -140,6 +184,7 @@ export function validateStoryboard(
     if (/power\s*watch/i.test(scene.visualPrompt))
       throw new StoryboardValidationError("POWER WATCH文字は映像Promptへ含められません");
   }
+  validateNarrationContinuity(storyboard);
   if (totalStoryboardDuration(storyboard) !== targetDuration)
     throw new StoryboardValidationError("Scene合計時間が目標尺と一致しません");
   return storyboard;

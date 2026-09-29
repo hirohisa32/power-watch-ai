@@ -93,12 +93,16 @@ export async function processFinalRenderJob(
       })),
       renderInput.language,
     );
-    const script = renderInput.scenes
-      .flatMap((scene) => [scene.narration, ...(scene.dialogue ?? []).map((line) => line.text)])
-      .map((text) => text.trim())
-      .filter(Boolean)
-      .join(renderInput.language === "en" ? "\n\n" : "。\n\n")
-      .replace(/。。/g, "。");
+    const hasDialogue = renderInput.scenes.some((scene) =>
+      (scene.dialogue ?? []).some((line) => line.text.trim()),
+    );
+    const script = hasDialogue
+      ? renderInput.scenes
+          .flatMap((scene) => [scene.narration, ...(scene.dialogue ?? []).map((line) => line.text)])
+          .map((text) => text.trim())
+          .filter(Boolean)
+          .join("\n\n")
+      : narrationScript;
     const overallSpeed = narrationSpeed(script, renderInput.totalDuration, renderInput.language);
     assertNarrationFits(script, renderInput.totalDuration, overallSpeed, renderInput.language);
     const config = narrationConfig();

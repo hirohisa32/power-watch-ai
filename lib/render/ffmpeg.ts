@@ -29,27 +29,29 @@ export function buildFfmpegArgs(
     "-t",
     String(input.totalDuration),
     "-i",
-    "aevalsrc='0.028*sin(2*PI*55*t)+0.016*sin(2*PI*82.41*t)+0.009*sin(2*PI*110*t)':s=44100:c=stereo",
+    "aevalsrc='(0.018*sin(2*PI*55*t)+0.011*sin(2*PI*82.41*t)+0.006*sin(2*PI*110*t)+0.004*sin(2*PI*220*t))*(0.82+0.18*sin(2*PI*0.045*t))':s=44100:c=stereo",
   );
   args.push("-f", "lavfi", "-t", String(input.totalDuration), "-i", buildSoundEffectSource(input));
 
   const videoFilters = input.scenes.map((scene, index) => {
-    const fade = transitionFadeSeconds(scene.transition);
+    const incoming = index > 0 ? transitionFadeSeconds(input.scenes[index - 1].transition) : 0;
+    const outgoing =
+      index < input.scenes.length - 1 ? transitionFadeSeconds(scene.transition) : 0;
     const fades = [
-      index > 0 && fade > 0 ? `fade=t=in:st=0:d=${fade}` : "",
-      index < input.scenes.length - 1 && fade > 0
-        ? `fade=t=out:st=${Math.max(0, scene.duration - fade).toFixed(3)}:d=${fade}`
+      incoming > 0 ? `fade=t=in:st=0:d=${incoming}` : "",
+      outgoing > 0
+        ? `fade=t=out:st=${Math.max(0, scene.duration - outgoing).toFixed(3)}:d=${outgoing}`
         : "",
     ].filter(Boolean);
-    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
+    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,format=yuv420p,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
   });
   const concat = `${input.scenes.map((_, index) => `[v${index}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[base]`;
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
   const audio = [
     `[${narrationIndex}:a]atrim=0:${input.totalDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]highpass=f=45,lowpass=f=900,volume=0.08,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm]`,
-    `[bgm][side]sidechaincompress=threshold=0.018:ratio=10:attack=20:release=450[ducked]`,
-    `[${seIndex}:a]highpass=f=55,lowpass=f=4000,volume=0.14[se]`,
+    `[${bgmIndex}:a]highpass=f=35,lowpass=f=6500,volume=0.055,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm]`,
+    `[bgm][side]sidechaincompress=threshold=0.014:ratio=12:attack=25:release=520[ducked]`,
+    `[${seIndex}:a]highpass=f=40,lowpass=f=7000,volume=0.11[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
   ];
   args.push("-filter_complex", [...videoFilters, concat, subtitle, ...audio].join(";"));
@@ -146,24 +148,43 @@ function buildSoundEffectSource(input: FinalRenderInput) {
     const start = cursor;
     cursor += scene.duration;
     if (!effect) return [];
-    const end = Math.min(start + (scene.preset === "Racing" ? 1.25 : 0.45), cursor);
+    const effectDuration = scene.preset === "Racing" ? 1.25 : effect.key === "wind" ? 1 : 0.55;
+    const end = Math.min(start + effectDuration, cursor);
     const elapsed = `(t-${start.toFixed(3)})`;
     if (scene.preset === "Racing")
       return [
-        `0.11*sin(2*PI*(${effect.frequency}+28*${elapsed})*t)*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
+        `(0.07*sin(2*PI*(${effect.frequency}+24*${elapsed})*t)+0.012*(2*random(0)-1))*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
+      ];
+    if (effect.key === "door")
+      return [
+        `(0.1*sin(2*PI*58*${elapsed})+0.018*(2*random(0)-1))*exp(-6*${elapsed})*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
+      ];
+    if (effect.key === "book")
+      return [
+        `0.032*(2*random(0)-1)*exp(-4*${elapsed})*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
+      ];
+    if (effect.key === "wind")
+      return [
+        `0.018*(2*random(0)-1)*(1-exp(-5*${elapsed}))*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
       ];
     return [
-      `0.13*sin(2*PI*${effect.frequency}*t)*exp(-7*${elapsed})*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
+      `(0.045*sin(2*PI*${effect.frequency}*t)+0.012*(2*random(0)-1))*exp(-10*${elapsed})*between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})`,
     ];
   });
   return `aevalsrc='${terms.join("+") || "0"}':s=44100:c=stereo`;
 }
 
 export function transitionFadeSeconds(transition?: string) {
+  return transitionSpec(transition).seconds;
+}
+
+export function transitionSpec(transition?: string) {
   const value = transition?.toLocaleLowerCase() ?? "";
-  if (/hard cut|motion match|cut on|straight cut|documentary cut/.test(value)) return 0;
-  if (/dissolve|fade|bloom|optical|dust|page/.test(value)) return 0.22;
-  return 0.12;
+  if (/light|bloom|film burn|optical/.test(value)) return { name: "fadewhite", seconds: 0.12 };
+  if (/dust|memory|fade to black/.test(value)) return { name: "fadeblack", seconds: 0.14 };
+  if (/dissolve/.test(value)) return { name: "fade", seconds: 0.18 };
+  if (/page wipe/.test(value)) return { name: "smoothleft", seconds: 0.1 };
+  return { name: "cut", seconds: 0 };
 }
 
 function escapeFilterPath(value: string) {

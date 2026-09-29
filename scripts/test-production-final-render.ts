@@ -22,9 +22,7 @@ async function main() {
   if (!cookie) throw new Error("Production session cookie was not returned");
   const headers = { cookie, origin: baseUrl };
   const before = await audit(headers);
-  console.log(
-    JSON.stringify({ step: "login", ok: true, existingRenders: before.renders.length }),
-  );
+  console.log(JSON.stringify({ step: "login", ok: true, existingRenders: before.renders.length }));
 
   const started = await fetch(`${baseUrl}/api/projects/${projectId}/renders`, {
     method: "POST",
@@ -51,14 +49,12 @@ async function main() {
   if (render?.status !== "completed") throw new Error("Final Render timed out");
   const preview = await fetch(`${baseUrl}/api/renders/${renderId}/video`, { headers: { cookie } });
   const previewBytes = new Uint8Array(await preview.arrayBuffer());
-  if (!preview.ok || !previewBytes.length)
-    throw new Error(`Preview failed: ${preview.status}`);
+  if (!preview.ok || !previewBytes.length) throw new Error(`Preview failed: ${preview.status}`);
   const download = await fetch(`${baseUrl}/api/renders/${renderId}/download`, {
     headers: { cookie },
   });
   const downloadBytes = new Uint8Array(await download.arrayBuffer());
-  if (!download.ok || !downloadBytes.length)
-    throw new Error(`Download failed: ${download.status}`);
+  if (!download.ok || !downloadBytes.length) throw new Error(`Download failed: ${download.status}`);
 
   const newUsageCount = Math.max(0, finalAudit.usage.length - before.usage.length);
   console.log(

@@ -111,19 +111,18 @@ describe("multi voice direction", () => {
     ]);
   });
 
-  it("keeps narration aligned as one speech segment per scene", () => {
+  it("generates narration-only stories as one continuous human speech segment", () => {
     const narrationOnly = scenes.map((scene) => ({ ...scene, dialogue: [] }));
     const plan = selectVoicePlan({ language: "ja", scenes: narrationOnly, presets });
     const segments = buildSpeechSegments({
       scenes: narrationOnly,
       assignments: plan.assignments,
-      narrationScript: "連結済み原稿はScene音声生成には使わない",
+      narrationScript: "時代は動き始めた。\n\n時計はその瞬間を刻む。",
       narratorVoiceId: plan.narratorVoiceId,
     });
-    expect(segments).toHaveLength(narrationOnly.length);
-    expect(segments.map((segment) => segment.sceneId)).toEqual(
-      narrationOnly.map((scene) => scene.sceneId),
-    );
+    expect(segments).toHaveLength(1);
+    expect(segments[0].sceneId).toBeNull();
+    expect(segments[0].text).toContain("時計はその瞬間を刻む");
     expect(new Set(segments.map((segment) => segment.voiceId))).toEqual(
       new Set([plan.narratorVoiceId]),
     );

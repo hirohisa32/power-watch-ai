@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildStoryboardPrompt } from "@/lib/storyboard/prompt";
 import {
+  narrationOnlySubtitles,
   storyboardOutputSchema,
   totalStoryboardDuration,
   validateStoryboard,
 } from "@/lib/storyboard/schema";
+import { EPOCA_STORY_STYLE } from "@/lib/storyboard/styles/epoca-story";
 import { storyboardFixture } from "./fixtures/storyboard";
 
 describe("storyboard schema", () => {
@@ -70,5 +72,52 @@ describe("storyboard schema", () => {
         assetLabels: [],
       }),
     ).toThrow("MISSING_SCRIPT");
+  });
+
+  it("loads the EPOCA story style and applies reference-derived duration rules", () => {
+    expect(EPOCA_STORY_STYLE.storyStructure).toEqual([
+      "HOOK",
+      "ERA_OR_WORLD",
+      "CHARACTER",
+      "EVENT",
+      "WATCH_CONNECTION",
+      "PRODUCT_DETAIL",
+      "EMOTIONAL_PAYOFF",
+      "ENDING",
+    ]);
+    const result = validateStoryboard(storyboardFixture(60), 60, []);
+    expect(result.scenes[0].duration).toBeLessThanOrEqual(
+      EPOCA_STORY_STYLE.sceneDurationRules.Opening.max,
+    );
+    expect(result.scenes.at(-1)!.duration).toBeLessThanOrEqual(
+      EPOCA_STORY_STYLE.sceneDurationRules.Ending.max,
+    );
+  });
+
+  it("enforces door, room, book, and watch reveal opening order", () => {
+    const fixture = storyboardFixture(60);
+    fixture.scenes[2].preset = "HistoricalEvent";
+    expect(() => validateStoryboard(fixture, 60, [])).toThrow(
+      "Opening(Door)、Room、Book、Watch Reveal",
+    );
+  });
+
+  it("replaces internal subtitle copy with spoken narration", () => {
+    const fixture = storyboardFixture(60);
+    fixture.scenes[4].subtitle = "SCENE 05 — PRODUCT DETAIL";
+    expect(narrationOnlySubtitles(fixture).scenes[4].subtitle).toBe(fixture.scenes[4].narration);
+  });
+
+  it("includes coherent narration, watch-reference, and book-overlay rules in the prompt", () => {
+    const prompt = buildStoryboardPrompt({
+      script: "一本の時計がレーサーと歩んだ歴史。",
+      style: "animation",
+      language: "ja",
+      targetDuration: 60,
+      assetLabels: ["Front"],
+    }).system;
+    expect(prompt).toContain("one coherent, human documentary narration");
+    expect(prompt).toContain("POWER WATCH is overlaid only on the closed book cover");
+    expect(prompt).toContain("never invent a precise frontal watch");
   });
 });

@@ -71,15 +71,22 @@ describe("Voice Router", () => {
   it("auto-selects a Japanese male documentary narrator with tone scoring", async () => {
     const mock = provider([
       { ...narrator, voiceId: "female", gender: "female" },
-      { ...narrator, voiceId: "english-male", language: "en", locale: "en-US", verifiedLanguages: ["en"] },
+      {
+        ...narrator,
+        voiceId: "english-male",
+        language: "en",
+        locale: "en-US",
+        verifiedLanguages: ["en"],
+      },
       narrator,
     ]);
     const result = await new VoiceRouter(mock).select(input());
     expect(result.narratorVoiceId).toBe("ja-male-documentary");
     expect(result.narratorSelectionReason).toContain("gender=male");
     expect(result.narratorSelectionReason).toContain("tone=documentary");
-    expect(result.assignments.find((item) => item.role === "narration")?.selectionMetadata)
-      .toMatchObject({ language: "ja", source: "voice_library" });
+    expect(
+      result.assignments.find((item) => item.role === "narration")?.selectionMetadata,
+    ).toMatchObject({ language: "ja", source: "voice_library" });
     expect(mock.listLibraryVoices).toHaveBeenCalledTimes(1);
   });
 
@@ -87,9 +94,7 @@ describe("Voice Router", () => {
     const result = await new VoiceRouter(provider()).select(input());
     const racer = result.assignments.filter((item) => item.speakerKey === "racer");
     expect(racer).toHaveLength(2);
-    expect(new Set(racer.map((item) => item.voiceId))).toEqual(
-      new Set(["ja-young-conversation"]),
-    );
+    expect(new Set(racer.map((item) => item.voiceId))).toEqual(new Set(["ja-young-conversation"]));
   });
 
   it("reuses saved narrator and speaker voices without a library call", async () => {

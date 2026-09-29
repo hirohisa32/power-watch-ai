@@ -13,10 +13,7 @@ const overrideSchema = z.object({
   voiceId: z.string().trim().min(3).max(100),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await assertSameOrigin(request);
     const user = await getCurrentUser();
@@ -24,7 +21,8 @@ export async function POST(
     const { id } = await params;
     const input = overrideSchema.parse(await request.json());
     const speakerKey = input.role === "narration" ? "narrator" : normalizeSpeaker(input.speakerKey);
-    if (!speakerKey) return NextResponse.json({ error: "Speakerを指定してください" }, { status: 400 });
+    if (!speakerKey)
+      return NextResponse.json({ error: "Speakerを指定してください" }, { status: 400 });
     const db = getDb();
     await db.transaction(async (transaction) => {
       const [project] = await transaction

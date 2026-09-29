@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { estimateVideoCost } from "@/lib/video/cost";
 import {
   decideJobAction,
+  generationModeForScene,
   generationObjectKey,
   nextGenerationVersion,
   pickReferenceAssetIds,
@@ -17,6 +18,7 @@ const scene = {
   lighting: "warm window key with soft fill",
   motion: "subtle page and dust movement",
   colorMood: "warm walnut and restrained gold",
+  transition: "restrained light transition into the next scene",
   duration: 6,
   watchReference: true,
   preferredAssetLabels: ["front", "crown"],
@@ -32,6 +34,7 @@ describe("video generation domain", () => {
       scene.lighting,
       scene.motion,
       scene.colorMood,
+      scene.transition,
       "6 seconds",
       "front, crown",
       "make the move slower",
@@ -115,5 +118,29 @@ describe("video generation domain", () => {
     expect(generationObjectKey("project", "scene", "generation")).toBe(
       "projects/project/scenes/scene/generations/generation.mp4",
     );
+  });
+
+  it("prioritizes the strongest preset-specific watch reference and image-to-video", () => {
+    const ids = pickReferenceAssetIds(
+      [
+        { id: "side", label: "Side" },
+        { id: "front", label: "Front" },
+        { id: "wrist", label: "Wrist" },
+      ],
+      [],
+      "ProductHero",
+    );
+    expect(ids[0]).toBe("front");
+    expect(generationModeForScene(ids)).toBe("image-to-video");
+  });
+
+  it("uses anti-invention framing when no real watch reference is available", () => {
+    const prompt = buildVideoPrompt(
+      { ...scene, preferredAssetLabels: [], referenceAvailable: false },
+      "cinematic_real",
+    );
+    expect(generationModeForScene([])).toBe("text-to-video");
+    expect(prompt).toContain("Do not invent a precise frontal watch");
+    expect(prompt).toContain("silhouette");
   });
 });

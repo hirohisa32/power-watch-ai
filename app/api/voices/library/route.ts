@@ -15,9 +15,7 @@ export async function GET(request: Request) {
         language:
           language === "ja" || language === "en" || language === "zh" ? language : undefined,
         gender:
-          gender === "male" || gender === "female" || gender === "neutral"
-            ? gender
-            : undefined,
+          gender === "male" || gender === "female" || gender === "neutral" ? gender : undefined,
         search: query.get("search") || undefined,
         page: Number(query.get("page") || 0),
         pageSize: Number(query.get("pageSize") || 30),

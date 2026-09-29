@@ -1,8 +1,4 @@
-import type {
-  VoiceLibraryQuery,
-  VoiceLibraryResult,
-  VoiceLibraryVoice,
-} from "./elevenlabs";
+import type { VoiceLibraryQuery, VoiceLibraryResult, VoiceLibraryVoice } from "./elevenlabs";
 import type {
   ApprovedVoicePreset,
   VoiceAssignment,
@@ -97,12 +93,12 @@ export class VoiceRouter {
       ? storedNarrator
       : input.projectNarratorVoiceId
         ? savedSelection({
-          speakerKey: "narrator",
-          role: "narration",
-          voiceId: input.projectNarratorVoiceId,
-          selectionSource: "saved",
-          selectionReason:
-            input.projectNarratorSelectionReason || "Projectに保存済みのNarrator Voiceを再利用",
+            speakerKey: "narrator",
+            role: "narration",
+            voiceId: input.projectNarratorVoiceId,
+            selectionSource: "saved",
+            selectionReason:
+              input.projectNarratorSelectionReason || "Projectに保存済みのNarrator Voiceを再利用",
           })
         : storedNarrator;
     const unresolved = targets.filter(
@@ -142,7 +138,8 @@ export class VoiceRouter {
       const selection = selectCandidate(target, candidates, input.language, input.style);
       selections.set(
         key,
-        selection ?? fallbackSelection(input.defaultVoiceId, fallbackReason || "score threshold未満"),
+        selection ??
+          fallbackSelection(input.defaultVoiceId, fallbackReason || "score threshold未満"),
       );
     }
 
@@ -196,7 +193,10 @@ function buildTargets(scenes: VoiceScene[]): VoiceTarget[] {
       sceneIds: scenes.map((scene) => scene.sceneId),
     },
   ];
-  const speakers = new Map<string, { tones: string[]; contexts: string[]; sceneIds: Set<string> }>();
+  const speakers = new Map<
+    string,
+    { tones: string[]; contexts: string[]; sceneIds: Set<string> }
+  >();
   for (const scene of scenes) {
     for (const line of scene.dialogue ?? []) {
       const speakerKey = normalizeSpeaker(line.speaker);
@@ -263,7 +263,12 @@ function selectCandidate(
   };
 }
 
-function scoreCandidate(candidate: Candidate, target: VoiceTarget, language: string, style: string) {
+function scoreCandidate(
+  candidate: Candidate,
+  target: VoiceTarget,
+  language: string,
+  style: string,
+) {
   const normalizedLanguages = candidate.languages.map(normalize);
   const languageMatch = normalizedLanguages.some(
     (value) => value === normalize(language) || value.startsWith(`${normalize(language)}-`),
@@ -275,13 +280,27 @@ function scoreCandidate(candidate: Candidate, target: VoiceTarget, language: str
   const specialty = termMatch(
     candidateTerms(candidate),
     target.role === "narration"
-      ? ["documentary", "narrative", "story", "audiobook", "calm", "deep", "elegant", "luxury", "refined", "cinematic"]
+      ? [
+          "documentary",
+          "narrative",
+          "story",
+          "audiobook",
+          "calm",
+          "deep",
+          "elegant",
+          "luxury",
+          "refined",
+          "cinematic",
+        ]
       : ["conversational", "conversation", "character", "natural", "energetic"],
   )
     ? 1
     : 0;
-  const context = termMatch(candidateTerms(candidate), tokenize(`${target.context} ${style}`)) ? 1 : 0;
-  const presetBonus = candidate.source === "approved_preset" ? Math.min(1, Math.max(0, candidate.priority / 100)) : 0;
+  const context = termMatch(candidateTerms(candidate), tokenize(`${target.context} ${style}`))
+    ? 1
+    : 0;
+  const presetBonus =
+    candidate.source === "approved_preset" ? Math.min(1, Math.max(0, candidate.priority / 100)) : 0;
   const components = {
     language: languageMatch ? 0.25 : 0,
     gender: gender * 0.15,
@@ -349,7 +368,9 @@ function savedMap(assignments: SavedVoiceAssignment[]) {
 }
 
 function savedSelection(assignment: SavedVoiceAssignment): Selection {
-  const manual = Boolean(assignment.manualOverride || assignment.selectionSource === "manual_override");
+  const manual = Boolean(
+    assignment.manualOverride || assignment.selectionSource === "manual_override",
+  );
   return {
     voiceId: assignment.voiceId,
     source: manual ? "manual_override" : "saved",
@@ -426,7 +447,10 @@ function inferTone(explicit: string | undefined, context: string) {
 function dominantTone(values: string[]) {
   const counts = new Map<string, number>();
   values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? "neutral";
+  return (
+    [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ??
+    "neutral"
+  );
 }
 
 function tokenize(value: string) {

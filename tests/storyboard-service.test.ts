@@ -40,10 +40,10 @@ describe("storyboard save flow", () => {
       storyboardId: "storyboard-2",
       version: 2,
       totalDuration: 60,
-      sceneCount: 12,
+      sceneCount: 15,
     });
     expect(replace).toHaveBeenCalledOnce();
-    expect(replace.mock.calls[0][0].storyboard.scenes).toHaveLength(12);
+    expect(replace.mock.calls[0][0].storyboard.scenes).toHaveLength(15);
   });
 
   it("records provider usage when generated output fails validation", async () => {

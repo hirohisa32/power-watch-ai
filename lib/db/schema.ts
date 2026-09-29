@@ -366,11 +366,7 @@ export const sceneVoiceAssignments = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("scene_voice_assignment_unique").on(
-      table.sceneId,
-      table.speakerKey,
-      table.role,
-    ),
+    uniqueIndex("scene_voice_assignment_unique").on(table.sceneId, table.speakerKey, table.role),
     index("scene_voice_assignments_project_idx").on(table.projectId, table.storyboardId),
   ],
 );

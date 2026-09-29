@@ -20,11 +20,13 @@ export function normalizeNarration(text: string, language: "ja" | "en" | "zh") {
 }
 
 export function buildNarrationScript(scenes: NarrationScene[], language: "ja" | "en" | "zh") {
+  const separator = language === "en" ? "\n\n" : "\n\n";
   return scenes
     .map((scene) => normalizeNarration(scene.narration, language))
     .filter(Boolean)
-    .join(language === "en" ? "\n\n" : "。\n\n")
-    .replace(/。。/g, "。");
+    .map((sentence) => ensureSentenceEnding(sentence, language))
+    .join(separator)
+    .replace(/([。！？.!?])\1+/g, "$1");
 }
 
 export function estimateNarrationSeconds(text: string, language: "ja" | "en" | "zh") {
@@ -34,8 +36,8 @@ export function estimateNarrationSeconds(text: string, language: "ja" | "en" | "
 }
 
 export function narrationSpeed(text: string, targetSeconds: number, language: "ja" | "en" | "zh") {
-  const desired = estimateNarrationSeconds(text, language) / Math.max(1, targetSeconds * 0.92);
-  return Math.min(1.2, Math.max(0.85, Number(desired.toFixed(2))));
+  const desired = estimateNarrationSeconds(text, language) / Math.max(1, targetSeconds * 0.86);
+  return Math.min(1.12, Math.max(0.88, Number(desired.toFixed(2))));
 }
 
 export function assertNarrationFits(
@@ -53,8 +55,10 @@ export function buildSubtitleCues(scenes: NarrationScene[]): SubtitleCue[] {
   const cues: SubtitleCue[] = [];
   let sceneStartMs = 0;
   for (const scene of scenes) {
-    const text = scene.subtitle.trim() || scene.narration.trim();
-    const sentences = splitSentences(text);
+    // Viewer subtitles are derived only from spoken narration. Scene titles, visual descriptions,
+    // prompts, and editor labels are deliberately ignored even when persisted in `subtitle`.
+    const text = scene.narration.trim();
+    const sentences = splitSentences(text).flatMap((sentence) => splitReadableChunks(sentence, 24));
     const weights = sentences.map((sentence) => Math.max(1, [...sentence].length));
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     const sceneEndMs = sceneStartMs + scene.duration * 1000;
@@ -76,6 +80,33 @@ export function buildSubtitleCues(scenes: NarrationScene[]): SubtitleCue[] {
     sceneStartMs += scene.duration * 1000;
   }
   return cues;
+}
+
+function ensureSentenceEnding(text: string, language: "ja" | "en" | "zh") {
+  if (/[。！？.!?]$/u.test(text)) return text;
+  return `${text}${language === "en" ? "." : "。"}`;
+}
+
+function splitReadableChunks(text: string, maxCharacters: number) {
+  const characters = [...text.trim()];
+  if (characters.length <= maxCharacters) return [text.trim()];
+  const chunks: string[] = [];
+  let rest = characters;
+  while (rest.length > maxCharacters) {
+    const window = rest.slice(0, maxCharacters + 1);
+    let split = -1;
+    for (let index = window.length - 1; index >= Math.floor(maxCharacters * 0.55); index -= 1) {
+      if (/[、，,。！？.!? ]/u.test(window[index])) {
+        split = index + 1;
+        break;
+      }
+    }
+    if (split < 0) split = maxCharacters;
+    chunks.push(rest.slice(0, split).join("").trim());
+    rest = rest.slice(split);
+  }
+  if (rest.length) chunks.push(rest.join("").trim());
+  return chunks.filter(Boolean);
 }
 
 function splitSentences(text: string) {

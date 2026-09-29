@@ -1,20 +1,28 @@
 import type { StoryboardOutput } from "@/lib/storyboard/schema";
 
 export function storyboardFixture(target: 60 | 90): StoryboardOutput {
-  const sceneCount = target === 60 ? 12 : 18;
+  const sceneCount = target === 60 ? 15 : 22;
   return {
     scenes: Array.from({ length: sceneCount }, (_, index) => ({
       sceneNumber: index + 1,
       preset:
         index === 0
           ? "Opening"
-          : index === sceneCount - 1
-            ? "Ending"
-            : index === sceneCount - 2
-              ? "ProductHero"
-              : "HistoricalEvent",
+          : index === 1
+            ? "VintageRoom"
+            : index === 2
+              ? "OldBook"
+              : index === 3
+                ? "WatchReveal"
+                : index === sceneCount - 1
+                  ? "Ending"
+                  : index === sceneCount - 2
+                    ? "ProductHero"
+                    : index % 3 === 0
+                      ? "HistoricalCharacter"
+                      : "HistoricalEvent",
       title: `Scene ${index + 1}`,
-      duration: 5,
+      duration: 4,
       narration: `Narration for scene ${index + 1}`,
       narrationTone: "documentary",
       dialogue: [],
@@ -28,7 +36,7 @@ export function storyboardFixture(target: 60 | 90): StoryboardOutput {
       motion: "Restrained natural movement",
       colorMood: "Charcoal and warm neutral",
       transition: "Soft cinematic dissolve",
-      watchReference: index === sceneCount - 2,
+      watchReference: index === 3 || index === sceneCount - 2,
       preferredAssetLabels: [],
       year: null,
       location: null,

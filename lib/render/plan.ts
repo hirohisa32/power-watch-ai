@@ -3,7 +3,8 @@ import type { VoiceAssignment } from "@/lib/audio/voices";
 import type { FinalRenderInput, RenderScene, TextOverlay } from "./types";
 
 export const SOUND_EFFECT_BY_PRESET: Record<string, { key: string; frequency: number }> = {
-  VintageRoom: { key: "door", frequency: 196 },
+  Opening: { key: "door", frequency: 58 },
+  VintageRoom: { key: "wind", frequency: 140 },
   OldBook: { key: "book", frequency: 330 },
   WatchReveal: { key: "watch-mechanical", frequency: 1040 },
   Racing: { key: "race", frequency: 120 },
@@ -25,18 +26,18 @@ export function buildFinalRenderInput(input: {
       id: scene.sceneId,
       duration: scene.duration,
       narration: scene.narration,
-      subtitle: scene.subtitle,
+      subtitle: scene.narration,
     })),
   );
   const overlays: TextOverlay[] = [];
   let cursorMs = 0;
-  scenes.forEach((scene, index) => {
+  scenes.forEach((scene) => {
     const durationMs = scene.duration * 1000;
-    if (index === 0)
+    if (scene.preset === "OldBook" && !overlays.some((overlay) => overlay.kind === "brand"))
       overlays.push({
         kind: "brand",
-        startMs: cursorMs,
-        endMs: Math.min(cursorMs + 2200, cursorMs + durationMs),
+        startMs: cursorMs + Math.min(450, durationMs * 0.12),
+        endMs: Math.min(cursorMs + 2350, cursorMs + durationMs - 250),
         primary: "POWER WATCH",
       });
     if (scene.year || scene.location)

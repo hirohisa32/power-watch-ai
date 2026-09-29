@@ -45,13 +45,13 @@ export function FinalComposition(props: FinalCompositionProps) {
             key={`${cue.sceneId}-${cue.startMs}`}
             style={{
               position: "absolute",
-              left: 92,
-              right: 92,
-              bottom: 280,
-              padding: "18px 24px",
+              left: 112,
+              right: 112,
+              bottom: 330,
+              padding: "16px 22px",
               color: "white",
               background: "rgba(0,0,0,.65)",
-              fontSize: 58,
+              fontSize: 52,
               fontWeight: 700,
               lineHeight: 1.45,
               textAlign: "center",
@@ -75,9 +75,9 @@ export function FinalComposition(props: FinalCompositionProps) {
                     alignItems: "center",
                     justifyContent: "center",
                     color: "white",
-                    fontSize: 92,
+                    fontSize: 82,
                     fontWeight: 700,
-                    letterSpacing: "0.15em",
+                    letterSpacing: "0.18em",
                   }
                 : {
                     position: "absolute",

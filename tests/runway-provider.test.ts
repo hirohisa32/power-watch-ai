@@ -101,7 +101,9 @@ describe("Runway provider adapter", () => {
   it("reports exhausted credits as a non-retryable actionable error", async () => {
     const create = vi
       .fn()
-      .mockRejectedValue(new Error('400 {"error":"You do not have enough credits to run this task."}'));
+      .mockRejectedValue(
+        new Error('400 {"error":"You do not have enough credits to run this task."}'),
+      );
     const provider = providerWith({
       imageToVideo: {},
       textToVideo: { create },

@@ -65,6 +65,21 @@ export function buildSpeechSegments(input: {
   narrationScript: string;
   narratorVoiceId: string;
 }): SpeechSegment[] {
+  const hasDialogue = input.scenes.some((scene) =>
+    (scene.dialogue ?? []).some((line) => line.text.trim()),
+  );
+  if (!hasDialogue && input.narrationScript.trim()) {
+    return [
+      {
+        sceneId: null,
+        speakerKey: "narrator",
+        role: "narration",
+        voiceId: input.narratorVoiceId,
+        text: input.narrationScript.trim(),
+        tone: dominantTone(input.scenes.map((scene) => scene.narrationTone)) ?? "documentary",
+      },
+    ];
+  }
   const segments: SpeechSegment[] = [];
   for (const scene of input.scenes) {
     const narrator = findAssignment(input.assignments, scene.sceneId, "narrator", "narration");
