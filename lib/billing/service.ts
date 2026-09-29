@@ -14,11 +14,11 @@ import {
   nextBillingMonth,
   roundUsd,
 } from "./calculations";
-import { type ExchangeRateProvider, FrankfurterEcbExchangeRateProvider } from "./exchange-rate";
+import { EcbExchangeRateProvider, type ExchangeRateProvider } from "./exchange-rate";
 
 export async function settleCompletedRender(
   renderId: string,
-  exchange: ExchangeRateProvider = new FrankfurterEcbExchangeRateProvider(),
+  exchange: ExchangeRateProvider = new EcbExchangeRateProvider(),
 ) {
   const db = getDb();
   const [render] = await db
@@ -83,7 +83,7 @@ export async function settleCompletedRender(
 
 export async function finalizePendingSettlement(
   settlementId: string,
-  exchange: ExchangeRateProvider = new FrankfurterEcbExchangeRateProvider(),
+  exchange: ExchangeRateProvider = new EcbExchangeRateProvider(),
 ) {
   const db = getDb();
   const [pending] = await db
