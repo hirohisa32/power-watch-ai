@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   real,
@@ -47,6 +48,8 @@ export const openingStatus = pgEnum("opening_status", [
   "completed",
   "failed",
 ]);
+export const costSettlementStatus = pgEnum("cost_settlement_status", ["pending_rate", "fixed"]);
+export const monthlyBillingStatus = pgEnum("monthly_billing_status", ["open", "closed"]);
 export const voiceRole = pgEnum("voice_role", ["narration", "dialogue"]);
 export const scenePreset = pgEnum("scene_preset", [
   "Opening",
@@ -410,6 +413,74 @@ export const finalRenders = pgTable(
   (table) => [
     uniqueIndex("final_renders_project_version_unique").on(table.projectId, table.version),
     index("final_renders_project_status_idx").on(table.projectId, table.status),
+  ],
+);
+
+export const monthlyBillingSettlements = pgTable(
+  "monthly_billing_settlements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    billingMonth: text("billing_month").notNull(),
+    totalJpy: integer("total_jpy").default(0).notNull(),
+    projectCount: integer("project_count").default(0).notNull(),
+    status: monthlyBillingStatus("status").default("open").notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("monthly_billing_settlements_month_unique").on(table.billingMonth),
+    index("monthly_billing_settlements_status_idx").on(table.status, table.billingMonth),
+  ],
+);
+
+export const projectCostSettlements = pgTable(
+  "project_cost_settlements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    renderId: uuid("render_id")
+      .notNull()
+      .references(() => finalRenders.id, { onDelete: "restrict" }),
+    monthlyBillingSettlementId: uuid("monthly_billing_settlement_id").references(
+      () => monthlyBillingSettlements.id,
+      { onDelete: "restrict" },
+    ),
+    totalCostUsd: numeric("total_cost_usd", { precision: 14, scale: 6, mode: "number" }).notNull(),
+    previousTotalCostUsd: numeric("previous_total_cost_usd", {
+      precision: 14,
+      scale: 6,
+      mode: "number",
+    })
+      .default(0)
+      .notNull(),
+    incrementalCostUsd: numeric("incremental_cost_usd", {
+      precision: 14,
+      scale: 6,
+      mode: "number",
+    }).notNull(),
+    exchangeRateUsdJpy: numeric("exchange_rate_usd_jpy", {
+      precision: 14,
+      scale: 6,
+      mode: "number",
+    }),
+    totalCostJpy: integer("total_cost_jpy"),
+    incrementalCostJpy: integer("incremental_cost_jpy"),
+    exchangeRateSource: text("exchange_rate_source"),
+    ratePublishedAt: timestamp("rate_published_at", { withTimezone: true }),
+    fixedAt: timestamp("fixed_at", { withTimezone: true }),
+    billingMonth: text("billing_month"),
+    costThrough: timestamp("cost_through", { withTimezone: true }).notNull(),
+    status: costSettlementStatus("status").default("pending_rate").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("project_cost_settlements_render_unique").on(table.renderId),
+    index("project_cost_settlements_project_fixed_idx").on(table.projectId, table.fixedAt),
+    index("project_cost_settlements_billing_month_idx").on(table.billingMonth, table.status),
   ],
 );
 

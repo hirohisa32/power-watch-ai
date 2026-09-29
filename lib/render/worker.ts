@@ -28,6 +28,7 @@ import { createAssSubtitles } from "./ass";
 import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
 import { narrationObjectKey, renderObjectKey } from "./plan";
 import type { FinalRenderInput } from "./types";
+import { settleCompletedRender } from "@/lib/billing/service";
 
 type WorkerDependencies = {
   narration: NarrationProvider;
@@ -374,6 +375,16 @@ export async function processFinalRenderJob(
         estimatedCost: 0,
       });
     });
+    try {
+      await settleCompletedRender(row.render.id);
+    } catch (settlementError) {
+      // Render completion must remain successful when the independent FX source is unavailable.
+      // The pending settlement is exposed to admins and can be retried without changing video data.
+      console.error("Project cost settlement is pending", {
+        renderId: row.render.id,
+        error: settlementError instanceof Error ? settlementError.message : String(settlementError),
+      });
+    }
   } catch (error) {
     console.error("Final render job failed", {
       jobId,
