@@ -64,10 +64,19 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
             85秒本編は作り直しません。
           </p>
         </div>
-        <button className="btn btn-primary" type="button" onClick={() => void start()} disabled={pending || active}>
-          {active ? <RefreshCw size={14} /> : <DoorOpen size={14} />}
-          {active ? "Openingを制作中…" : completed ? "新しい試作を作成" : "20秒Previewを作成"}
-        </button>
+        <form
+          action={`/api/projects/${projectId}/opening-previews`}
+          method="post"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void start();
+          }}
+        >
+          <button className="btn btn-primary" type="submit" disabled={pending || active}>
+            {active ? <RefreshCw size={14} /> : <DoorOpen size={14} />}
+            {active ? "Openingを制作中…" : completed ? "新しい試作を作成" : "20秒Previewを作成"}
+          </button>
+        </form>
       </div>
       {error && <p className="error">{error}</p>}
       {latest && (
