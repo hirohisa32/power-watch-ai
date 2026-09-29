@@ -48,9 +48,10 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
   }
 
   const stage: Record<string, string> = {
-    master: "固定ブランド映像を準備中",
+    master: "固定Opening Templateを読込中",
     watch: "実物時計を差し替え中",
-    "audio-and-render": "音声を調整してPreviewを仕上げ中",
+    "watch-replace": "固定モーションへ実物時計を合成中",
+    "audio-and-render": "固定Audio Masterを合成中",
     completed: "Human確認待ち",
   };
   return (
@@ -74,7 +75,7 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
         >
           <button className="btn btn-primary" type="submit" disabled={pending || active}>
             {active ? <RefreshCw size={14} /> : <DoorOpen size={14} />}
-            {active ? "Openingを制作中…" : completed ? "新しい試作を作成" : "20秒Previewを作成"}
+            {active ? "Openingを制作中…" : completed ? "新しい時計で試作" : "15秒Previewを作成"}
           </button>
         </form>
       </div>
@@ -93,8 +94,7 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
         <div className="final-preview">
           <video controls playsInline preload="metadata" src={`/api/opening-previews/${completed.id}/video`} />
           <p className="hint">
-            {(completed.durationMs / 1000).toFixed(0)}秒 · Runway {completed.runwayCredits.toFixed(0)} credits ·
-            ElevenLabs ${completed.elevenlabsCostUsd.toFixed(4)} · AAC stereo
+            {(completed.durationMs / 1000).toFixed(1)}秒 · Fixed Opening Template · Runway {completed.runwayCredits.toFixed(0)} credits · AAC stereo
           </p>
           <div className="nav-actions">
             <a className="btn" href={`/api/opening-previews/${completed.id}/video`} target="_blank">大きく見る</a>

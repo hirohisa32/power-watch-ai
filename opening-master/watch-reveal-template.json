@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "method": "fixed-2.5d-composite",
+  "startSeconds": 9.25,
+  "endSeconds": 14.58,
+  "initialWidth": 220,
+  "finalWidth": 1320,
+  "liftPixels": 280,
+  "startRotationRadians": -0.1,
+  "endRotationRadians": 0,
+  "shadowOpacity": 0.42,
+  "finalClickSeconds": 14.48,
+  "blackoutStartSeconds": 14.58,
+  "identityPolicy": [
+    "preserve dial and logo",
+    "preserve hands and indices",
+    "preserve case, crown, pushers and strap",
+    "preserve colors, patina, scratches and material texture",
+    "no generative redesign"
+  ]
+}

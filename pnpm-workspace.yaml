@@ -1,6 +1,15 @@
 allowBuilds:
   "@ffmpeg-installer/linux-x64": true
+  "@ffmpeg-installer/win32-x64": true
   esbuild: true
   sharp: true
   unrs-resolver: true
 confirmModulesPurge: false
+supportedArchitectures:
+  os:
+    - current
+    - win32
+    - linux
+  cpu:
+    - current
+    - x64

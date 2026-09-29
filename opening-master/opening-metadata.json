@@ -1,0 +1,22 @@
+{
+  "name": "POWER WATCH Fixed Opening Template",
+  "version": 2,
+  "openingTotalDuration": 15.041,
+  "resolution": { "width": 1080, "height": 1920 },
+  "fps": 24,
+  "watchRevealStart": 9.25,
+  "watchRevealEnd": 14.58,
+  "blackoutStart": 14.58,
+  "blackoutEnd": 15.041,
+  "audioReusePolicy": "Reuse opening-master/audio-master.wav unchanged for every project; no narration or generated audio.",
+  "replacementRegion": {
+    "coordinateSpace": "1080x1920",
+    "centerX": 540,
+    "centerY": 960,
+    "initialWidth": 220,
+    "finalWidth": 1320,
+    "motion": "fixed lift-and-approach"
+  },
+  "source": "Human-supplied video.mp4",
+  "runwayPolicy": "Do not generate or edit the Opening master with Runway."
+}

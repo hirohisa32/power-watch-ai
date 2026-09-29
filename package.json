@@ -15,6 +15,7 @@
     "test:openai": "tsx scripts/test-openai-storyboard.ts",
     "test:runway": "tsx scripts/test-runway-video.ts",
     "test:elevenlabs": "tsx scripts/test-elevenlabs-narration.ts",
+    "opening:preview": "tsx scripts/render-opening-preview.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed-admin.ts"
@@ -36,6 +37,7 @@
     "react-dom": "^19.0.0",
     "remotion": "^4.0.529",
     "server-only": "^0.0.1",
+    "sharp": "0.35.4",
     "zod": "^4.0.0"
   },
   "devDependencies": {
@@ -52,7 +54,8 @@
     "vitest": "^3.0.0"
   },
   "optionalDependencies": {
-    "@ffmpeg-installer/linux-x64": "4.1.0"
+    "@ffmpeg-installer/linux-x64": "4.1.0",
+    "@ffmpeg-installer/win32-x64": "4.1.0"
   },
   "packageManager": "pnpm@11.19.0"
 }

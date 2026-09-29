@@ -9,6 +9,7 @@ import {
   projects,
 } from "@/lib/db/schema";
 import { OPENING_MASTER_KEY, OPENING_MASTER_VERSION } from "./prompts";
+import { OPENING_MASTER_METADATA } from "./template";
 
 export async function createOpeningPreview(input: { projectId: string; userId: string }) {
   const db = getDb();
@@ -50,7 +51,7 @@ export async function createOpeningPreview(input: { projectId: string; userId: s
     await db.transaction(async (tx) => {
       await tx
         .update(openingPreviews)
-        .set({ status: "queued", stage: "audio-and-render", errorCode: null, errorMessage: null, completedAt: null, updatedAt: now })
+        .set({ status: "queued", stage: "watch-replace", errorCode: null, errorMessage: null, completedAt: null, updatedAt: now })
         .where(eq(openingPreviews.id, retryable.preview.id));
       await tx
         .update(openingPreviewJobs)
@@ -83,7 +84,17 @@ export async function createOpeningPreview(input: { projectId: string; userId: s
   if (!master) {
     [master] = await db
       .insert(openingMasters)
-      .values({ key: OPENING_MASTER_KEY, version: OPENING_MASTER_VERSION })
+      .values({
+        key: OPENING_MASTER_KEY,
+        version: OPENING_MASTER_VERSION,
+        status: "completed",
+        durationMs: Math.round(OPENING_MASTER_METADATA.totalDurationSeconds * 1000),
+        segmentObjectKeys: ["system://opening-master/video.mp4"],
+        providerTaskIds: [],
+        actualCostCredits: 0,
+        actualCostUsd: 0,
+        completedAt: new Date(),
+      })
       .onConflictDoNothing()
       .returning();
     if (!master)
@@ -100,7 +111,13 @@ export async function createOpeningPreview(input: { projectId: string; userId: s
   }
   const [preview] = await db
     .insert(openingPreviews)
-    .values({ projectId: input.projectId, openingMasterId: master.id, watchAssetId: watch.id })
+    .values({
+      projectId: input.projectId,
+      openingMasterId: master.id,
+      watchAssetId: watch.id,
+      stage: "watch-replace",
+      durationMs: Math.round(OPENING_MASTER_METADATA.totalDurationSeconds * 1000),
+    })
     .returning();
   const [job] = await db
     .insert(openingPreviewJobs)

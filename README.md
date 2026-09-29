@@ -69,6 +69,18 @@ Queueはat-least-once deliveryを前提にJobを冪等に処理します。Runwa
 
 料金が発生するRunway疎通は通常テストから分離しています。以下は警告を表示したうえで、3秒のGen-4.5動画を正確に1件だけ作成します。
 
+## Fixed Opening Template
+
+POWER WATCHのOpeningは `opening-master/video.mp4` を正本とし、毎回Runwayで再生成しません。扉・書斎・本・カメラ・尺は固定し、Projectの正面系時計画像だけを背景連結判定で切り抜いて、`opening-master/watch-reveal-template.json` の固定2.5Dモーションへ合成します。音は `opening-master/audio-master.wav` を全Projectで再利用し、ナレーション生成は行いません。
+
+ローカル確認版は次で生成できます。
+
+```bash
+pnpm opening:preview <watch-image> <output.mp4>
+```
+
+タイムコードと差し替え領域は `opening-master/opening-metadata.json` が正本です。確認版生成時のRunway / ElevenLabs消費は0です。
+
 ```bash
 pnpm test:runway
 ```
