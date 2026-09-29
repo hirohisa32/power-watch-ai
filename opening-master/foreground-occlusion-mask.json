@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "source": "watchless-master.mp4",
+  "active": { "start": 9.22, "end": 11.14 },
+  "region": { "x": 0, "y": 970, "width": 1080, "height": 610 },
+  "contains": ["opening book pages", "dust", "practical tungsten light"],
+  "purpose": "restore real foreground pixels above the replacement watch during the book burst"
+}

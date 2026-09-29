@@ -1,0 +1,161 @@
+{
+  "version": 3,
+  "sourceAssets": [
+    {
+      "file": "c6b1af4db19cfc9d658eaddb4ab2d033-1.png",
+      "role": "side"
+    },
+    {
+      "file": "33e442c4fb6dd447577c3b317cab27f5.png",
+      "role": "back"
+    },
+    {
+      "file": "5dd1e5beaaae230e8344dd599d76186a.png",
+      "role": "movement"
+    },
+    {
+      "file": "c88eb43f47ad7a16138dc92025ec7da9-1.png",
+      "role": "oblique"
+    },
+    {
+      "file": "0f0b93003df68872932fe3253fcd2603-1.png",
+      "role": "obliqueMacro"
+    },
+    {
+      "file": "88b0a1b051d4188f6d1a59231b1d76d1-1.png",
+      "role": "front"
+    },
+    {
+      "file": "376ff2af9c9e41837aabea64e4f3de74-2.png",
+      "role": "macro"
+    }
+  ],
+  "segments": [
+    {
+      "role": "side",
+      "start": 9.25,
+      "end": 9.84,
+      "crossfade": 0.16,
+      "zoomStart": 1,
+      "zoomEnd": 1.38,
+      "rotationStart": -0.19,
+      "rotationEnd": -0.17,
+      "centerXStart": 0.51,
+      "centerXEnd": 0.508,
+      "centerYStart": 0.565,
+      "centerYEnd": 0.535,
+      "visibleAngleStart": 82,
+      "visibleAngleEnd": 72,
+      "blurStart": 2.4,
+      "blurEnd": 2.1
+    },
+    {
+      "role": "back",
+      "start": 9.68,
+      "end": 10.2,
+      "crossfade": 0.16,
+      "zoomStart": 1.28,
+      "zoomEnd": 1.72,
+      "rotationStart": -0.18,
+      "rotationEnd": -0.145,
+      "centerXStart": 0.508,
+      "centerXEnd": 0.505,
+      "centerYStart": 0.54,
+      "centerYEnd": 0.515,
+      "visibleAngleStart": 74,
+      "visibleAngleEnd": 61,
+      "blurStart": 2.2,
+      "blurEnd": 1.8
+    },
+    {
+      "role": "movement",
+      "start": 10.04,
+      "end": 10.6,
+      "crossfade": 0.16,
+      "zoomStart": 1.6,
+      "zoomEnd": 2.08,
+      "rotationStart": -0.15,
+      "rotationEnd": -0.12,
+      "centerXStart": 0.505,
+      "centerXEnd": 0.505,
+      "centerYStart": 0.518,
+      "centerYEnd": 0.49,
+      "visibleAngleStart": 64,
+      "visibleAngleEnd": 52,
+      "blurStart": 1.9,
+      "blurEnd": 1.55
+    },
+    {
+      "role": "oblique",
+      "start": 10.44,
+      "end": 11.1,
+      "crossfade": 0.16,
+      "zoomStart": 1.94,
+      "zoomEnd": 2.6,
+      "rotationStart": -0.125,
+      "rotationEnd": -0.09,
+      "centerXStart": 0.505,
+      "centerXEnd": 0.51,
+      "centerYStart": 0.495,
+      "centerYEnd": 0.468,
+      "visibleAngleStart": 55,
+      "visibleAngleEnd": 39,
+      "blurStart": 1.65,
+      "blurEnd": 1.28
+    },
+    {
+      "role": "obliqueMacro",
+      "start": 10.94,
+      "end": 11.58,
+      "crossfade": 0.16,
+      "zoomStart": 2.44,
+      "zoomEnd": 3.18,
+      "rotationStart": -0.095,
+      "rotationEnd": -0.065,
+      "centerXStart": 0.51,
+      "centerXEnd": 0.51,
+      "centerYStart": 0.47,
+      "centerYEnd": 0.455,
+      "visibleAngleStart": 42,
+      "visibleAngleEnd": 29,
+      "blurStart": 1.38,
+      "blurEnd": 1.05
+    },
+    {
+      "role": "front",
+      "start": 11.42,
+      "end": 12.84,
+      "crossfade": 0.18,
+      "zoomStart": 3,
+      "zoomEnd": 4.32,
+      "rotationStart": -0.07,
+      "rotationEnd": -0.025,
+      "centerXStart": 0.51,
+      "centerXEnd": 0.5,
+      "centerYStart": 0.46,
+      "centerYEnd": 0.48,
+      "visibleAngleStart": 32,
+      "visibleAngleEnd": 13,
+      "blurStart": 1.15,
+      "blurEnd": 0.65
+    },
+    {
+      "role": "macro",
+      "start": 12.66,
+      "end": 14.58,
+      "crossfade": 0.18,
+      "zoomStart": 4.08,
+      "zoomEnd": 6,
+      "rotationStart": -0.03,
+      "rotationEnd": 0,
+      "centerXStart": 0.5,
+      "centerXEnd": 0.5,
+      "centerYStart": 0.48,
+      "centerYEnd": 0.5,
+      "visibleAngleStart": 15,
+      "visibleAngleEnd": 3,
+      "blurStart": 0.72,
+      "blurEnd": 0.28
+    }
+  ]
+}

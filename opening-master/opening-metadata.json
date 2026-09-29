@@ -1,6 +1,6 @@
 {
-  "name": "POWER WATCH Fixed Opening Template",
-  "version": 2,
+  "name": "POWER WATCH Watchless Opening Template",
+  "version": 3,
   "openingTotalDuration": 15.041,
   "resolution": { "width": 1080, "height": 1920 },
   "fps": 24,
@@ -8,15 +8,16 @@
   "watchRevealEnd": 14.58,
   "blackoutStart": 14.58,
   "blackoutEnd": 15.041,
-  "audioReusePolicy": "Reuse opening-master/audio-master.wav unchanged for every project; no narration or generated audio.",
-  "replacementRegion": {
-    "coordinateSpace": "1080x1920",
-    "centerX": 540,
-    "centerY": 960,
-    "initialWidth": 220,
-    "finalWidth": 1320,
-    "motion": "fixed lift-and-approach"
-  },
+  "audioReusePolicy": "Original audio master with a natural end fade; no synthetic fixed click.",
+  "replacementMethod": "watchless master plus multi-angle tracked composite",
+  "systemAssets": [
+    "watchless-master.mp4",
+    "original-watch-motion-track.json",
+    "foreground-occlusion-mask.json",
+    "watch-angle-map.json",
+    "lighting-shadow-preset.json",
+    "audio-master-v3.wav"
+  ],
   "source": "Human-supplied video.mp4",
   "runwayPolicy": "Do not generate or edit the Opening master with Runway."
 }

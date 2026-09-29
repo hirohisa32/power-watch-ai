@@ -16,6 +16,7 @@
     "test:runway": "tsx scripts/test-runway-video.ts",
     "test:elevenlabs": "tsx scripts/test-elevenlabs-narration.ts",
     "opening:preview": "tsx scripts/render-opening-preview.ts",
+    "opening:preview:v3": "tsx scripts/render-opening-preview-v3.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed-admin.ts"

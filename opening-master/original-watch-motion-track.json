@@ -1,0 +1,2586 @@
+{
+  "version": 3,
+  "fps": 24,
+  "frames": [
+    {
+      "frame": 222,
+      "time": 9.25,
+      "position": {
+        "x": 0.51,
+        "y": 0.565
+      },
+      "scale": 1,
+      "rotationRadians": -0.19,
+      "perspective": {
+        "yawDegrees": 82,
+        "pitchDegrees": -8
+      },
+      "velocity": 0,
+      "acceleration": 6.54984,
+      "blur": 2.4,
+      "depthFocus": 0.42,
+      "visibleAngle": 82,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 223,
+      "time": 9.2917,
+      "position": {
+        "x": 0.50997,
+        "y": 0.56457
+      },
+      "scale": 1.00542,
+      "rotationRadians": -0.18971,
+      "perspective": {
+        "yawDegrees": 81.857,
+        "pitchDegrees": -7.886
+      },
+      "velocity": 0.13003,
+      "acceleration": 5.62472,
+      "blur": 2.396,
+      "depthFocus": 0.427,
+      "visibleAngle": 81.857,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 224,
+      "time": 9.3333,
+      "position": {
+        "x": 0.50989,
+        "y": 0.56337
+      },
+      "scale": 1.0206,
+      "rotationRadians": -0.18892,
+      "perspective": {
+        "yawDegrees": 81.458,
+        "pitchDegrees": -7.566
+      },
+      "velocity": 0.36439,
+      "acceleration": 4.6996,
+      "blur": 2.384,
+      "depthFocus": 0.447,
+      "visibleAngle": 81.458,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 225,
+      "time": 9.375,
+      "position": {
+        "x": 0.50977,
+        "y": 0.56153
+      },
+      "scale": 1.04394,
+      "rotationRadians": -0.18769,
+      "perspective": {
+        "yawDegrees": 80.844,
+        "pitchDegrees": -7.075
+      },
+      "velocity": 0.56021,
+      "acceleration": 3.77449,
+      "blur": 2.365,
+      "depthFocus": 0.478,
+      "visibleAngle": 80.844,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 226,
+      "time": 9.4167,
+      "position": {
+        "x": 0.50961,
+        "y": 0.55917
+      },
+      "scale": 1.07384,
+      "rotationRadians": -0.18611,
+      "perspective": {
+        "yawDegrees": 80.057,
+        "pitchDegrees": -6.446
+      },
+      "velocity": 0.71748,
+      "acceleration": 2.84937,
+      "blur": 2.342,
+      "depthFocus": 0.517,
+      "visibleAngle": 80.057,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 227,
+      "time": 9.4583,
+      "position": {
+        "x": 0.50943,
+        "y": 0.55642
+      },
+      "scale": 1.10868,
+      "rotationRadians": -0.18428,
+      "perspective": {
+        "yawDegrees": 79.14,
+        "pitchDegrees": -5.712
+      },
+      "velocity": 0.8362,
+      "acceleration": 1.92425,
+      "blur": 2.314,
+      "depthFocus": 0.563,
+      "visibleAngle": 79.14,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 228,
+      "time": 9.5,
+      "position": {
+        "x": 0.50923,
+        "y": 0.55341
+      },
+      "scale": 1.14686,
+      "rotationRadians": -0.18227,
+      "perspective": {
+        "yawDegrees": 78.135,
+        "pitchDegrees": -4.908
+      },
+      "velocity": 0.91638,
+      "acceleration": 0.99913,
+      "blur": 2.284,
+      "depthFocus": 0.613,
+      "visibleAngle": 78.135,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 229,
+      "time": 9.5417,
+      "position": {
+        "x": 0.50902,
+        "y": 0.55025
+      },
+      "scale": 1.18678,
+      "rotationRadians": -0.18017,
+      "perspective": {
+        "yawDegrees": 77.085,
+        "pitchDegrees": -4.068
+      },
+      "velocity": 0.95801,
+      "acceleration": 0.07401,
+      "blur": 2.253,
+      "depthFocus": 0.666,
+      "visibleAngle": 77.085,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 230,
+      "time": 9.5833,
+      "position": {
+        "x": 0.50881,
+        "y": 0.54709
+      },
+      "scale": 1.22683,
+      "rotationRadians": -0.17806,
+      "perspective": {
+        "yawDegrees": 76.031,
+        "pitchDegrees": -3.225
+      },
+      "velocity": 0.9611,
+      "acceleration": -0.85111,
+      "blur": 2.221,
+      "depthFocus": 0.718,
+      "visibleAngle": 76.031,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 231,
+      "time": 9.625,
+      "position": {
+        "x": 0.5086,
+        "y": 0.54405
+      },
+      "scale": 1.26539,
+      "rotationRadians": -0.17603,
+      "perspective": {
+        "yawDegrees": 75.016,
+        "pitchDegrees": -2.413
+      },
+      "velocity": 0.92563,
+      "acceleration": -1.77623,
+      "blur": 2.19,
+      "depthFocus": 0.769,
+      "visibleAngle": 75.016,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 232,
+      "time": 9.6667,
+      "position": {
+        "x": 0.50842,
+        "y": 0.54125
+      },
+      "scale": 1.30088,
+      "rotationRadians": -0.17416,
+      "perspective": {
+        "yawDegrees": 74.082,
+        "pitchDegrees": -1.666
+      },
+      "velocity": 0.85162,
+      "acceleration": -2.70135,
+      "blur": 2.162,
+      "depthFocus": 0.816,
+      "visibleAngle": 74.082,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 233,
+      "time": 9.7083,
+      "position": {
+        "x": 0.50825,
+        "y": 0.53882
+      },
+      "scale": 1.33167,
+      "rotationRadians": -0.17254,
+      "perspective": {
+        "yawDegrees": 73.272,
+        "pitchDegrees": -1.017
+      },
+      "velocity": 0.73907,
+      "acceleration": -3.62647,
+      "blur": 2.138,
+      "depthFocus": 0.856,
+      "visibleAngle": 73.272,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 234,
+      "time": 9.75,
+      "position": {
+        "x": 0.50813,
+        "y": 0.53688
+      },
+      "scale": 1.35617,
+      "rotationRadians": -0.17125,
+      "perspective": {
+        "yawDegrees": 72.627,
+        "pitchDegrees": -0.502
+      },
+      "velocity": 0.58796,
+      "acceleration": -4.55159,
+      "blur": 2.119,
+      "depthFocus": 0.889,
+      "visibleAngle": 72.627,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 235,
+      "time": 9.7917,
+      "position": {
+        "x": 0.50804,
+        "y": 0.53557
+      },
+      "scale": 1.37277,
+      "rotationRadians": -0.17038,
+      "perspective": {
+        "yawDegrees": 72.19,
+        "pitchDegrees": -0.152
+      },
+      "velocity": 0.39832,
+      "acceleration": -5.4767,
+      "blur": 2.106,
+      "depthFocus": 0.91,
+      "visibleAngle": 72.19,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 236,
+      "time": 9.8333,
+      "position": {
+        "x": 0.508,
+        "y": 0.53501
+      },
+      "scale": 1.37986,
+      "rotationRadians": -0.17001,
+      "perspective": {
+        "yawDegrees": 72.004,
+        "pitchDegrees": -0.003
+      },
+      "velocity": 0.17012,
+      "acceleration": -6.40182,
+      "blur": 2.1,
+      "depthFocus": 0.92,
+      "visibleAngle": 72.004,
+      "preferredRole": "side"
+    },
+    {
+      "frame": 237,
+      "time": 9.875,
+      "position": {
+        "x": 0.50705,
+        "y": 0.53209
+      },
+      "scale": 1.41922,
+      "rotationRadians": -0.16893,
+      "perspective": {
+        "yawDegrees": 69.887,
+        "pitchDegrees": -5.469
+      },
+      "velocity": 1.12819,
+      "acceleration": 2.44083,
+      "blur": 2.073,
+      "depthFocus": 0.578,
+      "visibleAngle": 69.887,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 238,
+      "time": 9.9167,
+      "position": {
+        "x": 0.5067,
+        "y": 0.52918
+      },
+      "scale": 1.47046,
+      "rotationRadians": -0.16485,
+      "perspective": {
+        "yawDegrees": 68.373,
+        "pitchDegrees": -4.537
+      },
+      "velocity": 1.22989,
+      "acceleration": 0.87619,
+      "blur": 2.027,
+      "depthFocus": 0.636,
+      "visibleAngle": 68.373,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 239,
+      "time": 9.9583,
+      "position": {
+        "x": 0.50634,
+        "y": 0.52618
+      },
+      "scale": 1.52323,
+      "rotationRadians": -0.16065,
+      "perspective": {
+        "yawDegrees": 66.814,
+        "pitchDegrees": -3.578
+      },
+      "velocity": 1.2664,
+      "acceleration": -0.68844,
+      "blur": 1.979,
+      "depthFocus": 0.696,
+      "visibleAngle": 66.814,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 240,
+      "time": 10,
+      "position": {
+        "x": 0.50599,
+        "y": 0.52325
+      },
+      "scale": 1.5748,
+      "rotationRadians": -0.15655,
+      "perspective": {
+        "yawDegrees": 65.29,
+        "pitchDegrees": -2.64
+      },
+      "velocity": 1.23771,
+      "acceleration": -2.25307,
+      "blur": 1.932,
+      "depthFocus": 0.755,
+      "visibleAngle": 65.29,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 241,
+      "time": 10.0417,
+      "position": {
+        "x": 0.50567,
+        "y": 0.52054
+      },
+      "scale": 1.62246,
+      "rotationRadians": -0.15276,
+      "perspective": {
+        "yawDegrees": 63.882,
+        "pitchDegrees": -1.773
+      },
+      "velocity": 1.14383,
+      "acceleration": -3.81771,
+      "blur": 1.889,
+      "depthFocus": 0.809,
+      "visibleAngle": 63.882,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 242,
+      "time": 10.0833,
+      "position": {
+        "x": 0.50539,
+        "y": 0.51821
+      },
+      "scale": 1.66349,
+      "rotationRadians": -0.14949,
+      "perspective": {
+        "yawDegrees": 62.67,
+        "pitchDegrees": -1.027
+      },
+      "velocity": 0.98476,
+      "acceleration": -5.38234,
+      "blur": 1.851,
+      "depthFocus": 0.856,
+      "visibleAngle": 62.67,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 243,
+      "time": 10.125,
+      "position": {
+        "x": 0.50517,
+        "y": 0.51641
+      },
+      "scale": 1.69518,
+      "rotationRadians": -0.14697,
+      "perspective": {
+        "yawDegrees": 61.733,
+        "pitchDegrees": -0.451
+      },
+      "velocity": 0.7605,
+      "acceleration": -6.94697,
+      "blur": 1.823,
+      "depthFocus": 0.892,
+      "visibleAngle": 61.733,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 244,
+      "time": 10.1667,
+      "position": {
+        "x": 0.50504,
+        "y": 0.5153
+      },
+      "scale": 1.71481,
+      "rotationRadians": -0.14541,
+      "perspective": {
+        "yawDegrees": 61.153,
+        "pitchDegrees": -0.094
+      },
+      "velocity": 0.47104,
+      "acceleration": -8.51161,
+      "blur": 1.805,
+      "depthFocus": 0.914,
+      "visibleAngle": 61.153,
+      "preferredRole": "back"
+    },
+    {
+      "frame": 245,
+      "time": 10.2083,
+      "position": {
+        "x": 0.505,
+        "y": 0.51193
+      },
+      "scale": 1.70404,
+      "rotationRadians": -0.1435,
+      "perspective": {
+        "yawDegrees": 61.399,
+        "pitchDegrees": -6.266
+      },
+      "velocity": 0.99543,
+      "acceleration": 3.66254,
+      "blur": 1.824,
+      "depthFocus": 0.528,
+      "visibleAngle": 61.399,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 246,
+      "time": 10.25,
+      "position": {
+        "x": 0.505,
+        "y": 0.50914
+      },
+      "scale": 1.75188,
+      "rotationRadians": -0.14051,
+      "perspective": {
+        "yawDegrees": 60.203,
+        "pitchDegrees": -5.469
+      },
+      "velocity": 1.14804,
+      "acceleration": 2.29592,
+      "blur": 1.789,
+      "depthFocus": 0.578,
+      "visibleAngle": 60.203,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 247,
+      "time": 10.2917,
+      "position": {
+        "x": 0.505,
+        "y": 0.50612
+      },
+      "scale": 1.8037,
+      "rotationRadians": -0.13727,
+      "perspective": {
+        "yawDegrees": 58.908,
+        "pitchDegrees": -4.605
+      },
+      "velocity": 1.2437,
+      "acceleration": 0.9293,
+      "blur": 1.751,
+      "depthFocus": 0.632,
+      "visibleAngle": 58.908,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 248,
+      "time": 10.3333,
+      "position": {
+        "x": 0.505,
+        "y": 0.503
+      },
+      "scale": 1.85713,
+      "rotationRadians": -0.13393,
+      "perspective": {
+        "yawDegrees": 57.572,
+        "pitchDegrees": -3.715
+      },
+      "velocity": 1.28242,
+      "acceleration": -0.43732,
+      "blur": 1.713,
+      "depthFocus": 0.688,
+      "visibleAngle": 57.572,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 249,
+      "time": 10.375,
+      "position": {
+        "x": 0.505,
+        "y": 0.49993
+      },
+      "scale": 1.9098,
+      "rotationRadians": -0.13064,
+      "perspective": {
+        "yawDegrees": 56.255,
+        "pitchDegrees": -2.837
+      },
+      "velocity": 1.2642,
+      "acceleration": -1.80394,
+      "blur": 1.674,
+      "depthFocus": 0.743,
+      "visibleAngle": 56.255,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 250,
+      "time": 10.4167,
+      "position": {
+        "x": 0.505,
+        "y": 0.49704
+      },
+      "scale": 1.95935,
+      "rotationRadians": -0.12754,
+      "perspective": {
+        "yawDegrees": 55.016,
+        "pitchDegrees": -2.011
+      },
+      "velocity": 1.18903,
+      "acceleration": -3.17055,
+      "blur": 1.638,
+      "depthFocus": 0.794,
+      "visibleAngle": 55.016,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 251,
+      "time": 10.4583,
+      "position": {
+        "x": 0.505,
+        "y": 0.49447
+      },
+      "scale": 2.00339,
+      "rotationRadians": -0.12479,
+      "perspective": {
+        "yawDegrees": 53.915,
+        "pitchDegrees": -1.277
+      },
+      "velocity": 1.05693,
+      "acceleration": -4.53717,
+      "blur": 1.606,
+      "depthFocus": 0.84,
+      "visibleAngle": 53.915,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 252,
+      "time": 10.5,
+      "position": {
+        "x": 0.505,
+        "y": 0.49236
+      },
+      "scale": 2.03955,
+      "rotationRadians": -0.12253,
+      "perspective": {
+        "yawDegrees": 53.011,
+        "pitchDegrees": -0.674
+      },
+      "velocity": 0.86788,
+      "acceleration": -5.90379,
+      "blur": 1.579,
+      "depthFocus": 0.878,
+      "visibleAngle": 53.011,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 253,
+      "time": 10.5417,
+      "position": {
+        "x": 0.505,
+        "y": 0.49085
+      },
+      "scale": 2.06546,
+      "rotationRadians": -0.12091,
+      "perspective": {
+        "yawDegrees": 52.363,
+        "pitchDegrees": -0.242
+      },
+      "velocity": 0.62189,
+      "acceleration": -7.27041,
+      "blur": 1.561,
+      "depthFocus": 0.905,
+      "visibleAngle": 52.363,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 254,
+      "time": 10.5833,
+      "position": {
+        "x": 0.505,
+        "y": 0.49007
+      },
+      "scale": 2.07875,
+      "rotationRadians": -0.12008,
+      "perspective": {
+        "yawDegrees": 52.031,
+        "pitchDegrees": -0.021
+      },
+      "velocity": 0.31895,
+      "acceleration": -8.63703,
+      "blur": 1.551,
+      "depthFocus": 0.919,
+      "visibleAngle": 52.031,
+      "preferredRole": "movement"
+    },
+    {
+      "frame": 255,
+      "time": 10.625,
+      "position": {
+        "x": 0.50596,
+        "y": 0.48983
+      },
+      "scale": 2.0665,
+      "rotationRadians": -0.11829,
+      "perspective": {
+        "yawDegrees": 51.933,
+        "pitchDegrees": -6.467
+      },
+      "velocity": 1.11921,
+      "acceleration": 3.99449,
+      "blur": 1.579,
+      "depthFocus": 0.516,
+      "visibleAngle": 51.933,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 256,
+      "time": 10.6667,
+      "position": {
+        "x": 0.50636,
+        "y": 0.48763
+      },
+      "scale": 2.12007,
+      "rotationRadians": -0.11545,
+      "perspective": {
+        "yawDegrees": 50.635,
+        "pitchDegrees": -5.817
+      },
+      "velocity": 1.28565,
+      "acceleration": 2.84665,
+      "blur": 1.549,
+      "depthFocus": 0.556,
+      "visibleAngle": 50.635,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 257,
+      "time": 10.7083,
+      "position": {
+        "x": 0.50681,
+        "y": 0.48524
+      },
+      "scale": 2.17858,
+      "rotationRadians": -0.11235,
+      "perspective": {
+        "yawDegrees": 49.216,
+        "pitchDegrees": -5.108
+      },
+      "velocity": 1.40426,
+      "acceleration": 1.69881,
+      "blur": 1.516,
+      "depthFocus": 0.601,
+      "visibleAngle": 49.216,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 258,
+      "time": 10.75,
+      "position": {
+        "x": 0.50727,
+        "y": 0.48273
+      },
+      "scale": 2.24004,
+      "rotationRadians": -0.10909,
+      "perspective": {
+        "yawDegrees": 47.726,
+        "pitchDegrees": -4.363
+      },
+      "velocity": 1.47504,
+      "acceleration": 0.55096,
+      "blur": 1.482,
+      "depthFocus": 0.647,
+      "visibleAngle": 47.726,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 259,
+      "time": 10.7917,
+      "position": {
+        "x": 0.50775,
+        "y": 0.48017
+      },
+      "scale": 2.30245,
+      "rotationRadians": -0.10578,
+      "perspective": {
+        "yawDegrees": 46.213,
+        "pitchDegrees": -3.607
+      },
+      "velocity": 1.498,
+      "acceleration": -0.59688,
+      "blur": 1.447,
+      "depthFocus": 0.695,
+      "visibleAngle": 46.213,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 260,
+      "time": 10.8333,
+      "position": {
+        "x": 0.50821,
+        "y": 0.47766
+      },
+      "scale": 2.36383,
+      "rotationRadians": -0.10252,
+      "perspective": {
+        "yawDegrees": 44.725,
+        "pitchDegrees": -2.863
+      },
+      "velocity": 1.47313,
+      "acceleration": -1.74472,
+      "blur": 1.412,
+      "depthFocus": 0.741,
+      "visibleAngle": 44.725,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 261,
+      "time": 10.875,
+      "position": {
+        "x": 0.50865,
+        "y": 0.47527
+      },
+      "scale": 2.42218,
+      "rotationRadians": -0.09943,
+      "perspective": {
+        "yawDegrees": 43.311,
+        "pitchDegrees": -2.155
+      },
+      "velocity": 1.40043,
+      "acceleration": -2.89256,
+      "blur": 1.38,
+      "depthFocus": 0.785,
+      "visibleAngle": 43.311,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 262,
+      "time": 10.9167,
+      "position": {
+        "x": 0.50906,
+        "y": 0.47309
+      },
+      "scale": 2.47551,
+      "rotationRadians": -0.0966,
+      "perspective": {
+        "yawDegrees": 42.018,
+        "pitchDegrees": -1.509
+      },
+      "velocity": 1.27991,
+      "acceleration": -4.0404,
+      "blur": 1.35,
+      "depthFocus": 0.826,
+      "visibleAngle": 42.018,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 263,
+      "time": 10.9583,
+      "position": {
+        "x": 0.50941,
+        "y": 0.4712
+      },
+      "scale": 2.52183,
+      "rotationRadians": -0.09415,
+      "perspective": {
+        "yawDegrees": 40.895,
+        "pitchDegrees": -0.948
+      },
+      "velocity": 1.11156,
+      "acceleration": -5.18825,
+      "blur": 1.324,
+      "depthFocus": 0.861,
+      "visibleAngle": 40.895,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 264,
+      "time": 11,
+      "position": {
+        "x": 0.50969,
+        "y": 0.46967
+      },
+      "scale": 2.55914,
+      "rotationRadians": -0.09217,
+      "perspective": {
+        "yawDegrees": 39.991,
+        "pitchDegrees": -0.495
+      },
+      "velocity": 0.89538,
+      "acceleration": -6.33609,
+      "blur": 1.303,
+      "depthFocus": 0.889,
+      "visibleAngle": 39.991,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 265,
+      "time": 11.0417,
+      "position": {
+        "x": 0.50989,
+        "y": 0.4686
+      },
+      "scale": 2.58544,
+      "rotationRadians": -0.09077,
+      "perspective": {
+        "yawDegrees": 39.353,
+        "pitchDegrees": -0.176
+      },
+      "velocity": 0.63138,
+      "acceleration": -7.48393,
+      "blur": 1.288,
+      "depthFocus": 0.909,
+      "visibleAngle": 39.353,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 266,
+      "time": 11.0833,
+      "position": {
+        "x": 0.50999,
+        "y": 0.46805
+      },
+      "scale": 2.59876,
+      "rotationRadians": -0.09007,
+      "perspective": {
+        "yawDegrees": 39.03,
+        "pitchDegrees": -0.015
+      },
+      "velocity": 0.31955,
+      "acceleration": -8.63177,
+      "blur": 1.281,
+      "depthFocus": 0.919,
+      "visibleAngle": 39.03,
+      "preferredRole": "oblique"
+    },
+    {
+      "frame": 267,
+      "time": 11.125,
+      "position": {
+        "x": 0.51,
+        "y": 0.46696
+      },
+      "scale": 2.58975,
+      "rotationRadians": -0.08893,
+      "perspective": {
+        "yawDegrees": 39.369,
+        "pitchDegrees": -6.381
+      },
+      "velocity": 1.32062,
+      "acceleration": 4.57306,
+      "blur": 1.313,
+      "depthFocus": 0.521,
+      "visibleAngle": 39.369,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 268,
+      "time": 11.1667,
+      "position": {
+        "x": 0.51,
+        "y": 0.46569
+      },
+      "scale": 2.65272,
+      "rotationRadians": -0.08638,
+      "perspective": {
+        "yawDegrees": 38.263,
+        "pitchDegrees": -5.7
+      },
+      "velocity": 1.51116,
+      "acceleration": 3.16162,
+      "blur": 1.285,
+      "depthFocus": 0.564,
+      "visibleAngle": 38.263,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 269,
+      "time": 11.2083,
+      "position": {
+        "x": 0.51,
+        "y": 0.4643
+      },
+      "scale": 2.72117,
+      "rotationRadians": -0.0836,
+      "perspective": {
+        "yawDegrees": 37.061,
+        "pitchDegrees": -4.96
+      },
+      "velocity": 1.6429,
+      "acceleration": 1.75018,
+      "blur": 1.255,
+      "depthFocus": 0.61,
+      "visibleAngle": 37.061,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 270,
+      "time": 11.25,
+      "position": {
+        "x": 0.51,
+        "y": 0.46285
+      },
+      "scale": 2.79266,
+      "rotationRadians": -0.0807,
+      "perspective": {
+        "yawDegrees": 35.805,
+        "pitchDegrees": -4.187
+      },
+      "velocity": 1.71582,
+      "acceleration": 0.33875,
+      "blur": 1.223,
+      "depthFocus": 0.658,
+      "visibleAngle": 35.805,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 271,
+      "time": 11.2917,
+      "position": {
+        "x": 0.51,
+        "y": 0.46139
+      },
+      "scale": 2.86474,
+      "rotationRadians": -0.07778,
+      "perspective": {
+        "yawDegrees": 34.538,
+        "pitchDegrees": -3.408
+      },
+      "velocity": 1.72994,
+      "acceleration": -1.07269,
+      "blur": 1.191,
+      "depthFocus": 0.707,
+      "visibleAngle": 34.538,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 272,
+      "time": 11.3333,
+      "position": {
+        "x": 0.51,
+        "y": 0.45997
+      },
+      "scale": 2.93496,
+      "rotationRadians": -0.07493,
+      "perspective": {
+        "yawDegrees": 33.305,
+        "pitchDegrees": -2.649
+      },
+      "velocity": 1.68524,
+      "acceleration": -2.48413,
+      "blur": 1.159,
+      "depthFocus": 0.754,
+      "visibleAngle": 33.305,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 273,
+      "time": 11.375,
+      "position": {
+        "x": 0.51,
+        "y": 0.45863
+      },
+      "scale": 3.00087,
+      "rotationRadians": -0.07226,
+      "perspective": {
+        "yawDegrees": 32.147,
+        "pitchDegrees": -1.937
+      },
+      "velocity": 1.58174,
+      "acceleration": -3.89557,
+      "blur": 1.13,
+      "depthFocus": 0.799,
+      "visibleAngle": 32.147,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 274,
+      "time": 11.4167,
+      "position": {
+        "x": 0.51,
+        "y": 0.45743
+      },
+      "scale": 3.06001,
+      "rotationRadians": -0.06986,
+      "perspective": {
+        "yawDegrees": 31.108,
+        "pitchDegrees": -1.297
+      },
+      "velocity": 1.41942,
+      "acceleration": -5.30701,
+      "blur": 1.104,
+      "depthFocus": 0.839,
+      "visibleAngle": 31.108,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 275,
+      "time": 11.4583,
+      "position": {
+        "x": 0.51,
+        "y": 0.45642
+      },
+      "scale": 3.10994,
+      "rotationRadians": -0.06784,
+      "perspective": {
+        "yawDegrees": 30.231,
+        "pitchDegrees": -0.757
+      },
+      "velocity": 1.1983,
+      "acceleration": -6.71844,
+      "blur": 1.081,
+      "depthFocus": 0.873,
+      "visibleAngle": 30.231,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 276,
+      "time": 11.5,
+      "position": {
+        "x": 0.51,
+        "y": 0.45564
+      },
+      "scale": 3.1482,
+      "rotationRadians": -0.06629,
+      "perspective": {
+        "yawDegrees": 29.559,
+        "pitchDegrees": -0.344
+      },
+      "velocity": 0.91836,
+      "acceleration": -8.12988,
+      "blur": 1.064,
+      "depthFocus": 0.899,
+      "visibleAngle": 29.559,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 277,
+      "time": 11.5417,
+      "position": {
+        "x": 0.51,
+        "y": 0.45515
+      },
+      "scale": 3.17235,
+      "rotationRadians": -0.06531,
+      "perspective": {
+        "yawDegrees": 29.134,
+        "pitchDegrees": -0.083
+      },
+      "velocity": 0.57961,
+      "acceleration": -9.54132,
+      "blur": 1.053,
+      "depthFocus": 0.915,
+      "visibleAngle": 29.134,
+      "preferredRole": "obliqueMacro"
+    },
+    {
+      "frame": 278,
+      "time": 11.5833,
+      "position": {
+        "x": 0.50963,
+        "y": 0.46073
+      },
+      "scale": 3.04837,
+      "rotationRadians": -0.06835,
+      "perspective": {
+        "yawDegrees": 31.304,
+        "pitchDegrees": -7.707
+      },
+      "velocity": 0.50314,
+      "acceleration": 3.02422,
+      "blur": 1.132,
+      "depthFocus": 0.438,
+      "visibleAngle": 31.304,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 279,
+      "time": 11.625,
+      "position": {
+        "x": 0.50943,
+        "y": 0.46113
+      },
+      "scale": 3.07459,
+      "rotationRadians": -0.06746,
+      "perspective": {
+        "yawDegrees": 30.926,
+        "pitchDegrees": -7.548
+      },
+      "velocity": 0.62915,
+      "acceleration": 2.79371,
+      "blur": 1.122,
+      "depthFocus": 0.448,
+      "visibleAngle": 30.926,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 280,
+      "time": 11.6667,
+      "position": {
+        "x": 0.5092,
+        "y": 0.4616
+      },
+      "scale": 3.10565,
+      "rotationRadians": -0.0664,
+      "perspective": {
+        "yawDegrees": 30.479,
+        "pitchDegrees": -7.36
+      },
+      "velocity": 0.74556,
+      "acceleration": 2.56321,
+      "blur": 1.11,
+      "depthFocus": 0.46,
+      "visibleAngle": 30.479,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 281,
+      "time": 11.7083,
+      "position": {
+        "x": 0.50893,
+        "y": 0.46214
+      },
+      "scale": 3.14117,
+      "rotationRadians": -0.06519,
+      "perspective": {
+        "yawDegrees": 29.968,
+        "pitchDegrees": -7.144
+      },
+      "velocity": 0.85236,
+      "acceleration": 2.3327,
+      "blur": 1.097,
+      "depthFocus": 0.473,
+      "visibleAngle": 29.968,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 282,
+      "time": 11.75,
+      "position": {
+        "x": 0.50863,
+        "y": 0.46274
+      },
+      "scale": 3.18073,
+      "rotationRadians": -0.06384,
+      "perspective": {
+        "yawDegrees": 29.399,
+        "pitchDegrees": -6.905
+      },
+      "velocity": 0.94955,
+      "acceleration": 2.1022,
+      "blur": 1.082,
+      "depthFocus": 0.488,
+      "visibleAngle": 29.399,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 283,
+      "time": 11.7917,
+      "position": {
+        "x": 0.5083,
+        "y": 0.46339
+      },
+      "scale": 3.22395,
+      "rotationRadians": -0.06237,
+      "perspective": {
+        "yawDegrees": 28.777,
+        "pitchDegrees": -6.643
+      },
+      "velocity": 1.03714,
+      "acceleration": 1.87169,
+      "blur": 1.065,
+      "depthFocus": 0.505,
+      "visibleAngle": 28.777,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 284,
+      "time": 11.8333,
+      "position": {
+        "x": 0.50795,
+        "y": 0.4641
+      },
+      "scale": 3.27041,
+      "rotationRadians": -0.06078,
+      "perspective": {
+        "yawDegrees": 28.108,
+        "pitchDegrees": -6.361
+      },
+      "velocity": 1.11513,
+      "acceleration": 1.64119,
+      "blur": 1.048,
+      "depthFocus": 0.522,
+      "visibleAngle": 28.108,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 285,
+      "time": 11.875,
+      "position": {
+        "x": 0.50758,
+        "y": 0.46484
+      },
+      "scale": 3.31972,
+      "rotationRadians": -0.0591,
+      "perspective": {
+        "yawDegrees": 27.398,
+        "pitchDegrees": -6.062
+      },
+      "velocity": 1.18351,
+      "acceleration": 1.41069,
+      "blur": 1.029,
+      "depthFocus": 0.541,
+      "visibleAngle": 27.398,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 286,
+      "time": 11.9167,
+      "position": {
+        "x": 0.50719,
+        "y": 0.46563
+      },
+      "scale": 3.37149,
+      "rotationRadians": -0.05734,
+      "perspective": {
+        "yawDegrees": 26.653,
+        "pitchDegrees": -5.749
+      },
+      "velocity": 1.24229,
+      "acceleration": 1.18018,
+      "blur": 1.009,
+      "depthFocus": 0.561,
+      "visibleAngle": 26.653,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 287,
+      "time": 11.9583,
+      "position": {
+        "x": 0.50678,
+        "y": 0.46644
+      },
+      "scale": 3.4253,
+      "rotationRadians": -0.0555,
+      "perspective": {
+        "yawDegrees": 25.878,
+        "pitchDegrees": -5.422
+      },
+      "velocity": 1.29147,
+      "acceleration": 0.94968,
+      "blur": 0.989,
+      "depthFocus": 0.581,
+      "visibleAngle": 25.878,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 288,
+      "time": 12,
+      "position": {
+        "x": 0.50636,
+        "y": 0.46728
+      },
+      "scale": 3.48076,
+      "rotationRadians": -0.05361,
+      "perspective": {
+        "yawDegrees": 25.08,
+        "pitchDegrees": -5.086
+      },
+      "velocity": 1.33104,
+      "acceleration": 0.71917,
+      "blur": 0.968,
+      "depthFocus": 0.602,
+      "visibleAngle": 25.08,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 289,
+      "time": 12.0417,
+      "position": {
+        "x": 0.50593,
+        "y": 0.46814
+      },
+      "scale": 3.53747,
+      "rotationRadians": -0.05168,
+      "perspective": {
+        "yawDegrees": 24.264,
+        "pitchDegrees": -4.743
+      },
+      "velocity": 1.361,
+      "acceleration": 0.48867,
+      "blur": 0.946,
+      "depthFocus": 0.624,
+      "visibleAngle": 24.264,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 290,
+      "time": 12.0833,
+      "position": {
+        "x": 0.50549,
+        "y": 0.46902
+      },
+      "scale": 3.59502,
+      "rotationRadians": -0.04972,
+      "perspective": {
+        "yawDegrees": 23.435,
+        "pitchDegrees": -4.394
+      },
+      "velocity": 1.38136,
+      "acceleration": 0.25816,
+      "blur": 0.925,
+      "depthFocus": 0.645,
+      "visibleAngle": 23.435,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 291,
+      "time": 12.125,
+      "position": {
+        "x": 0.50505,
+        "y": 0.46989
+      },
+      "scale": 3.65303,
+      "rotationRadians": -0.04774,
+      "perspective": {
+        "yawDegrees": 22.6,
+        "pitchDegrees": -4.042
+      },
+      "velocity": 1.39212,
+      "acceleration": 0.02766,
+      "blur": 0.903,
+      "depthFocus": 0.667,
+      "visibleAngle": 22.6,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 292,
+      "time": 12.1667,
+      "position": {
+        "x": 0.50461,
+        "y": 0.47077
+      },
+      "scale": 3.71108,
+      "rotationRadians": -0.04576,
+      "perspective": {
+        "yawDegrees": 21.765,
+        "pitchDegrees": -3.69
+      },
+      "velocity": 1.39327,
+      "acceleration": -0.20284,
+      "blur": 0.881,
+      "depthFocus": 0.689,
+      "visibleAngle": 21.765,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 293,
+      "time": 12.2083,
+      "position": {
+        "x": 0.50418,
+        "y": 0.47165
+      },
+      "scale": 3.76878,
+      "rotationRadians": -0.04379,
+      "perspective": {
+        "yawDegrees": 20.934,
+        "pitchDegrees": -3.341
+      },
+      "velocity": 1.38482,
+      "acceleration": -0.43335,
+      "blur": 0.859,
+      "depthFocus": 0.711,
+      "visibleAngle": 20.934,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 294,
+      "time": 12.25,
+      "position": {
+        "x": 0.50374,
+        "y": 0.47251
+      },
+      "scale": 3.82573,
+      "rotationRadians": -0.04185,
+      "perspective": {
+        "yawDegrees": 20.114,
+        "pitchDegrees": -2.996
+      },
+      "velocity": 1.36676,
+      "acceleration": -0.66385,
+      "blur": 0.837,
+      "depthFocus": 0.733,
+      "visibleAngle": 20.114,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 295,
+      "time": 12.2917,
+      "position": {
+        "x": 0.50332,
+        "y": 0.47336
+      },
+      "scale": 3.88153,
+      "rotationRadians": -0.03995,
+      "perspective": {
+        "yawDegrees": 19.311,
+        "pitchDegrees": -2.657
+      },
+      "velocity": 1.3391,
+      "acceleration": -0.89436,
+      "blur": 0.816,
+      "depthFocus": 0.754,
+      "visibleAngle": 19.311,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 296,
+      "time": 12.3333,
+      "position": {
+        "x": 0.50291,
+        "y": 0.47418
+      },
+      "scale": 3.93577,
+      "rotationRadians": -0.0381,
+      "perspective": {
+        "yawDegrees": 18.531,
+        "pitchDegrees": -2.329
+      },
+      "velocity": 1.30184,
+      "acceleration": -1.12486,
+      "blur": 0.796,
+      "depthFocus": 0.774,
+      "visibleAngle": 18.531,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 297,
+      "time": 12.375,
+      "position": {
+        "x": 0.50251,
+        "y": 0.47497
+      },
+      "scale": 3.98806,
+      "rotationRadians": -0.03632,
+      "perspective": {
+        "yawDegrees": 17.778,
+        "pitchDegrees": -2.012
+      },
+      "velocity": 1.25497,
+      "acceleration": -1.35536,
+      "blur": 0.776,
+      "depthFocus": 0.794,
+      "visibleAngle": 17.778,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 298,
+      "time": 12.4167,
+      "position": {
+        "x": 0.50214,
+        "y": 0.47573
+      },
+      "scale": 4.038,
+      "rotationRadians": -0.03461,
+      "perspective": {
+        "yawDegrees": 17.059,
+        "pitchDegrees": -1.709
+      },
+      "velocity": 1.1985,
+      "acceleration": -1.58587,
+      "blur": 0.757,
+      "depthFocus": 0.813,
+      "visibleAngle": 17.059,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 299,
+      "time": 12.4583,
+      "position": {
+        "x": 0.50178,
+        "y": 0.47644
+      },
+      "scale": 4.08518,
+      "rotationRadians": -0.03301,
+      "perspective": {
+        "yawDegrees": 16.38,
+        "pitchDegrees": -1.423
+      },
+      "velocity": 1.13242,
+      "acceleration": -1.81637,
+      "blur": 0.739,
+      "depthFocus": 0.831,
+      "visibleAngle": 16.38,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 300,
+      "time": 12.5,
+      "position": {
+        "x": 0.50145,
+        "y": 0.47711
+      },
+      "scale": 4.12921,
+      "rotationRadians": -0.0315,
+      "perspective": {
+        "yawDegrees": 15.746,
+        "pitchDegrees": -1.156
+      },
+      "velocity": 1.05674,
+      "acceleration": -2.04688,
+      "blur": 0.722,
+      "depthFocus": 0.848,
+      "visibleAngle": 15.746,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 301,
+      "time": 12.5417,
+      "position": {
+        "x": 0.50114,
+        "y": 0.47772
+      },
+      "scale": 4.16969,
+      "rotationRadians": -0.03012,
+      "perspective": {
+        "yawDegrees": 15.164,
+        "pitchDegrees": -0.911
+      },
+      "velocity": 0.97145,
+      "acceleration": -2.27738,
+      "blur": 0.707,
+      "depthFocus": 0.863,
+      "visibleAngle": 15.164,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 302,
+      "time": 12.5833,
+      "position": {
+        "x": 0.50086,
+        "y": 0.47828
+      },
+      "scale": 4.20621,
+      "rotationRadians": -0.02888,
+      "perspective": {
+        "yawDegrees": 14.638,
+        "pitchDegrees": -0.69
+      },
+      "velocity": 0.87656,
+      "acceleration": -2.50789,
+      "blur": 0.693,
+      "depthFocus": 0.877,
+      "visibleAngle": 14.638,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 303,
+      "time": 12.625,
+      "position": {
+        "x": 0.50062,
+        "y": 0.47876
+      },
+      "scale": 4.23838,
+      "rotationRadians": -0.02778,
+      "perspective": {
+        "yawDegrees": 14.175,
+        "pitchDegrees": -0.495
+      },
+      "velocity": 0.77206,
+      "acceleration": -2.73839,
+      "blur": 0.681,
+      "depthFocus": 0.889,
+      "visibleAngle": 14.175,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 304,
+      "time": 12.6667,
+      "position": {
+        "x": 0.50041,
+        "y": 0.47918
+      },
+      "scale": 4.2658,
+      "rotationRadians": -0.02685,
+      "perspective": {
+        "yawDegrees": 13.78,
+        "pitchDegrees": -0.329
+      },
+      "velocity": 0.65796,
+      "acceleration": -2.96889,
+      "blur": 0.671,
+      "depthFocus": 0.899,
+      "visibleAngle": 13.78,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 305,
+      "time": 12.7083,
+      "position": {
+        "x": 0.50024,
+        "y": 0.47952
+      },
+      "scale": 4.28806,
+      "rotationRadians": -0.02609,
+      "perspective": {
+        "yawDegrees": 13.46,
+        "pitchDegrees": -0.194
+      },
+      "velocity": 0.53426,
+      "acceleration": -3.1994,
+      "blur": 0.662,
+      "depthFocus": 0.908,
+      "visibleAngle": 13.46,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 306,
+      "time": 12.75,
+      "position": {
+        "x": 0.50012,
+        "y": 0.47977
+      },
+      "scale": 4.30476,
+      "rotationRadians": -0.02552,
+      "perspective": {
+        "yawDegrees": 13.219,
+        "pitchDegrees": -0.092
+      },
+      "velocity": 0.40095,
+      "acceleration": -3.4299,
+      "blur": 0.656,
+      "depthFocus": 0.914,
+      "visibleAngle": 13.219,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 307,
+      "time": 12.7917,
+      "position": {
+        "x": 0.50003,
+        "y": 0.47993
+      },
+      "scale": 4.31552,
+      "rotationRadians": -0.02515,
+      "perspective": {
+        "yawDegrees": 13.065,
+        "pitchDegrees": -0.027
+      },
+      "velocity": 0.25804,
+      "acceleration": -3.66041,
+      "blur": 0.652,
+      "depthFocus": 0.918,
+      "visibleAngle": 13.065,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 308,
+      "time": 12.8333,
+      "position": {
+        "x": 0.5,
+        "y": 0.48
+      },
+      "scale": 4.31991,
+      "rotationRadians": -0.025,
+      "perspective": {
+        "yawDegrees": 13.001,
+        "pitchDegrees": -0.001
+      },
+      "velocity": 0.10552,
+      "acceleration": -3.89091,
+      "blur": 0.65,
+      "depthFocus": 0.92,
+      "visibleAngle": 13.001,
+      "preferredRole": "front"
+    },
+    {
+      "frame": 309,
+      "time": 12.875,
+      "position": {
+        "x": 0.5,
+        "y": 0.4807
+      },
+      "scale": 4.14683,
+      "rotationRadians": -0.02896,
+      "perspective": {
+        "yawDegrees": 14.582,
+        "pitchDegrees": -7.722
+      },
+      "velocity": 0.54517,
+      "acceleration": 2.42513,
+      "blur": 0.705,
+      "depthFocus": 0.437,
+      "visibleAngle": 14.582,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 310,
+      "time": 12.9167,
+      "position": {
+        "x": 0.5,
+        "y": 0.48098
+      },
+      "scale": 4.17376,
+      "rotationRadians": -0.02853,
+      "perspective": {
+        "yawDegrees": 14.414,
+        "pitchDegrees": -7.609
+      },
+      "velocity": 0.64622,
+      "acceleration": 2.2895,
+      "blur": 0.699,
+      "depthFocus": 0.444,
+      "visibleAngle": 14.414,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 311,
+      "time": 12.9583,
+      "position": {
+        "x": 0.5,
+        "y": 0.4813
+      },
+      "scale": 4.20466,
+      "rotationRadians": -0.02805,
+      "perspective": {
+        "yawDegrees": 14.221,
+        "pitchDegrees": -7.481
+      },
+      "velocity": 0.74162,
+      "acceleration": 2.15386,
+      "blur": 0.691,
+      "depthFocus": 0.452,
+      "visibleAngle": 14.221,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 312,
+      "time": 13,
+      "position": {
+        "x": 0.5,
+        "y": 0.48166
+      },
+      "scale": 4.2393,
+      "rotationRadians": -0.02751,
+      "perspective": {
+        "yawDegrees": 14.004,
+        "pitchDegrees": -7.336
+      },
+      "velocity": 0.83136,
+      "acceleration": 2.01823,
+      "blur": 0.683,
+      "depthFocus": 0.461,
+      "visibleAngle": 14.004,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 313,
+      "time": 13.0417,
+      "position": {
+        "x": 0.5,
+        "y": 0.48206
+      },
+      "scale": 4.27745,
+      "rotationRadians": -0.02691,
+      "perspective": {
+        "yawDegrees": 13.766,
+        "pitchDegrees": -7.177
+      },
+      "velocity": 0.91545,
+      "acceleration": 1.8826,
+      "blur": 0.675,
+      "depthFocus": 0.471,
+      "visibleAngle": 13.766,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 314,
+      "time": 13.0833,
+      "position": {
+        "x": 0.5,
+        "y": 0.48249
+      },
+      "scale": 4.31886,
+      "rotationRadians": -0.02627,
+      "perspective": {
+        "yawDegrees": 13.507,
+        "pitchDegrees": -7.005
+      },
+      "velocity": 0.99389,
+      "acceleration": 1.74696,
+      "blur": 0.665,
+      "depthFocus": 0.482,
+      "visibleAngle": 13.507,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 315,
+      "time": 13.125,
+      "position": {
+        "x": 0.5,
+        "y": 0.48295
+      },
+      "scale": 4.3633,
+      "rotationRadians": -0.02557,
+      "perspective": {
+        "yawDegrees": 13.229,
+        "pitchDegrees": -6.82
+      },
+      "velocity": 1.06669,
+      "acceleration": 1.61133,
+      "blur": 0.655,
+      "depthFocus": 0.494,
+      "visibleAngle": 13.229,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 316,
+      "time": 13.1667,
+      "position": {
+        "x": 0.5,
+        "y": 0.48344
+      },
+      "scale": 4.41055,
+      "rotationRadians": -0.02484,
+      "perspective": {
+        "yawDegrees": 12.934,
+        "pitchDegrees": -6.623
+      },
+      "velocity": 1.13382,
+      "acceleration": 1.47569,
+      "blur": 0.644,
+      "depthFocus": 0.506,
+      "visibleAngle": 12.934,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 317,
+      "time": 13.2083,
+      "position": {
+        "x": 0.5,
+        "y": 0.48396
+      },
+      "scale": 4.46035,
+      "rotationRadians": -0.02406,
+      "perspective": {
+        "yawDegrees": 12.623,
+        "pitchDegrees": -6.415
+      },
+      "velocity": 1.19531,
+      "acceleration": 1.34006,
+      "blur": 0.633,
+      "depthFocus": 0.519,
+      "visibleAngle": 12.623,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 318,
+      "time": 13.25,
+      "position": {
+        "x": 0.5,
+        "y": 0.48451
+      },
+      "scale": 4.51248,
+      "rotationRadians": -0.02324,
+      "perspective": {
+        "yawDegrees": 12.297,
+        "pitchDegrees": -6.198
+      },
+      "velocity": 1.25115,
+      "acceleration": 1.20443,
+      "blur": 0.621,
+      "depthFocus": 0.533,
+      "visibleAngle": 12.297,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 319,
+      "time": 13.2917,
+      "position": {
+        "x": 0.5,
+        "y": 0.48507
+      },
+      "scale": 4.5667,
+      "rotationRadians": -0.0224,
+      "perspective": {
+        "yawDegrees": 11.958,
+        "pitchDegrees": -5.972
+      },
+      "velocity": 1.30133,
+      "acceleration": 1.06879,
+      "blur": 0.608,
+      "depthFocus": 0.547,
+      "visibleAngle": 11.958,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 320,
+      "time": 13.3333,
+      "position": {
+        "x": 0.5,
+        "y": 0.48565
+      },
+      "scale": 4.62278,
+      "rotationRadians": -0.02152,
+      "perspective": {
+        "yawDegrees": 11.608,
+        "pitchDegrees": -5.738
+      },
+      "velocity": 1.34586,
+      "acceleration": 0.93316,
+      "blur": 0.596,
+      "depthFocus": 0.561,
+      "visibleAngle": 11.608,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 321,
+      "time": 13.375,
+      "position": {
+        "x": 0.5,
+        "y": 0.48625
+      },
+      "scale": 4.68048,
+      "rotationRadians": -0.02062,
+      "perspective": {
+        "yawDegrees": 11.247,
+        "pitchDegrees": -5.498
+      },
+      "velocity": 1.38475,
+      "acceleration": 0.79753,
+      "blur": 0.582,
+      "depthFocus": 0.576,
+      "visibleAngle": 11.247,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 322,
+      "time": 13.4167,
+      "position": {
+        "x": 0.5,
+        "y": 0.48687
+      },
+      "scale": 4.73956,
+      "rotationRadians": -0.01969,
+      "perspective": {
+        "yawDegrees": 10.878,
+        "pitchDegrees": -5.252
+      },
+      "velocity": 1.41798,
+      "acceleration": 0.66189,
+      "blur": 0.569,
+      "depthFocus": 0.592,
+      "visibleAngle": 10.878,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 323,
+      "time": 13.4583,
+      "position": {
+        "x": 0.5,
+        "y": 0.4875
+      },
+      "scale": 4.79979,
+      "rotationRadians": -0.01875,
+      "perspective": {
+        "yawDegrees": 10.501,
+        "pitchDegrees": -5.001
+      },
+      "velocity": 1.44556,
+      "acceleration": 0.52626,
+      "blur": 0.555,
+      "depthFocus": 0.607,
+      "visibleAngle": 10.501,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 324,
+      "time": 13.5,
+      "position": {
+        "x": 0.5,
+        "y": 0.48813
+      },
+      "scale": 4.86094,
+      "rotationRadians": -0.0178,
+      "perspective": {
+        "yawDegrees": 10.119,
+        "pitchDegrees": -4.746
+      },
+      "velocity": 1.46748,
+      "acceleration": 0.39063,
+      "blur": 0.541,
+      "depthFocus": 0.623,
+      "visibleAngle": 10.119,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 325,
+      "time": 13.5417,
+      "position": {
+        "x": 0.5,
+        "y": 0.48878
+      },
+      "scale": 4.92276,
+      "rotationRadians": -0.01683,
+      "perspective": {
+        "yawDegrees": 9.733,
+        "pitchDegrees": -4.488
+      },
+      "velocity": 1.48376,
+      "acceleration": 0.25499,
+      "blur": 0.527,
+      "depthFocus": 0.639,
+      "visibleAngle": 9.733,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 326,
+      "time": 13.5833,
+      "position": {
+        "x": 0.5,
+        "y": 0.48943
+      },
+      "scale": 4.98503,
+      "rotationRadians": -0.01586,
+      "perspective": {
+        "yawDegrees": 9.344,
+        "pitchDegrees": -4.229
+      },
+      "velocity": 1.49438,
+      "acceleration": 0.11936,
+      "blur": 0.513,
+      "depthFocus": 0.656,
+      "visibleAngle": 9.344,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 327,
+      "time": 13.625,
+      "position": {
+        "x": 0.5,
+        "y": 0.49008
+      },
+      "scale": 5.0475,
+      "rotationRadians": -0.01488,
+      "perspective": {
+        "yawDegrees": 8.953,
+        "pitchDegrees": -3.969
+      },
+      "velocity": 1.49936,
+      "acceleration": -0.01628,
+      "blur": 0.498,
+      "depthFocus": 0.672,
+      "visibleAngle": 8.953,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 328,
+      "time": 13.6667,
+      "position": {
+        "x": 0.5,
+        "y": 0.49073
+      },
+      "scale": 5.10994,
+      "rotationRadians": -0.01391,
+      "perspective": {
+        "yawDegrees": 8.563,
+        "pitchDegrees": -3.709
+      },
+      "velocity": 1.49868,
+      "acceleration": -0.15191,
+      "blur": 0.484,
+      "depthFocus": 0.688,
+      "visibleAngle": 8.563,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 329,
+      "time": 13.7083,
+      "position": {
+        "x": 0.5,
+        "y": 0.49138
+      },
+      "scale": 5.17213,
+      "rotationRadians": -0.01294,
+      "perspective": {
+        "yawDegrees": 8.174,
+        "pitchDegrees": -3.449
+      },
+      "velocity": 1.49235,
+      "acceleration": -0.28754,
+      "blur": 0.47,
+      "depthFocus": 0.704,
+      "visibleAngle": 8.174,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 330,
+      "time": 13.75,
+      "position": {
+        "x": 0.5,
+        "y": 0.49202
+      },
+      "scale": 5.23381,
+      "rotationRadians": -0.01197,
+      "perspective": {
+        "yawDegrees": 7.789,
+        "pitchDegrees": -3.192
+      },
+      "velocity": 1.48037,
+      "acceleration": -0.42318,
+      "blur": 0.456,
+      "depthFocus": 0.72,
+      "visibleAngle": 7.789,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 331,
+      "time": 13.7917,
+      "position": {
+        "x": 0.5,
+        "y": 0.49265
+      },
+      "scale": 5.29476,
+      "rotationRadians": -0.01102,
+      "perspective": {
+        "yawDegrees": 7.408,
+        "pitchDegrees": -2.939
+      },
+      "velocity": 1.46274,
+      "acceleration": -0.55881,
+      "blur": 0.442,
+      "depthFocus": 0.736,
+      "visibleAngle": 7.408,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 332,
+      "time": 13.8333,
+      "position": {
+        "x": 0.5,
+        "y": 0.49328
+      },
+      "scale": 5.35473,
+      "rotationRadians": -0.01008,
+      "perspective": {
+        "yawDegrees": 7.033,
+        "pitchDegrees": -2.689
+      },
+      "velocity": 1.43945,
+      "acceleration": -0.69444,
+      "blur": 0.428,
+      "depthFocus": 0.752,
+      "visibleAngle": 7.033,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 333,
+      "time": 13.875,
+      "position": {
+        "x": 0.5,
+        "y": 0.49389
+      },
+      "scale": 5.4135,
+      "rotationRadians": -0.00916,
+      "perspective": {
+        "yawDegrees": 6.666,
+        "pitchDegrees": -2.444
+      },
+      "velocity": 1.41052,
+      "acceleration": -0.83008,
+      "blur": 0.414,
+      "depthFocus": 0.767,
+      "visibleAngle": 6.666,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 334,
+      "time": 13.9167,
+      "position": {
+        "x": 0.5,
+        "y": 0.49449
+      },
+      "scale": 5.47083,
+      "rotationRadians": -0.00827,
+      "perspective": {
+        "yawDegrees": 6.307,
+        "pitchDegrees": -2.205
+      },
+      "velocity": 1.37593,
+      "acceleration": -0.96571,
+      "blur": 0.401,
+      "depthFocus": 0.782,
+      "visibleAngle": 6.307,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 335,
+      "time": 13.9583,
+      "position": {
+        "x": 0.5,
+        "y": 0.49507
+      },
+      "scale": 5.52649,
+      "rotationRadians": -0.0074,
+      "perspective": {
+        "yawDegrees": 5.959,
+        "pitchDegrees": -1.973
+      },
+      "velocity": 1.33569,
+      "acceleration": -1.10135,
+      "blur": 0.389,
+      "depthFocus": 0.797,
+      "visibleAngle": 5.959,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 336,
+      "time": 14,
+      "position": {
+        "x": 0.5,
+        "y": 0.49563
+      },
+      "scale": 5.58023,
+      "rotationRadians": -0.00656,
+      "perspective": {
+        "yawDegrees": 5.624,
+        "pitchDegrees": -1.749
+      },
+      "velocity": 1.2898,
+      "acceleration": -1.23698,
+      "blur": 0.376,
+      "depthFocus": 0.811,
+      "visibleAngle": 5.624,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 337,
+      "time": 14.0417,
+      "position": {
+        "x": 0.5,
+        "y": 0.49616
+      },
+      "scale": 5.63182,
+      "rotationRadians": -0.00575,
+      "perspective": {
+        "yawDegrees": 5.301,
+        "pitchDegrees": -1.534
+      },
+      "velocity": 1.23826,
+      "acceleration": -1.37261,
+      "blur": 0.364,
+      "depthFocus": 0.824,
+      "visibleAngle": 5.301,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 338,
+      "time": 14.0833,
+      "position": {
+        "x": 0.5,
+        "y": 0.49668
+      },
+      "scale": 5.68104,
+      "rotationRadians": -0.00498,
+      "perspective": {
+        "yawDegrees": 4.994,
+        "pitchDegrees": -1.329
+      },
+      "velocity": 1.18107,
+      "acceleration": -1.50825,
+      "blur": 0.353,
+      "depthFocus": 0.837,
+      "visibleAngle": 4.994,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 339,
+      "time": 14.125,
+      "position": {
+        "x": 0.5,
+        "y": 0.49716
+      },
+      "scale": 5.72763,
+      "rotationRadians": -0.00426,
+      "perspective": {
+        "yawDegrees": 4.702,
+        "pitchDegrees": -1.135
+      },
+      "velocity": 1.11823,
+      "acceleration": -1.64388,
+      "blur": 0.342,
+      "depthFocus": 0.849,
+      "visibleAngle": 4.702,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 340,
+      "time": 14.1667,
+      "position": {
+        "x": 0.5,
+        "y": 0.49762
+      },
+      "scale": 5.77137,
+      "rotationRadians": -0.00357,
+      "perspective": {
+        "yawDegrees": 4.429,
+        "pitchDegrees": -0.953
+      },
+      "velocity": 1.04973,
+      "acceleration": -1.77951,
+      "blur": 0.332,
+      "depthFocus": 0.86,
+      "visibleAngle": 4.429,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 341,
+      "time": 14.2083,
+      "position": {
+        "x": 0.5,
+        "y": 0.49804
+      },
+      "scale": 5.81202,
+      "rotationRadians": -0.00294,
+      "perspective": {
+        "yawDegrees": 4.175,
+        "pitchDegrees": -0.783
+      },
+      "velocity": 0.97558,
+      "acceleration": -1.91515,
+      "blur": 0.323,
+      "depthFocus": 0.871,
+      "visibleAngle": 4.175,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 342,
+      "time": 14.25,
+      "position": {
+        "x": 0.5,
+        "y": 0.49843
+      },
+      "scale": 5.84934,
+      "rotationRadians": -0.00235,
+      "perspective": {
+        "yawDegrees": 3.942,
+        "pitchDegrees": -0.628
+      },
+      "velocity": 0.89579,
+      "acceleration": -2.05078,
+      "blur": 0.315,
+      "depthFocus": 0.881,
+      "visibleAngle": 3.942,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 343,
+      "time": 14.2917,
+      "position": {
+        "x": 0.5,
+        "y": 0.49878
+      },
+      "scale": 5.8831,
+      "rotationRadians": -0.00183,
+      "perspective": {
+        "yawDegrees": 3.731,
+        "pitchDegrees": -0.487
+      },
+      "velocity": 0.81034,
+      "acceleration": -2.18641,
+      "blur": 0.307,
+      "depthFocus": 0.89,
+      "visibleAngle": 3.731,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 344,
+      "time": 14.3333,
+      "position": {
+        "x": 0.5,
+        "y": 0.49909
+      },
+      "scale": 5.91307,
+      "rotationRadians": -0.00136,
+      "perspective": {
+        "yawDegrees": 3.543,
+        "pitchDegrees": -0.362
+      },
+      "velocity": 0.71924,
+      "acceleration": -2.32205,
+      "blur": 0.3,
+      "depthFocus": 0.897,
+      "visibleAngle": 3.543,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 345,
+      "time": 14.375,
+      "position": {
+        "x": 0.5,
+        "y": 0.49936
+      },
+      "scale": 5.93901,
+      "rotationRadians": -0.00095,
+      "perspective": {
+        "yawDegrees": 3.381,
+        "pitchDegrees": -0.254
+      },
+      "velocity": 0.62248,
+      "acceleration": -2.45768,
+      "blur": 0.294,
+      "depthFocus": 0.904,
+      "visibleAngle": 3.381,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 346,
+      "time": 14.4167,
+      "position": {
+        "x": 0.5,
+        "y": 0.49959
+      },
+      "scale": 5.96068,
+      "rotationRadians": -0.00061,
+      "perspective": {
+        "yawDegrees": 3.246,
+        "pitchDegrees": -0.164
+      },
+      "velocity": 0.52008,
+      "acceleration": -2.59332,
+      "blur": 0.289,
+      "depthFocus": 0.91,
+      "visibleAngle": 3.246,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 347,
+      "time": 14.4583,
+      "position": {
+        "x": 0.5,
+        "y": 0.49977
+      },
+      "scale": 5.97785,
+      "rotationRadians": -0.00035,
+      "perspective": {
+        "yawDegrees": 3.138,
+        "pitchDegrees": -0.092
+      },
+      "velocity": 0.41203,
+      "acceleration": -2.72895,
+      "blur": 0.285,
+      "depthFocus": 0.914,
+      "visibleAngle": 3.138,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 348,
+      "time": 14.5,
+      "position": {
+        "x": 0.5,
+        "y": 0.4999
+      },
+      "scale": 5.99028,
+      "rotationRadians": -0.00015,
+      "perspective": {
+        "yawDegrees": 3.061,
+        "pitchDegrees": -0.041
+      },
+      "velocity": 0.29832,
+      "acceleration": -2.86458,
+      "blur": 0.282,
+      "depthFocus": 0.917,
+      "visibleAngle": 3.061,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 349,
+      "time": 14.5417,
+      "position": {
+        "x": 0.5,
+        "y": 0.49998
+      },
+      "scale": 5.99773,
+      "rotationRadians": -0.00004,
+      "perspective": {
+        "yawDegrees": 3.014,
+        "pitchDegrees": -0.009
+      },
+      "velocity": 0.17896,
+      "acceleration": -3.00022,
+      "blur": 0.281,
+      "depthFocus": 0.919,
+      "visibleAngle": 3.014,
+      "preferredRole": "macro"
+    },
+    {
+      "frame": 350,
+      "time": 14.5833,
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "scale": 6,
+      "rotationRadians": 0,
+      "perspective": {
+        "yawDegrees": 3,
+        "pitchDegrees": 0
+      },
+      "velocity": 0.06416,
+      "acceleration": -3.125,
+      "blur": 0.28,
+      "depthFocus": 0.92,
+      "visibleAngle": 3,
+      "preferredRole": "macro"
+    }
+  ]
+}

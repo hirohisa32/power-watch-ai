@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "exposure": { "brightness": -0.035, "contrast": 1.08, "gamma": 0.96 },
+  "color": { "saturation": 0.84, "temperature": "warm tungsten" },
+  "shadow": { "opacity": 0.42, "offsetX": 18, "offsetY": 32, "blur": 22 },
+  "grain": { "strength": 1.7, "mode": "temporal-uniform" },
+  "motionBlur": { "frames": 3, "weights": [1, 2, 1] },
+  "lightWrap": { "method": "foreground plate plus matched warm exposure" }
+}

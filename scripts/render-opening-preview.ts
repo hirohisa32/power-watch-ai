@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createConnectedBackgroundCutout } from "../lib/opening/cutout";
+import { createNormalizedWatchCutout } from "../lib/opening/cutout";
 import { inspectOpeningAudio, renderOpeningPreview } from "../lib/opening/ffmpeg";
 import { openingMasterSystemPath } from "../lib/opening/template";
 
@@ -11,13 +11,13 @@ async function main() {
   const absoluteInput = path.resolve(input);
   const absoluteOutput = path.resolve(output);
   await mkdir(path.dirname(absoluteOutput), { recursive: true });
-  const cutout = await createConnectedBackgroundCutout(new Uint8Array(await readFile(absoluteInput)));
+  const cutout = await createNormalizedWatchCutout(new Uint8Array(await readFile(absoluteInput)));
   const cutoutPath = absoluteOutput.replace(/\.mp4$/i, "-watch-cutout.png");
   await writeFile(cutoutPath, cutout);
   await renderOpeningPreview({
-    masterVideo: openingMasterSystemPath("video.mp4"),
-    watchCutout: cutoutPath,
-    audioMaster: openingMasterSystemPath("audio-master.wav"),
+    watchlessMaster: openingMasterSystemPath("watchless-master.mp4"),
+    watchCutouts: [{ path: cutoutPath, role: "front" }],
+    audioMaster: openingMasterSystemPath("audio-master-v3.wav"),
     output: absoluteOutput,
   });
   const audio = await inspectOpeningAudio(absoluteOutput);

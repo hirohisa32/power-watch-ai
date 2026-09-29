@@ -36,3 +36,15 @@ export async function createConnectedBackgroundCutout(input: Uint8Array) {
     if (visited[index]) data[index * channels + 3] = 0;
   return new Uint8Array(await sharp(data, { raw: info }).png().toBuffer());
 }
+
+export async function createNormalizedWatchCutout(input: Uint8Array) {
+  const connected = await createConnectedBackgroundCutout(input);
+  const trimmed = await sharp(connected).trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
+  const normalized = await sharp(trimmed)
+    .resize(1320, 1480, { fit: "inside", withoutEnlargement: false })
+    .extend({ top: 60, bottom: 60, left: 140, right: 140, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(1600, 1600, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  return new Uint8Array(normalized);
+}

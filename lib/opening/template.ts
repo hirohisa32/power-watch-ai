@@ -1,7 +1,7 @@
 import path from "node:path";
 
 export const OPENING_MASTER_KEY = "POWER_WATCH_OPENING_MASTER";
-export const OPENING_MASTER_VERSION = 2;
+export const OPENING_MASTER_VERSION = 3;
 
 export const OPENING_MASTER_METADATA = {
   totalDurationSeconds: 15.041,
@@ -12,13 +12,13 @@ export const OPENING_MASTER_METADATA = {
   watchRevealEndSeconds: 14.58,
   blackoutStartSeconds: 14.58,
   blackoutEndSeconds: 15.041,
-  audioReusePolicy: "fixed-master-only",
+  audioReusePolicy: "fixed-original-audio-natural-tail-no-added-click",
   replacementRegion: { centerX: 0.5, centerY: 0.5, initialWidth: 220, finalWidth: 1320 },
 } as const;
 
 export const WATCH_REVEAL_TEMPLATE = {
-  version: 1,
-  source: "fixed-2.5d-composite",
+  version: 3,
+  source: "watchless-master-multi-angle-tracked-composite",
   preserveMasterBeforeSeconds: OPENING_MASTER_METADATA.watchRevealStartSeconds,
   transform: {
     startSeconds: OPENING_MASTER_METADATA.watchRevealStartSeconds,
@@ -30,15 +30,27 @@ export const WATCH_REVEAL_TEMPLATE = {
     endRotationRadians: 0,
     shadowOpacity: 0.42,
   },
-  finalClickSeconds: 14.48,
+  finalClickSeconds: null,
   blackoutStartSeconds: OPENING_MASTER_METADATA.blackoutStartSeconds,
 } as const;
 
-export function openingMasterSystemPath(file: "video.mp4" | "audio-master.wav" | "opening-metadata.json" | "watch-reveal-template.json") {
+export type OpeningMasterFile =
+  | "video.mp4"
+  | "watchless-master.mp4"
+  | "audio-master.wav"
+  | "audio-master-v3.wav"
+  | "opening-metadata.json"
+  | "watch-reveal-template.json"
+  | "original-watch-motion-track.json"
+  | "foreground-occlusion-mask.json"
+  | "watch-angle-map.json"
+  | "lighting-shadow-preset.json";
+
+export function openingMasterSystemPath(file: OpeningMasterFile) {
   return path.join(process.cwd(), "opening-master", file);
 }
 
-export function openingMasterObjectKey(file: "video.mp4" | "audio-master.wav" | "opening-metadata.json" | "watch-reveal-template.json") {
+export function openingMasterObjectKey(file: OpeningMasterFile) {
   return `opening-master/${file}`;
 }
 

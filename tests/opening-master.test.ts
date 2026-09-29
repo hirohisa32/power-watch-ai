@@ -12,25 +12,27 @@ import {
 } from "@/lib/opening/template";
 
 describe("POWER WATCH fixed opening master", () => {
-  it("uses the Human master as immutable version 2", () => {
+  it("uses the Human master as immutable watchless version 3", () => {
     expect(OPENING_MASTER_KEY).toBe("POWER_WATCH_OPENING_MASTER");
-    expect(OPENING_MASTER_VERSION).toBe(2);
+    expect(OPENING_MASTER_VERSION).toBe(3);
     expect(OPENING_MASTER_METADATA.totalDurationSeconds).toBe(15.041);
-    expect(OPENING_MASTER_METADATA.audioReusePolicy).toBe("fixed-master-only");
+    expect(OPENING_MASTER_METADATA.audioReusePolicy).toBe("fixed-original-audio-natural-tail-no-added-click");
     expect(OPENING_MASTER_METADATA.watchRevealStartSeconds).toBe(9.25);
   });
 
   it("composites only the watch region and preserves the fixed audio master", () => {
     const args = buildOpeningFfmpegArgs({
-      masterVideo: "opening-master/video.mp4",
-      watchCutout: "pierce.png",
-      audioMaster: "opening-master/audio-master.wav",
+      watchlessMaster: "opening-master/watchless-master.mp4",
+      watchCutouts: [{ path: "pierce.png", role: "front" }],
+      audioMaster: "opening-master/audio-master-v3.wav",
       output: "preview.mp4",
     });
-    expect(args).toContain("opening-master/video.mp4");
-    expect(args).toContain("opening-master/audio-master.wav");
+    expect(args).toContain("opening-master/watchless-master.mp4");
+    expect(args).toContain("opening-master/audio-master-v3.wav");
     const filters = args[args.indexOf("-filter_complex") + 1];
-    expect(filters).toContain(`between(t,${WATCH_REVEAL_TEMPLATE.transform.startSeconds},${WATCH_REVEAL_TEMPLATE.transform.endSeconds})`);
+    expect(filters).toContain(`between(t,${WATCH_REVEAL_TEMPLATE.transform.startSeconds}`);
+    expect(filters).toContain("perspective=");
+    expect(filters).toContain("[foreground]overlay");
     expect(filters).toContain(`fade=t=out:st=${OPENING_MASTER_METADATA.blackoutStartSeconds}`);
     expect(filters).not.toMatch(/drawtext|narration|runway/i);
     expect(args).toContain(OPENING_AUDIO_MIX.aacBitrate);

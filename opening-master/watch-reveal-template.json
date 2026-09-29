@@ -1,21 +1,18 @@
 {
-  "version": 1,
-  "method": "fixed-2.5d-composite",
+  "version": 3,
+  "method": "watchless-multi-angle-motion-track",
   "startSeconds": 9.25,
   "endSeconds": 14.58,
-  "initialWidth": 220,
-  "finalWidth": 1320,
-  "liftPixels": 280,
-  "startRotationRadians": -0.1,
-  "endRotationRadians": 0,
-  "shadowOpacity": 0.42,
-  "finalClickSeconds": 14.48,
-  "blackoutStartSeconds": 14.58,
+  "selection": "per-segment nearest visible angle",
+  "transitions": ["crossfade", "perspective interpolation"],
+  "compositeOrder": ["watchless master", "replacement watch and matched shadow", "page/dust/light foreground plate"],
   "identityPolicy": [
-    "preserve dial and logo",
-    "preserve hands and indices",
+    "preserve source dial, logo, hands and indices",
     "preserve case, crown, pushers and strap",
     "preserve colors, patina, scratches and material texture",
     "no generative redesign"
-  ]
+  ],
+  "excludedInputs": ["human wrist photography", "non-watch scene photography"],
+  "finalClickSeconds": null,
+  "blackoutStartSeconds": 14.58
 }

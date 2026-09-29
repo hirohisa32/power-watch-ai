@@ -6,8 +6,9 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { assets, openingMasters, openingPreviewJobs, openingPreviews, projects } from "@/lib/db/schema";
 import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
-import { createConnectedBackgroundCutout } from "./cutout";
-import { inspectOpeningAudio, renderOpeningPreview } from "./ffmpeg";
+import { createNormalizedWatchCutout } from "./cutout";
+import { inspectOpeningAudio, renderOpeningPreview, type WatchCutout } from "./ffmpeg";
+import { chooseWatchRole } from "./motion";
 import { openingMasterSystemPath, openingPreviewObjectKey, openingWatchObjectKey } from "./template";
 
 export async function processOpeningPreviewJob(jobId: string, cycle: number) {
@@ -32,18 +33,28 @@ async function render(row: Awaited<ReturnType<typeof load>> & {}, jobId: string)
   const db = getDb();
   const work = await mkdtemp(path.join(tmpdir(), "power-watch-opening-"));
   try {
-    const watchSource = await download(await createReadUrl(row.asset.objectKey, 900));
-    const watchCutout = await createConnectedBackgroundCutout(watchSource);
-    const watchPath = path.join(work, "watch-cutout.png");
-    await writeFile(watchPath, watchCutout);
+    const projectAssets = await db.select().from(assets).where(eq(assets.projectId, row.preview.projectId));
+    const imageAssets = projectAssets.filter((asset) => asset.mimeType.startsWith("image/"));
+    const watchCutouts: WatchCutout[] = [];
+    for (const [index, asset] of imageAssets.entries()) {
+      const role = chooseWatchRole(`${asset.label} ${asset.objectKey}`, index);
+      if (!role || watchCutouts.some((item) => item.role === role)) continue;
+      const source = await download(await createReadUrl(asset.objectKey, 900));
+      const cutout = await createNormalizedWatchCutout(source);
+      const localPath = path.join(work, `${role}-watch-cutout.png`);
+      await writeFile(localPath, cutout);
+      watchCutouts.push({ path: localPath, role });
+    }
+    if (!watchCutouts.length) throw new Error("WATCH_ASSET_REQUIRED");
+    const primary = watchCutouts.find((item) => item.role === "front") ?? watchCutouts[0];
     const watchObjectKey = openingWatchObjectKey(row.preview.projectId, row.preview.id);
-    await uploadPrivateObject(watchObjectKey, watchCutout, "image/png");
+    await uploadPrivateObject(watchObjectKey, new Uint8Array(await readFile(primary.path)), "image/png");
 
     const output = path.join(work, "opening-preview.mp4");
     await renderOpeningPreview({
-      masterVideo: openingMasterSystemPath("video.mp4"),
-      watchCutout: watchPath,
-      audioMaster: openingMasterSystemPath("audio-master.wav"),
+      watchlessMaster: openingMasterSystemPath("watchless-master.mp4"),
+      watchCutouts,
+      audioMaster: openingMasterSystemPath("audio-master-v3.wav"),
       output,
     });
     const audioMetrics = await inspectOpeningAudio(output);
