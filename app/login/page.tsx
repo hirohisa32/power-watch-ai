@@ -13,11 +13,11 @@ export default async function LoginPage() {
       <section className="login-visual">
         <div className="watch-ring" aria-hidden="true" />
         <div className="login-caption">
-          <p className="eyebrow">Cinematic watch stories</p>
+          <p className="eyebrow">時計の物語を映像に</p>
           <h1>
-            Time, told
+            時を、美しい
             <br />
-            beautifully.
+            物語に。
           </h1>
           <p className="lead">一本の時計に宿る時間を、映像の物語へ。</p>
         </div>
@@ -27,8 +27,8 @@ export default async function LoginPage() {
           <div className="brand">
             <span>POWER</span> WATCH
           </div>
-          <h2>Studio Login</h2>
-          <p className="lead">管理者アカウントでログインしてください。</p>
+          <h2>ログイン</h2>
+          <p className="lead">アカウント情報を入力してください。</p>
           <LoginForm />
         </div>
       </section>

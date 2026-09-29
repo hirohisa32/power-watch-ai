@@ -1,78 +1,32 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { getDb } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
-import { ProjectCardActions } from "./project-card-actions";
+import { listUserProjects } from "@/lib/ui/project-list";
+import { PROJECT_STATUS_LABELS } from "@/lib/ui/presentation";
+import { ProjectCollection } from "./project-collection";
 
-export const metadata: Metadata = { title: "プロジェクト" };
+export const metadata: Metadata = { title: "ホーム" };
 export const dynamic = "force-dynamic";
-
-const languageLabel = { ja: "日本語", en: "English", zh: "中文" } as const;
-const statusLabel = {
-  draft: "下書き",
-  storyboard: "構成作成中",
-  generating: "生成中",
-  completed: "完成",
-  failed: "要確認",
-} as const;
 
 export default async function ProjectsPage() {
   const user = await requireUser();
-  const rows = await getDb()
-    .select()
-    .from(projects)
-    .where(eq(projects.userId, user.id))
-    .orderBy(desc(projects.updatedAt));
+  const rows = await listUserProjects(user.id);
+  const counts: Record<string, number> = Object.fromEntries(Object.keys(PROJECT_STATUS_LABELS).map((key) => [key, 0]));
+  rows.forEach((project) => counts[project.status]++);
   return (
     <main className="content">
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Your productions</p>
-          <h1>Projects</h1>
-          <p className="lead">時計の物語を管理し、映像制作を開始します。</p>
-        </div>
-        <Link href="/projects/new" className="btn btn-primary">
-          <Plus size={15} /> 新規プロジェクト
-        </Link>
+      <div className="hero-panel">
+        <div><p className="eyebrow">POWER WATCH</p><h1>次の時計物語を<br />映像にしましょう。</h1><p className="lead">台本と時計画像を用意すれば、動画構成から完成動画まで順番に進められます。</p></div>
+        <Link href="/projects/new" className="btn btn-primary btn-large"><Plus size={18} />新しい動画を作る</Link>
       </div>
-      {rows.length === 0 ? (
-        <div className="empty">
-          <h2>最初の物語を始めましょう</h2>
-          <p>台本と時計画像から、新しい映像プロジェクトを作成します。</p>
-          <Link href="/projects/new" className="btn btn-primary">
-            プロジェクトを作成
-          </Link>
-        </div>
-      ) : (
-        <div className="grid">
-          {rows.map((project) => (
-            <article className="project-card" key={project.id}>
-              <Link href={`/projects/${project.id}`}>
-                <div className="project-thumb" />
-              </Link>
-              <div className="project-body">
-                <Link href={`/projects/${project.id}`}>
-                  <h2 className="project-title">{project.title}</h2>
-                </Link>
-                <div className="meta-row">
-                  <span className="pill">{statusLabel[project.status]}</span>
-                  <span className="pill">{languageLabel[project.language]}</span>
-                  <span className="pill">{project.targetDuration} SEC</span>
-                </div>
-                <p className="hint">
-                  {new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(
-                    project.createdAt,
-                  )}
-                </p>
-                <ProjectCardActions id={project.id} />
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+      <section className="summary-grid" aria-label="動画の集計">
+        <div><strong>{counts.draft}</strong><span>下書き</span></div>
+        <div><strong>{counts.storyboard + counts.generating}</strong><span>制作中</span></div>
+        <div><strong>{counts.completed}</strong><span>完成</span></div>
+      </section>
+      <div className="section-head"><div><p className="eyebrow">最近の動画</p><h2>制作を続ける</h2></div><Link href="/videos" className="text-link">すべて見る</Link></div>
+      {rows.length ? <ProjectCollection rows={rows.slice(0, 6)} /> : <div className="empty"><h2>まだ動画がありません。</h2><p>最初の時計物語を作成しましょう。</p><Link href="/projects/new" className="btn btn-primary">最初の動画を作る</Link></div>}
     </main>
   );
 }

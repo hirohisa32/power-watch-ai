@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { assets, projects, storyboards } from "@/lib/db/schema";
+import { assets, finalRenders, projects, storyboards } from "@/lib/db/schema";
+import { LANGUAGE_LABELS, PROJECT_STATUS_LABELS, STYLE_LABELS, projectProgress } from "@/lib/ui/presentation";
 import { StoryboardButton } from "./storyboard-button";
 
 export const metadata: Metadata = { title: "プロジェクト詳細" };
@@ -27,47 +28,48 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     .from(storyboards)
     .where(and(eq(storyboards.projectId, project.id), eq(storyboards.isActive, true)))
     .limit(1);
-  const styles = { cinematic_real: "Cinematic Real", animation: "Animation" } as const;
-  const languages = { ja: "Japanese", en: "English", zh: "Chinese" } as const;
+  const [completedRender] = await db.select({ id: finalRenders.id, width: finalRenders.width, height: finalRenders.height, durationMs: finalRenders.durationMs }).from(finalRenders).where(and(eq(finalRenders.projectId, id), eq(finalRenders.status, "completed"))).limit(1);
   return (
     <main className="content">
       <div className="page-head">
         <div>
           <Link href="/projects" className="hint">
-            <ArrowLeft size={12} /> プロジェクト一覧
+            <ArrowLeft size={12} /> 動画一覧
           </Link>
-          <p className="eyebrow">Project detail</p>
+          <p className="eyebrow">動画の詳細</p>
           <h1>{project.title}</h1>
         </div>
         <StoryboardButton projectId={project.id} exists={Boolean(activeStoryboard)} />
       </div>
+      <div className="production-progress"><div><strong>{PROJECT_STATUS_LABELS[project.status]}</strong><span>{projectProgress(project.status)}%</span></div><div className="progress-track"><span style={{ width: `${projectProgress(project.status)}%` }} /></div><p>{project.status === "completed" ? "動画が完成しました" : activeStoryboard ? "動画構成を確認し、映像の作成へ進めます。" : "台本と時計画像を確認し、動画構成を作成してください。"}</p></div>
+      {completedRender && <section className="completed-callout"><div><p className="eyebrow">完成動画</p><h2>動画が完成しました</h2><p>{completedRender.durationMs ? `${(completedRender.durationMs / 1000).toFixed(0)}秒 · ` : ""}{completedRender.width}×{completedRender.height}</p></div><div className="card-actions"><a className="btn" href={`/api/renders/${completedRender.id}/video`} target="_blank">動画を見る</a><a className="btn btn-primary" href={`/api/renders/${completedRender.id}/download`}>MP4をダウンロード</a></div></section>}
       <div className="detail-grid">
         <section className="panel">
-          <h2>Script</h2>
+          <h2>台本</h2>
           <p className="script-preview">{project.script}</p>
         </section>
         <aside>
           <section className="panel">
-            <h2>Production</h2>
+            <h2>動画設定</h2>
             <div className="key-value">
-              <span>Style</span>
-              <span>{styles[project.style]}</span>
+              <span>動画スタイル</span>
+              <span>{STYLE_LABELS[project.style]}</span>
             </div>
             <div className="key-value">
-              <span>Language</span>
-              <span>{languages[project.language]}</span>
+              <span>言語</span>
+              <span>{LANGUAGE_LABELS[project.language]}</span>
             </div>
             <div className="key-value">
-              <span>Target</span>
-              <span>{project.targetDuration} sec</span>
+              <span>動画の長さ</span>
+              <span>{project.targetDuration}秒</span>
             </div>
             <div className="key-value">
-              <span>Status</span>
-              <span>{activeStoryboard ? "Storyboard" : "Draft"}</span>
+              <span>状態</span>
+              <span>{PROJECT_STATUS_LABELS[project.status]}</span>
             </div>
           </section>
           <section className="panel" style={{ marginTop: 18 }}>
-            <h2>Watch Images</h2>
+            <h2>時計画像</h2>
             {images.length === 0 ? (
               <p className="hint">画像は登録されていません。</p>
             ) : (

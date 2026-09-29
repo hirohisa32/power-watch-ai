@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { PRESET_NAMES, SCENE_PRESETS, type ScenePresetName } from "@/lib/storyboard/presets";
+import { SCENE_PRESETS, type ScenePresetName } from "@/lib/storyboard/presets";
+import { friendlyError, GENERATION_STATUS_LABELS } from "@/lib/ui/presentation";
 
 type EditorScene = {
   id: string;
@@ -84,6 +85,17 @@ const blankScene = (): Omit<
   location: null,
 });
 
+const QUICK_OPTIONS = [
+  "もっと高級感を出す",
+  "暗くする",
+  "明るくする",
+  "時計を大きくする",
+  "カメラをゆっくり動かす",
+  "人物を減らす",
+  "時計を強調する",
+  "動きを抑える",
+];
+
 export function StoryboardEditor({
   projectId,
   targetDuration,
@@ -91,6 +103,7 @@ export function StoryboardEditor({
   assetLabels,
   initialScenes,
   initialGenerations,
+  showTechnical,
 }: {
   projectId: string;
   targetDuration: number;
@@ -98,6 +111,7 @@ export function StoryboardEditor({
   assetLabels: string[];
   initialScenes: EditorScene[];
   initialGenerations: EditorGeneration[];
+  showTechnical: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<EditorScene | null>(null);
@@ -141,13 +155,13 @@ export function StoryboardEditor({
       setAdding(false);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "操作を完了できませんでした");
+      setError(cause instanceof Error ? friendlyError(cause.message) : "操作を完了できませんでした。もう一度お試しください。");
     } finally {
       setPending(false);
     }
   }
   async function regenerate() {
-    if (!window.confirm("現在のStoryboardを保持したまま、新しいVersionを生成して置き換えますか？"))
+    if (!window.confirm("現在の動画構成を残したまま、新しい構成を作成します。続けますか？"))
       return;
     await request(`/api/projects/${projectId}/storyboard`, { method: "POST" });
   }
@@ -176,8 +190,8 @@ export function StoryboardEditor({
             {hasCompletedRender ? `${total}秒 · 完成尺` : `${total} / ${targetDuration} 秒`}
           </span>
           <span className="hint">
-            {completedSceneCount} / {initialScenes.length} Scene 完了
-            {activeSceneCount > 0 ? ` · ${activeSceneCount} Sceneを生成中` : ""}
+            {completedSceneCount} / {initialScenes.length} シーン完成
+            {activeSceneCount > 0 ? ` · ${activeSceneCount}シーンを生成中` : ""}
           </span>
         </div>
         <div className="nav-actions">
@@ -189,10 +203,10 @@ export function StoryboardEditor({
               setAdding(true);
             }}
           >
-            <Plus size={14} /> Scene追加
+            <Plus size={14} /> シーンを追加
           </button>
           <button className="btn" disabled={pending} onClick={regenerate}>
-            <RefreshCw size={14} /> 全再生成
+            <RefreshCw size={14} /> 動画構成を作り直す
           </button>
           <button
             className="btn btn-primary"
@@ -201,13 +215,13 @@ export function StoryboardEditor({
               request(`/api/projects/${projectId}/generate-missing`, { method: "POST" })
             }
           >
-            未生成Sceneを一括生成
+            未生成シーンの映像を作る
           </button>
         </div>
       </div>
       {total !== targetDuration && !hasCompletedRender && (
         <p className="duration-warning">
-          Scene合計が目標尺と一致していません。生成前にDurationを調整してください。
+          シーンの合計時間が動画の長さと一致していません。各シーンの秒数を調整してください。
         </p>
       )}
       {error && (
@@ -231,14 +245,14 @@ export function StoryboardEditor({
           }
         />
       )}
-      <div className="scene-list">
+      <div className="scene-list" id="scene-list">
         {initialScenes.map((scene, index) => {
           const allGenerations = initialGenerations.filter(
             (generation) => generation.sceneId === scene.id,
           );
-          const completedGeneration = allGenerations.find(
-            (generation) => generation.status === "completed",
-          );
+          const completedGeneration =
+            allGenerations.find((generation) => generation.id === scene.selectedGenerationId) ??
+            allGenerations.find((generation) => generation.status === "completed");
           const generations = completedGeneration
             ? allGenerations.filter((generation) => generation.status !== "failed")
             : allGenerations;
@@ -264,13 +278,13 @@ export function StoryboardEditor({
           ) : (
             <article className="scene-card" key={scene.id}>
               <div className="scene-number">
-                <span>SCENE</span>
+                <span>シーン</span>
                 {String(scene.order).padStart(2, "0")}
               </div>
               <div className="scene-main">
                 <div className="scene-heading">
                   <div>
-                    <span className="pill">{scene.preset}</span>
+                    <span className="pill">シーン {scene.order}</span>
                     <h2>{scene.title}</h2>
                   </div>
                   <span className="scene-duration">{scene.duration}s</span>
@@ -289,23 +303,15 @@ export function StoryboardEditor({
                     <p>{scene.visualDescription}</p>
                   </div>
                 </div>
-                <div className="scene-specs">
+                <div className="scene-specs user-scene-specs">
                   <div>
-                    <span>カメラ</span>
-                    {scene.camera}
-                  </div>
-                  <div>
-                    <span>ライティング</span>
-                    {scene.lighting}
-                  </div>
-                  <div>
-                    <span>時計画像の参照</span>
+                    <span>使用する時計画像</span>
                     {scene.watchReference
                       ? `使用${scene.preferredAssetLabels.length ? ` · ${scene.preferredAssetLabels.join(", ")}` : ""}`
                       : "なし"}
                   </div>
                   <div>
-                    <span>年代 / 場所</span>
+                    <span>年代・場所</span>
                     {[scene.year, scene.location].filter(Boolean).join(" · ") || "—"}
                   </div>
                 </div>
@@ -314,7 +320,7 @@ export function StoryboardEditor({
                     <span>生成動画</span>
                     {activeGeneration ? (
                       <span className="generation-status active">
-                        {activeGeneration.status === "queued" ? "開始待ち" : "生成中"}
+                        {GENERATION_STATUS_LABELS[activeGeneration.status]}
                       </span>
                     ) : completedGeneration ? (
                       <span className="generation-status completed">完了</span>
@@ -329,8 +335,9 @@ export function StoryboardEditor({
                       {generations.map((generation) => (
                         <div className="generation-version" key={generation.id}>
                           <span>
-                            v{generation.version} · {generation.model} · {generation.status}
-                            {generation.actualCostUsd != null
+                            バージョン {generation.version} · {GENERATION_STATUS_LABELS[generation.status]}
+                            {showTechnical && generation.model ? ` · ${generation.model}` : ""}
+                            {showTechnical && generation.actualCostUsd != null
                               ? ` · $${generation.actualCostUsd.toFixed(2)}`
                               : generation.estimatedCostUsd != null
                                 ? ` · est. $${generation.estimatedCostUsd.toFixed(2)}`
@@ -352,7 +359,7 @@ export function StoryboardEditor({
                                 <button
                                   className="btn"
                                   disabled={pending}
-                                  onClick={() =>
+                                  onClick={() => window.confirm("このバージョンを使用しますか？") &&
                                     request(
                                       `/api/projects/${projectId}/scenes/${scene.id}/generations/${generation.id}/select`,
                                       { method: "POST" },
@@ -374,8 +381,8 @@ export function StoryboardEditor({
                     <p className="error">
                       {generations[0].errorCode === "INSUFFICIENT_CREDITS" ||
                       generations[0].errorMessage?.toLowerCase().includes("enough credits")
-                        ? "Runway creditsが不足しています。管理者へ追加を依頼してください。"
-                        : "動画生成に失敗しました。指示を調整して再生成してください。"}
+                        ? "動画生成用の残高が不足しています。管理者へお問い合わせください。"
+                        : "映像の生成に失敗しました。もう一度お試しください。"}
                     </p>
                   )}
                   <div className="card-actions">
@@ -385,15 +392,20 @@ export function StoryboardEditor({
                         disabled={pending}
                         onClick={() => generateScene(scene, generations.length > 0)}
                       >
-                        {generations.length > 0 ? "もう一度生成" : "動画を生成"}
+                        {generations.length > 0 ? "もう一度試す" : "映像を作る"}
                       </button>
                     )}
                     {completedGeneration && !activeGeneration && (
                       <>
+                        <div className="quick-options" aria-label="修正候補">
+                          {QUICK_OPTIONS.map((option) => (
+                            <button key={option} type="button" onClick={() => setRegenerationInstructions((current) => ({ ...current, [scene.id]: option }))}>{option}</button>
+                          ))}
+                        </div>
                         <input
-                          aria-label={`Scene ${scene.order} 再生成の修正指示`}
+                          aria-label={`シーン ${scene.order} の修正内容`}
                           className="regeneration-instruction"
-                          placeholder="修正したい点（例：時計の形を固定、動きをゆっくり）"
+                          placeholder="修正したい内容（例：もっと暗く、高級感のある雰囲気にしてください）"
                           value={regenerationInstructions[scene.id] ?? ""}
                           onChange={(event) =>
                             setRegenerationInstructions((current) => ({
@@ -409,7 +421,7 @@ export function StoryboardEditor({
                             generateScene(scene, true, regenerationInstructions[scene.id])
                           }
                         >
-                          このSceneを再生成
+                          このシーンだけ作り直す
                         </button>
                       </>
                     )}
@@ -418,13 +430,13 @@ export function StoryboardEditor({
                       disabled={pending || Boolean(activeGeneration)}
                       onClick={() => setEditing(scene)}
                     >
-                      映像設定
+                      画像を変更
                     </button>
                   </div>
                 </div>
                 <div className="card-actions">
                   <button className="btn" onClick={() => setEditing(scene)}>
-                    <Pencil size={13} /> Scene編集
+                    <Pencil size={13} /> 内容を修正
                   </button>
                   <button
                     className="btn"
@@ -456,7 +468,7 @@ export function StoryboardEditor({
                     className="btn btn-danger"
                     disabled={pending}
                     onClick={() =>
-                      window.confirm(`Scene ${scene.order}を削除しますか？`) &&
+                      window.confirm(`シーン ${scene.order}を削除しますか？この操作は取り消せません。`) &&
                       request(`/api/projects/${projectId}/scenes/${scene.id}`, { method: "DELETE" })
                     }
                   >
@@ -490,43 +502,11 @@ function SceneForm({
 }) {
   const set = <K extends keyof SceneDraft>(key: K, next: SceneDraft[K]) =>
     onChange({ ...value, [key]: next });
-  function presetChanged(preset: ScenePresetName) {
-    const base = SCENE_PRESETS[preset];
-    const referenceRequired = ["WatchReveal", "WristShot", "WatchMacro", "ProductHero"].includes(
-      preset,
-    );
-    onChange({
-      ...value,
-      preset,
-      camera: base.camera,
-      shotType: base.shotType,
-      lighting: base.lighting,
-      motion: base.motion,
-      colorMood: base.colorMood,
-      transition: base.transition,
-      watchReference: referenceRequired ? true : value.watchReference,
-      preferredAssetLabels:
-        referenceRequired && value.preferredAssetLabels.length === 0 && assetLabels[0]
-          ? [assetLabels[0]]
-          : value.preferredAssetLabels,
-    });
-  }
   return (
     <section className="scene-form">
       <div className="field-grid">
         <div className="field">
-          <label>Preset</label>
-          <select
-            value={value.preset}
-            onChange={(e) => presetChanged(e.target.value as ScenePresetName)}
-          >
-            {PRESET_NAMES.map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>Duration</label>
+          <label>シーンの長さ（秒）</label>
           <input
             type="number"
             min={3}
@@ -535,36 +515,17 @@ function SceneForm({
             onChange={(e) => set("duration", Number(e.target.value))}
           />
         </div>
-        <TextField label="Title" value={value.title} onChange={(v) => set("title", v)} full />
-        <TextArea label="Narration" value={value.narration} onChange={(v) => set("narration", v)} />
-        <TextArea label="Subtitle" value={value.subtitle} onChange={(v) => set("subtitle", v)} />
+        <TextField label="シーンタイトル" value={value.title} onChange={(v) => set("title", v)} full />
+        <TextArea label="ナレーション" value={value.narration} onChange={(v) => set("narration", v)} />
+        <TextArea label="字幕" value={value.subtitle} onChange={(v) => set("subtitle", v)} />
         <TextArea
-          label="Visual Summary"
+          label="映像イメージ"
           value={value.visualDescription}
           onChange={(v) => set("visualDescription", v)}
         />
-        <TextArea
-          label="Visual Prompt"
-          value={value.visualPrompt}
-          onChange={(v) => set("visualPrompt", v)}
-        />
-        <TextField label="Camera" value={value.camera} onChange={(v) => set("camera", v)} />
-        <TextField label="Shot Type" value={value.shotType} onChange={(v) => set("shotType", v)} />
-        <TextField label="Lighting" value={value.lighting} onChange={(v) => set("lighting", v)} />
-        <TextField label="Motion" value={value.motion} onChange={(v) => set("motion", v)} />
+        <TextField label="年代" value={value.year ?? ""} onChange={(v) => set("year", v || null)} />
         <TextField
-          label="Color Mood"
-          value={value.colorMood}
-          onChange={(v) => set("colorMood", v)}
-        />
-        <TextField
-          label="Transition"
-          value={value.transition}
-          onChange={(v) => set("transition", v)}
-        />
-        <TextField label="Year" value={value.year ?? ""} onChange={(v) => set("year", v || null)} />
-        <TextField
-          label="Location"
+          label="場所"
           value={value.location ?? ""}
           onChange={(v) => set("location", v || null)}
         />
@@ -581,7 +542,7 @@ function SceneForm({
                 })
               }
             />{" "}
-            時計Referenceを使用
+            時計画像を使用
           </label>
           {value.watchReference && (
             <div className="asset-checks">

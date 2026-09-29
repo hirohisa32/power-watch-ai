@@ -11,7 +11,7 @@ export function StoryboardButton({ projectId, exists }: { projectId: string; exi
   if (exists)
     return (
       <Link className="btn btn-primary" href={`/projects/${projectId}/storyboard`}>
-        Storyboardを開く
+        動画構成を確認
       </Link>
     );
   async function generate() {
@@ -32,7 +32,7 @@ export function StoryboardButton({ projectId, exists }: { projectId: string; exi
   return (
     <div className="action-stack">
       <button className="btn btn-primary" disabled={pending} onClick={generate}>
-        {pending ? "Storyboardを構成中…" : "Storyboardを生成"}
+        {pending ? "動画構成を準備しています…" : "動画構成を作成"}
       </button>
       {error && <span className="error">{error}</span>}
     </div>

@@ -10,16 +10,18 @@ import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
 import { listOpeningPreviews } from "@/lib/opening/repository";
+import { isAdminEmail } from "@/lib/ui/presentation";
 import { FinalRenderPanel } from "./final-render-panel";
 import { OpeningPreviewPanel } from "./opening-preview-panel";
 import { StoryboardEditor } from "./storyboard-editor";
 
-export const metadata: Metadata = { title: "Storyboard" };
+export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
 
 export default async function StoryboardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
+  const isAdmin = isAdminEmail(user.email);
   const db = getDb();
   const [project] = await db
     .select()
@@ -45,10 +47,10 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           <Link href={`/projects/${id}`} className="hint">
             <ArrowLeft size={12} /> プロジェクト詳細
           </Link>
-          <p className="eyebrow">Storyboard · Version {active.storyboard.version}</p>
+          <p className="eyebrow">動画構成 · バージョン {active.storyboard.version}</p>
           <h1>{project.title}</h1>
           <p className="lead">
-            動画生成前に、構成・ナレーション・映像指示をScene単位で確認してください。
+            シーンごとの映像、ナレーション、字幕を確認し、気になる部分だけ修正できます。
           </p>
         </div>
       </div>
@@ -68,8 +70,9 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           updatedAt: generation.updatedAt.toISOString(),
           completedAt: generation.completedAt?.toISOString() ?? null,
         }))}
+        showTechnical={isAdmin}
       />
-      <OpeningPreviewPanel
+      {isAdmin && <OpeningPreviewPanel
         projectId={id}
         previews={openingPreviews.map(({ preview, master, asset }) => ({
           id: preview.id,
@@ -85,7 +88,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           audioMetrics: preview.audioMetrics,
           errorMessage: preview.errorMessage,
         }))}
-      />
+      />}
       <FinalRenderPanel
         projectId={id}
         renders={renders.map((render) => ({
@@ -101,6 +104,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           errorMessage: render.errorMessage,
           createdAt: render.createdAt.toISOString(),
         }))}
+        showTechnical={isAdmin}
       />
     </main>
   );

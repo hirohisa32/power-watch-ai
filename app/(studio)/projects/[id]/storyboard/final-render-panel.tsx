@@ -3,6 +3,7 @@
 import { Download, Film, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { friendlyError } from "@/lib/ui/presentation";
 
 type RenderSummary = {
   id: string;
@@ -21,9 +22,11 @@ type RenderSummary = {
 export function FinalRenderPanel({
   projectId,
   renders,
+  showTechnical,
 }: {
   projectId: string;
   renders: RenderSummary[];
+  showTechnical: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -49,15 +52,16 @@ export function FinalRenderPanel({
   }, [active, renders, router]);
 
   async function startRender() {
+    if (!window.confirm("現在選択されているシーンから、最終動画を作成します。よろしいですか？")) return;
     setPending(true);
     setError("");
     try {
       const response = await fetch(`/api/projects/${projectId}/renders`, { method: "POST" });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Final Renderを開始できませんでした");
+      if (!response.ok) throw new Error(body.error || "最終動画を作成できませんでした");
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Final Renderを開始できませんでした");
+      setError(cause instanceof Error ? friendlyError(cause.message) : "最終動画を作成できませんでした。もう一度お試しください。");
     } finally {
       setPending(false);
     }
@@ -67,9 +71,9 @@ export function FinalRenderPanel({
     <section className="final-render-panel">
       <div className="final-render-head">
         <div>
-          <p className="eyebrow">完成動画</p>
-          <h2>1080 × 1920 縦型MP4</h2>
-          <p className="hint">Sceneを順番に結合し、ナレーション・字幕・BGM・効果音を仕上げます。</p>
+          <p className="eyebrow">最終動画</p>
+          <h2>{completed ? "動画が完成しました" : "完成動画を作る"}</h2>
+          <p className="hint">選択中のシーンを順番につなぎ、ナレーション・字幕・音楽を仕上げます。</p>
         </div>
         <form
           action={`/api/projects/${projectId}/renders`}
@@ -81,12 +85,13 @@ export function FinalRenderPanel({
         >
           <button className="btn btn-primary" type="submit" disabled={pending || active}>
             {active ? <RefreshCw size={14} /> : <Film size={14} />}
-            {active ? "完成動画を作成中…" : completed ? "完成動画を再作成" : "完成動画を作成"}
+            {active ? "最終動画を仕上げています…" : completed ? "最終動画を作り直す" : "最終動画を作成"}
           </button>
         </form>
       </div>
       {error && <p className="error">{error}</p>}
-      {visibleRenders.length > 0 && (
+      {active && <div className="render-progress"><span className="loading-bar" />最終動画を仕上げています</div>}
+      {visibleRenders.length > 0 && (showTechnical || !completed) && (
         <div className="render-history">
           {visibleRenders.map((render) => (
             <div className="render-row" key={render.id}>
@@ -97,8 +102,7 @@ export function FinalRenderPanel({
               </span>
               {render.status === "failed" && (
                 <span className="error">
-                  {render.errorMessage ||
-                    "完成動画を作成できませんでした。もう一度お試しください。"}
+                  {friendlyError(render.errorMessage)}
                 </span>
               )}
             </div>
@@ -114,8 +118,8 @@ export function FinalRenderPanel({
             src={`/api/renders/${completed.id}/video`}
           />
           <div className="nav-actions">
-            <a className="btn" href={`/api/renders/${completed.id}/video`} target="_blank">
-              大きく見る
+            <a className="btn" href="#scene-list">
+              シーンを修正
             </a>
             <a className="btn btn-primary" href={`/api/renders/${completed.id}/download`}>
               <Download size={14} /> MP4をダウンロード

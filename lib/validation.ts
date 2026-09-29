@@ -14,6 +14,7 @@ export const projectInputSchema = z.object({
   style: z.enum(["cinematic_real", "animation"]),
   language: z.enum(["ja", "en", "zh"]),
   targetDuration: z.union([z.literal(60), z.literal(90)]),
+  narratorVoiceId: z.string().trim().min(3).max(100).optional(),
 });
 
 export const assetLabelSchema = z.string().trim().min(1).max(50);

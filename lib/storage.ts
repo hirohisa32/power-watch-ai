@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
@@ -15,6 +16,15 @@ function config() {
   if (!accountId || !accessKeyId || !secretAccessKey || !bucket)
     throw new Error("R2_NOT_CONFIGURED");
   return { accountId, accessKeyId, secretAccessKey, bucket };
+}
+
+export async function copyPrivateObject(sourceKey: string, destinationKey: string) {
+  const { client, bucket } = storageClient();
+  await client.send(new CopyObjectCommand({
+    Bucket: bucket,
+    Key: destinationKey,
+    CopySource: encodeURIComponent(`${bucket}/${sourceKey}`),
+  }));
 }
 
 function storageClient() {
