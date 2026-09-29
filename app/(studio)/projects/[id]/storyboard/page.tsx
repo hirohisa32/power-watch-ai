@@ -9,7 +9,9 @@ import { assets, projects } from "@/lib/db/schema";
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
+import { listOpeningPreviews } from "@/lib/opening/repository";
 import { FinalRenderPanel } from "./final-render-panel";
+import { OpeningPreviewPanel } from "./opening-preview-panel";
 import { StoryboardEditor } from "./storyboard-editor";
 
 export const metadata: Metadata = { title: "Storyboard" };
@@ -31,9 +33,10 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
-  const [generations, renders] = await Promise.all([
+  const [generations, renders, openingPreviews] = await Promise.all([
     listSceneGenerations(id),
     listProjectRenders(id),
+    listOpeningPreviews(id),
   ]);
   return (
     <main className="content storyboard-page">
@@ -64,6 +67,23 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           createdAt: generation.createdAt.toISOString(),
           updatedAt: generation.updatedAt.toISOString(),
           completedAt: generation.completedAt?.toISOString() ?? null,
+        }))}
+      />
+      <OpeningPreviewPanel
+        projectId={id}
+        previews={openingPreviews.map(({ preview, master, asset }) => ({
+          id: preview.id,
+          status: preview.status,
+          stage: preview.stage,
+          durationMs: preview.durationMs,
+          assetLabel: asset.label,
+          masterVersion: master.version,
+          masterStatus: master.status,
+          runwayCredits: preview.runwayCredits,
+          runwayCostUsd: preview.runwayCostUsd,
+          elevenlabsCostUsd: preview.elevenlabsCostUsd,
+          audioMetrics: preview.audioMetrics,
+          errorMessage: preview.errorMessage,
         }))}
       />
       <FinalRenderPanel

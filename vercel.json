@@ -17,6 +17,15 @@
           "topic": "final-render"
         }
       ]
+    },
+    "app/api/queues/opening-preview/route.ts": {
+      "maxDuration": 300,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "opening-preview"
+        }
+      ]
     }
   }
 }

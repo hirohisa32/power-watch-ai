@@ -40,6 +40,13 @@ export const videoJobStatus = pgEnum("video_job_status", [
 ]);
 export const audioStatus = pgEnum("audio_status", ["generating", "completed", "failed"]);
 export const renderStatus = pgEnum("render_status", ["queued", "rendering", "completed", "failed"]);
+export const openingStatus = pgEnum("opening_status", [
+  "queued",
+  "generating",
+  "rendering",
+  "completed",
+  "failed",
+]);
 export const voiceRole = pgEnum("voice_role", ["narration", "dialogue"]);
 export const scenePreset = pgEnum("scene_preset", [
   "Opening",
@@ -431,6 +438,79 @@ export const renderJobs = pgTable(
   ],
 );
 
+export const openingMasters = pgTable(
+  "opening_masters",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").default("POWER_WATCH_OPENING_MASTER").notNull(),
+    version: integer("version").default(1).notNull(),
+    status: openingStatus("status").default("queued").notNull(),
+    style: projectStyle("style").default("cinematic_real").notNull(),
+    durationMs: integer("duration_ms").default(15000).notNull(),
+    segmentObjectKeys: jsonb("segment_object_keys").$type<string[]>().default([]).notNull(),
+    providerTaskIds: jsonb("provider_task_ids").$type<string[]>().default([]).notNull(),
+    actualCostCredits: real("actual_cost_credits").default(0).notNull(),
+    actualCostUsd: real("actual_cost_usd").default(0).notNull(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("opening_masters_key_version_unique").on(table.key, table.version)],
+);
+
+export const openingPreviews = pgTable(
+  "opening_previews",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    openingMasterId: uuid("opening_master_id")
+      .notNull()
+      .references(() => openingMasters.id, { onDelete: "restrict" }),
+    watchAssetId: uuid("watch_asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "restrict" }),
+    status: openingStatus("status").default("queued").notNull(),
+    stage: text("stage").default("master").notNull(),
+    durationMs: integer("duration_ms").default(20000).notNull(),
+    watchTaskId: text("watch_task_id"),
+    watchObjectKey: text("watch_object_key"),
+    narrationObjectKey: text("narration_object_key"),
+    outputObjectKey: text("output_object_key"),
+    runwayCredits: real("runway_credits").default(0).notNull(),
+    runwayCostUsd: real("runway_cost_usd").default(0).notNull(),
+    elevenlabsCostUsd: real("elevenlabs_cost_usd").default(0).notNull(),
+    audioMetrics: jsonb("audio_metrics").$type<Record<string, unknown>>().default({}).notNull(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [index("opening_previews_project_status_idx").on(table.projectId, table.status)],
+);
+
+export const openingPreviewJobs = pgTable(
+  "opening_preview_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    previewId: uuid("preview_id")
+      .notNull()
+      .references(() => openingPreviews.id, { onDelete: "cascade" }),
+    status: openingStatus("status").default("queued").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("opening_preview_jobs_preview_unique").on(table.previewId)],
+);
+
 export type Project = typeof projects.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type Storyboard = typeof storyboards.$inferSelect;
@@ -442,3 +522,5 @@ export type VoicePreset = typeof voicePresets.$inferSelect;
 export type SceneVoiceAssignment = typeof sceneVoiceAssignments.$inferSelect;
 export type FinalRender = typeof finalRenders.$inferSelect;
 export type RenderJob = typeof renderJobs.$inferSelect;
+export type OpeningMaster = typeof openingMasters.$inferSelect;
+export type OpeningPreview = typeof openingPreviews.$inferSelect;
