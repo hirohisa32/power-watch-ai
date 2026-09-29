@@ -1307,6 +1307,47 @@ textarea {
 .generation-status.failed {
   color: #e0a29b;
 }
+.bgm-library {
+  display: grid;
+  gap: 18px;
+}
+.bgm-card {
+  display: grid;
+  gap: 20px;
+}
+.bgm-card-head,
+.bgm-card-actions,
+.bgm-import {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.bgm-card-head h2 {
+  margin: 6px 0;
+}
+.bgm-card audio {
+  width: 100%;
+}
+.bgm-fields {
+  margin-top: 0;
+}
+.bgm-card-actions {
+  align-items: center;
+}
+.bgm-card-actions small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.status-message {
+  position: sticky;
+  top: 82px;
+  z-index: 6;
+  padding: 12px 16px;
+  border: 1px solid #5b503c;
+  background: #171511;
+  color: var(--gold-light);
+}
 .generation-versions {
   display: grid;
   gap: 8px;

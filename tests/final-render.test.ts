@@ -124,6 +124,7 @@ describe("fixed Opening final render", () => {
       opening: "assets/opening/opening-master.mp4",
       videos: ["history.mp4", "ending.mp4"],
       narration: "n.mp3",
+      bgm: "approved-bgm.mp3",
       subtitles: "s.ass",
       output: "final.mp4",
     };
@@ -134,6 +135,8 @@ describe("fixed Opening final render", () => {
     expect(args).toContain("libx265");
     expect(args).toContain("yuv420p10le");
     expect(args).not.toContain(files.opening);
+    expect(args).toContain(files.bgm);
+    expect(args.join(" ")).not.toContain("aevalsrc='(0.018*sin");
 
     const remux = buildTransportStreamArgs(files.opening, "opening.ts");
     expect(remux).toContain("hevc_mp4toannexb");

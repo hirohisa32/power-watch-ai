@@ -117,6 +117,39 @@ export const projects = pgTable(
   (table) => [index("projects_user_updated_idx").on(table.userId, table.updatedAt)],
 );
 
+export const bgmAssets = pgTable(
+  "bgm_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    filePath: text("file_path").notNull(),
+    extension: text("extension").notNull(),
+    mimeType: text("mime_type").default("audio/mpeg").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    sampleRate: integer("sample_rate").notNull(),
+    channels: integer("channels").notNull(),
+    genre: text("genre").notNull(),
+    mood: text("mood").notNull(),
+    tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+    suitableStyles: jsonb("suitable_styles").$type<string[]>().default([]).notNull(),
+    analysis: jsonb("analysis").$type<Record<string, unknown>>().default({}).notNull(),
+    provider: text("provider"),
+    licenseType: text("license_type"),
+    licenseProof: text("license_proof"),
+    acquiredAt: timestamp("acquired_at", { withTimezone: true }),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("bgm_assets_key_unique").on(table.key),
+    uniqueIndex("bgm_assets_file_path_unique").on(table.filePath),
+    index("bgm_assets_active_idx").on(table.active, table.name),
+  ],
+);
+
 export const assets = pgTable(
   "assets",
   {
@@ -583,6 +616,7 @@ export const openingPreviewJobs = pgTable(
 );
 
 export type Project = typeof projects.$inferSelect;
+export type BgmAsset = typeof bgmAssets.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type Storyboard = typeof storyboards.$inferSelect;
 export type Scene = typeof scenes.$inferSelect;

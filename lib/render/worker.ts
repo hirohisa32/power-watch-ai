@@ -17,6 +17,7 @@ import { getDb } from "@/lib/db";
 import {
   apiUsage,
   audioRecords,
+  bgmAssets,
   finalRenders,
   projects,
   renderJobs,
@@ -82,7 +83,7 @@ export async function processFinalRenderJob(
 
   const renderInput = row.render.renderInput as FinalRenderInput;
   let audioId: string | undefined;
-  let stage: "narration" | "audio-upload" | "scene-download" | "ffmpeg" | "render-upload" =
+  let stage: "narration" | "audio-upload" | "scene-download" | "bgm-download" | "ffmpeg" | "render-upload" =
     "narration";
   const workDir = await mkdtemp(path.join(tmpdir(), "power-watch-render-"));
   try {
@@ -329,6 +330,16 @@ export async function processFinalRenderJob(
     }
     const subtitlePath = path.join(workDir, "overlays.ass");
     await writeFile(subtitlePath, createAssSubtitles(renderInput), "utf8");
+    stage = "bgm-download";
+    const [bgm] = await db
+      .select()
+      .from(bgmAssets)
+      .where(and(eq(bgmAssets.key, renderInput.bgmKey), eq(bgmAssets.active, true)))
+      .limit(1);
+    if (!bgm) throw new Error("BGM_NOT_APPROVED");
+    const bgmPath = path.join(workDir, `bgm${bgm.extension}`);
+    const bgmUrl = await dependencies.sign(bgm.filePath, 15 * 60);
+    await writeFile(bgmPath, await dependencies.download(bgmUrl, 25 * 1024 * 1024));
     const outputPath = path.join(workDir, "final.mp4");
     stage = "ffmpeg";
     const renderStarted = Date.now();
@@ -336,6 +347,7 @@ export async function processFinalRenderJob(
       opening: fixedOpeningMasterPath(),
       videos: videoPaths,
       narration: narrationPath,
+      bgm: bgmPath,
       subtitles: subtitlePath,
       output: outputPath,
     });
@@ -481,6 +493,7 @@ function renderError(stage: string, error: unknown) {
   const map: Record<string, { code: string; message: string }> = {
     "audio-upload": { code: "R2_AUDIO_UPLOAD_FAILED", message: "NarrationのR2保存に失敗しました" },
     "scene-download": { code: "MISSING_SCENE_VIDEO", message: "Scene動画を取得できませんでした" },
+    "bgm-download": { code: "BGM_NOT_AVAILABLE", message: "承認済みBGMを取得できませんでした" },
     ffmpeg: { code: "FFMPEG_FAILED", message: "完成動画の結合処理に失敗しました" },
     "render-upload": { code: "R2_RENDER_UPLOAD_FAILED", message: "完成動画のR2保存に失敗しました" },
   };

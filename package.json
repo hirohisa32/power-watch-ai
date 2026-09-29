@@ -19,6 +19,7 @@
     "opening:preview:v3": "tsx scripts/render-opening-preview-v3.ts",
     "demo:gold-khanjar:narration": "powershell -ExecutionPolicy Bypass -File scripts/generate-gold-khanjar-narration.ps1",
     "demo:gold-khanjar:render": "node scripts/render-gold-khanjar-demo.mjs",
+    "bgm:sync": "tsx scripts/sync-bgm-library.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed-admin.ts"

@@ -6,6 +6,8 @@ export type WizardDraft = {
   targetDuration: 60 | 90;
   narration: "auto" | "manual";
   voiceId: string;
+  bgm: "auto" | "manual";
+  bgmKey: string;
 };
 
 export function validateScriptStep(draft: Pick<WizardDraft, "title" | "script">) {

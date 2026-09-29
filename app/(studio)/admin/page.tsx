@@ -124,6 +124,7 @@ export default async function AdminPage({
           <h1>運用状況</h1>
           <p className="lead">API利用量、生成実費、処理状況、エラーを確認できます。</p>
         </div>
+        <Link href="/admin/bgm" className="btn">BGMライブラリ</Link>
       </div>
       <section className="billing-hero">
         <div>

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { friendlyError, GENERATION_STATUS_LABELS, isAdminEmail, LANGUAGE_LABELS, PROJECT_STATUS_LABELS, projectProgress, STYLE_LABELS } from "@/lib/ui/presentation";
 import { moveItem, restoreWizardDraft, serializeWizardDraft, validateScriptStep, type WizardDraft } from "@/lib/ui/wizard";
 
-const draft: WizardDraft = { title: "ピアース", script: "時計の歴史を丁寧に紹介するための十分な長さの台本です。", style: "cinematic_real", language: "ja", targetDuration: 60, narration: "auto", voiceId: "" };
+const draft: WizardDraft = { title: "ピアース", script: "時計の歴史を丁寧に紹介するための十分な長さの台本です。", style: "cinematic_real", language: "ja", targetDuration: 60, narration: "auto", voiceId: "", bgm: "auto", bgmKey: "" };
 
 describe("クライアント向けUI表現", () => {
   it("技術Statusを自然な日本語へ変換する", () => {

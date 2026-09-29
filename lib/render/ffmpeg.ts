@@ -10,6 +10,7 @@ export type FfmpegRenderFiles = {
   opening: string;
   videos: string[];
   narration: string;
+  bgm: string;
   subtitles: string;
   output: string;
 };
@@ -29,14 +30,7 @@ export function buildFfmpegArgs(
   const bgmIndex = narrationIndex + 1;
   const seIndex = narrationIndex + 2;
   args.push("-i", files.narration);
-  args.push(
-    "-f",
-    "lavfi",
-    "-t",
-    String(bodyDuration),
-    "-i",
-    "aevalsrc='(0.018*sin(2*PI*55*t)+0.011*sin(2*PI*82.41*t)+0.006*sin(2*PI*110*t)+0.004*sin(2*PI*220*t))*(0.82+0.18*sin(2*PI*0.045*t))':s=32000:c=stereo",
-  );
+  args.push("-stream_loop", "-1", "-i", files.bgm);
   args.push("-f", "lavfi", "-t", String(bodyDuration), "-i", buildSoundEffectSource(input));
 
   const videoFilters = input.scenes.map((scene, index) => {
@@ -54,8 +48,8 @@ export function buildFfmpegArgs(
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
   const audio = [
     `[${narrationIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]highpass=f=35,lowpass=f=6500,volume=0.055,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
-    `[bgm][side]sidechaincompress=threshold=0.014:ratio=12:attack=25:release=520[ducked]`,
+    `[${bgmIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
+    `[bgm][side]sidechaincompress=threshold=0.02:ratio=5:attack=35:release=650:makeup=1[ducked]`,
     `[${seIndex}:a]highpass=f=40,lowpass=f=7000,volume=0.11[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
   ];
