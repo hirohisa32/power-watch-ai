@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { saveElevenLabsGenerationAudit } from "@/lib/audio/audit";
 import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
+import { normalizeVoicePreviewAudio } from "@/lib/audio/normalize";
 import {
-  VOICE_PREVIEW_TEXT,
   voicePreviewInputSchema,
   voicePreviewObjectKey,
+  voicePreviewTest,
 } from "@/lib/audio/voice-preview";
 import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
@@ -23,9 +25,13 @@ export async function GET(request: Request) {
   try {
     const denied = await requireAdmin();
     if (denied) return denied;
-    const voiceId = new URL(request.url).searchParams.get("voiceId") ?? "";
-    const parsed = voicePreviewInputSchema.parse({ voiceId });
-    const key = voicePreviewObjectKey(parsed.voiceId);
+    const url = new URL(request.url);
+    const parsed = voicePreviewInputSchema.parse({
+      voiceId: url.searchParams.get("voiceId") ?? "",
+      testId: url.searchParams.get("testId") ?? "",
+    });
+    const variant = url.searchParams.get("variant") === "raw" ? "raw" : "normalized";
+    const key = voicePreviewObjectKey(parsed.voiceId, parsed.testId, variant);
     if (!(await privateObjectExists(key)))
       return NextResponse.json({ error: "Previewはまだ生成されていません" }, { status: 404 });
     return NextResponse.redirect(await createReadUrl(key, 300, "inline"));
@@ -40,18 +46,39 @@ export async function POST(request: Request) {
     const denied = await requireAdmin();
     if (denied) return denied;
     const parsed = voicePreviewInputSchema.parse(await request.json());
-    const key = voicePreviewObjectKey(parsed.voiceId);
-    const audioUrl = `/api/admin/voice-preview?voiceId=${encodeURIComponent(parsed.voiceId)}`;
-    if (await privateObjectExists(key)) return NextResponse.json({ audioUrl, reused: true });
+    if (process.env.ELEVENLABS_VOICE_PREVIEW_GENERATION_ENABLED !== "true")
+      return NextResponse.json(
+        { error: "Pipeline監査中のため、Human承認まで新規Voice生成を停止しています" },
+        { status: 409 },
+      );
+    const test = voicePreviewTest(parsed.testId);
+    if (!test) return NextResponse.json({ error: "テスト文が不正です" }, { status: 400 });
+    const rawKey = voicePreviewObjectKey(parsed.voiceId, parsed.testId, "raw");
+    const normalizedKey = voicePreviewObjectKey(parsed.voiceId, parsed.testId, "normalized");
+    const rawAudioUrl = `/api/admin/voice-preview?voiceId=${encodeURIComponent(parsed.voiceId)}&testId=${encodeURIComponent(parsed.testId)}&variant=raw`;
+    const normalizedAudioUrl = `/api/admin/voice-preview?voiceId=${encodeURIComponent(parsed.voiceId)}&testId=${encodeURIComponent(parsed.testId)}&variant=normalized`;
+    if ((await privateObjectExists(rawKey)) && (await privateObjectExists(normalizedKey)))
+      return NextResponse.json({ rawAudioUrl, normalizedAudioUrl, reused: true });
 
     const result = await new ElevenLabsNarrationProvider().generate({
-      text: VOICE_PREVIEW_TEXT,
+      originalScript: test.text,
+      text: test.text,
       speed: 1,
       voiceId: parsed.voiceId,
+      language: "ja",
     });
-    await uploadPrivateObject(key, result.bytes, result.contentType);
+    if (result.audit)
+      await saveElevenLabsGenerationAudit({
+        audit: result.audit,
+        purpose: "voice_preview",
+        requestId: result.requestId,
+      });
+    const normalizedBytes = await normalizeVoicePreviewAudio(result.bytes);
+    await uploadPrivateObject(rawKey, result.bytes, result.contentType);
+    await uploadPrivateObject(normalizedKey, normalizedBytes, "audio/mpeg");
     return NextResponse.json({
-      audioUrl,
+      rawAudioUrl,
+      normalizedAudioUrl,
       reused: false,
       characterCost: result.characterCost,
       requestId: result.requestId,

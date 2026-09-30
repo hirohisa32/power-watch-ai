@@ -354,6 +354,40 @@ export const audioRecords = pgTable(
   (table) => [index("audio_records_project_idx").on(table.projectId, table.createdAt)],
 );
 
+export const elevenLabsGenerationAudits = pgTable(
+  "elevenlabs_generation_audits",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    storyboardId: uuid("storyboard_id").references(() => storyboards.id, { onDelete: "cascade" }),
+    audioRecordId: uuid("audio_record_id").references(() => audioRecords.id, {
+      onDelete: "set null",
+    }),
+    purpose: text("purpose").notNull(),
+    originalScript: text("original_script").notNull(),
+    ttsInputText: text("tts_input_text").notNull(),
+    voiceId: text("voice_id").notNull(),
+    model: text("model").notNull(),
+    voiceSettings: jsonb("voice_settings").$type<Record<string, unknown>>().notNull(),
+    language: text("language").notNull(),
+    outputFormat: text("output_format").notNull(),
+    seed: integer("seed"),
+    applyTextNormalization: text("apply_text_normalization").notNull(),
+    applyLanguageTextNormalization: boolean("apply_language_text_normalization")
+      .default(false)
+      .notNull(),
+    requestId: text("request_id"),
+    status: text("status").default("completed").notNull(),
+    errorMessage: text("error_message"),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("elevenlabs_generation_audits_project_idx").on(table.projectId, table.generatedAt),
+    index("elevenlabs_generation_audits_generated_idx").on(table.generatedAt),
+  ],
+);
+
 export const voicePresets = pgTable(
   "voice_presets",
   {
@@ -623,6 +657,7 @@ export type Scene = typeof scenes.$inferSelect;
 export type VideoGeneration = typeof videoGenerations.$inferSelect;
 export type VideoJob = typeof videoJobs.$inferSelect;
 export type AudioRecord = typeof audioRecords.$inferSelect;
+export type ElevenLabsGenerationAudit = typeof elevenLabsGenerationAudits.$inferSelect;
 export type VoicePreset = typeof voicePresets.$inferSelect;
 export type SceneVoiceAssignment = typeof sceneVoiceAssignments.$inferSelect;
 export type FinalRender = typeof finalRenders.$inferSelect;

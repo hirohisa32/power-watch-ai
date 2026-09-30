@@ -41,9 +41,13 @@ describe("ElevenLabs narration adapter", () => {
     expect(url).toContain("/v1/text-to-speech/voice-1");
     expect(init.headers["xi-api-key"]).toBe("test-key");
     expect(JSON.parse(init.body)).toMatchObject({
+      text: "時間は受け継がれる。",
       model_id: "eleven_multilingual_v2",
-      voice_settings: { speed: 1.08 },
+      voice_settings: { speed: 1.08, style: 0 },
+      apply_text_normalization: "auto",
+      apply_language_text_normalization: true,
     });
+    expect(JSON.parse(init.body).text).toBe("時間は受け継がれる。");
   });
 
   it("returns a natural credit error without retrying the API", async () => {

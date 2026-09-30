@@ -17,11 +17,45 @@ export type NarrationResult = {
   contentType: string;
   characterCost: number;
   requestId?: string;
+  audit?: ElevenLabsRequestAudit;
+};
+
+export type ElevenLabsLanguage = "ja" | "en" | "zh";
+
+export type ElevenLabsVoiceSettings = {
+  stability: number;
+  similarity_boost: number;
+  style: number;
+  use_speaker_boost: boolean;
+  speed: number;
+};
+
+export type ElevenLabsRequestAudit = {
+  originalScript: string;
+  ttsInputText: string;
+  voiceId: string;
+  model: string;
+  voiceSettings: ElevenLabsVoiceSettings;
+  language: ElevenLabsLanguage;
+  outputFormat: "mp3_44100_128";
+  seed: number | null;
+  applyTextNormalization: "auto";
+  applyLanguageTextNormalization: boolean;
+  generatedAt: Date;
+};
+
+export type ElevenLabsGenerationInput = {
+  text: string;
+  originalScript?: string;
+  speed: number;
+  voiceId?: string;
+  language?: ElevenLabsLanguage;
+  seed?: number;
 };
 
 export interface NarrationProvider {
   readonly name: string;
-  generate(input: { text: string; speed: number; voiceId?: string }): Promise<NarrationResult>;
+  generate(input: ElevenLabsGenerationInput): Promise<NarrationResult>;
   listLibraryVoices(input?: VoiceLibraryQuery): Promise<VoiceLibraryResult>;
 }
 
@@ -66,36 +100,20 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
 
   constructor(private readonly fetcher: typeof fetch = fetch) {}
 
-  async generate(input: {
-    text: string;
-    speed: number;
-    voiceId?: string;
-  }): Promise<NarrationResult> {
+  async generate(input: ElevenLabsGenerationInput): Promise<NarrationResult> {
     const config = narrationConfig();
     const voiceId = input.voiceId || config.defaultVoiceId;
     if (!config.apiKey || !voiceId)
       throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
+    const request = buildElevenLabsRequest(input, voiceId, config.model);
     let response: Response;
     try {
-      response = await this.fetcher(
-        `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json", "xi-api-key": config.apiKey },
-          body: JSON.stringify({
-            text: input.text,
-            model_id: config.model,
-            voice_settings: {
-              stability: 0.58,
-              similarity_boost: 0.76,
-              style: 0.12,
-              use_speaker_boost: true,
-              speed: input.speed,
-            },
-          }),
-          signal: AbortSignal.timeout(config.timeoutMs),
-        },
-      );
+      response = await this.fetcher(request.url, {
+        method: "POST",
+        headers: { "content-type": "application/json", "xi-api-key": config.apiKey },
+        body: JSON.stringify(request.body),
+        signal: AbortSignal.timeout(config.timeoutMs),
+      });
     } catch (error) {
       throw new ElevenLabsError(
         "NETWORK",
@@ -126,6 +144,7 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
       characterCost:
         Number.isFinite(headerCost) && headerCost > 0 ? headerCost : [...input.text].length,
       requestId: response.headers.get("request-id") || undefined,
+      audit: request.audit,
     };
   }
 
@@ -215,4 +234,47 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
       totalCount: body.total_count,
     };
   }
+}
+
+export function buildElevenLabsRequest(
+  input: ElevenLabsGenerationInput,
+  voiceId: string,
+  model: string,
+) {
+  const language = input.language ?? "ja";
+  const outputFormat = "mp3_44100_128" as const;
+  const voiceSettings: ElevenLabsVoiceSettings = {
+    stability: 0.58,
+    similarity_boost: 0.76,
+    // ElevenLabs recommends disabling style exaggeration while investigating
+    // instability or mispronunciation. Delivery style belongs in the selected voice.
+    style: 0,
+    use_speaker_boost: true,
+    speed: input.speed,
+  };
+  const audit: ElevenLabsRequestAudit = {
+    originalScript: input.originalScript ?? input.text,
+    ttsInputText: input.text,
+    voiceId,
+    model,
+    voiceSettings,
+    language,
+    outputFormat,
+    seed: input.seed ?? null,
+    applyTextNormalization: "auto",
+    applyLanguageTextNormalization: language === "ja",
+    generatedAt: new Date(),
+  };
+  return {
+    url: `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${outputFormat}`,
+    body: {
+      text: input.text,
+      model_id: model,
+      voice_settings: voiceSettings,
+      apply_text_normalization: audit.applyTextNormalization,
+      apply_language_text_normalization: audit.applyLanguageTextNormalization,
+      ...(input.seed === undefined ? {} : { seed: input.seed }),
+    },
+    audit,
+  };
 }

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { assertNarrationFits, buildNarrationScript, narrationSpeed } from "@/lib/audio/timing";
+import { saveElevenLabsGenerationAudit } from "@/lib/audio/audit";
 import {
   ElevenLabsError,
   ElevenLabsNarrationProvider,
@@ -83,7 +84,8 @@ export async function processFinalRenderJob(
 
   const renderInput = row.render.renderInput as FinalRenderInput;
   let audioId: string | undefined;
-  let stage: "narration" | "audio-upload" | "scene-download" | "bgm-download" | "ffmpeg" | "render-upload" =
+  let stage:
+    "narration" | "audio-upload" | "scene-download" | "bgm-download" | "ffmpeg" | "render-upload" =
     "narration";
   const workDir = await mkdtemp(path.join(tmpdir(), "power-watch-render-"));
   try {
@@ -187,9 +189,11 @@ export async function processFinalRenderJob(
         let generated: NarrationResult;
         try {
           generated = await dependencies.narration.generate({
+            originalScript: segment.text,
             text: segment.text,
             speed,
             voiceId: segment.voiceId,
+            language: renderInput.language,
           });
         } catch (error) {
           if (
@@ -199,9 +203,11 @@ export async function processFinalRenderJob(
             segment.voiceId !== config.defaultVoiceId
           ) {
             generated = await dependencies.narration.generate({
+              originalScript: segment.text,
               text: segment.text,
               speed,
               voiceId: config.defaultVoiceId,
+              language: renderInput.language,
             });
             unavailableVoiceFallbacks.push({
               sceneId: segment.sceneId,
@@ -213,6 +219,15 @@ export async function processFinalRenderJob(
             throw error;
           }
         }
+        if (generated.audit)
+          await saveElevenLabsGenerationAudit({
+            audit: generated.audit,
+            purpose: "final_narration",
+            projectId: row.render.projectId,
+            storyboardId: row.render.storyboardId,
+            audioRecordId: audio.id,
+            requestId: generated.requestId,
+          });
         const segmentPath = path.join(workDir, `speech-${index}.mp3`);
         await writeFile(segmentPath, generated.bytes);
         generatedSegments.push({ generated, path: segmentPath });
