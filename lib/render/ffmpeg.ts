@@ -48,7 +48,7 @@ export function buildFfmpegArgs(
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
   const audio = [
     `[${narrationIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
+    `[${bgmIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,afade=t=out:st=${Math.max(0, bodyDuration - 1.5).toFixed(3)}:d=1.5,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
     `[bgm][side]sidechaincompress=threshold=0.02:ratio=5:attack=35:release=650:makeup=1[ducked]`,
     `[${seIndex}:a]highpass=f=40,lowpass=f=7000,volume=0.11[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,

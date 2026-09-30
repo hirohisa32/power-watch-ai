@@ -137,6 +137,8 @@ describe("fixed Opening final render", () => {
     expect(args).not.toContain(files.opening);
     expect(args).toContain(files.bgm);
     expect(args.join(" ")).not.toContain("aevalsrc='(0.018*sin");
+    expect(filters).toContain("afade=t=out");
+    expect(filters).toContain("sidechaincompress");
 
     const remux = buildTransportStreamArgs(files.opening, "opening.ts");
     expect(remux).toContain("hevc_mp4toannexb");
