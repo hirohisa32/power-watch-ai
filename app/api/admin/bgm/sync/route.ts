@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         tags: item.tags,
         suitableStyles: item.suitableStyles,
         analysis: item.analysis,
+        licenseType: item.licenseType,
         active: true,
       })
       .onConflictDoUpdate({
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
           tags: item.tags,
           suitableStyles: item.suitableStyles,
           analysis: item.analysis,
+          licenseType: item.licenseType,
           active: true,
           updatedAt: new Date(),
         },

@@ -99,6 +99,7 @@ export function BgmLibraryManager({ items: initial }: { items: Item[] }) {
             <div>
               <p className="eyebrow">{item.key}</p>
               <h2>{item.name}</h2>
+              <p className="hint">承認済み・商用利用可</p>
               <p className="hint">{formatDuration(item.durationMs)} · {(item.sampleRate / 1000).toFixed(1)}kHz · {item.channels === 2 ? "Stereo" : `${item.channels}ch`}</p>
             </div>
             <label className="check-label"><input type="checkbox" checked={item.active} onChange={(event) => update(item.id, { active: event.target.checked })} />有効</label>
@@ -110,9 +111,9 @@ export function BgmLibraryManager({ items: initial }: { items: Item[] }) {
             <Field label="ムード" value={item.mood} onChange={(value) => update(item.id, { mood: value })} />
             <Field label="タグ（カンマ区切り）" value={item.tags.join(", ")} onChange={(value) => update(item.id, { tags: split(value) })} />
             <Field label="推奨用途（カンマ区切り）" value={item.suitableStyles.join(", ")} onChange={(value) => update(item.id, { suitableStyles: split(value) })} />
-            <Field label="Provider" value={item.provider ?? ""} onChange={(value) => update(item.id, { provider: value })} />
-            <Field label="License" value={item.licenseType ?? ""} onChange={(value) => update(item.id, { licenseType: value })} />
-            <Field label="取得日" type="date" value={item.acquiredAt?.slice(0, 10) ?? ""} onChange={(value) => update(item.id, { acquiredAt: value ? new Date(`${value}T00:00:00Z`).toISOString() : null })} />
+            <Field label="Provider / 購入元" value={item.provider ?? ""} onChange={(value) => update(item.id, { provider: value })} />
+            <Field label="License Type" value={item.licenseType ?? "Commercial Use Approved"} onChange={(value) => update(item.id, { licenseType: value })} />
+            <Field label="購入日" type="date" value={item.acquiredAt?.slice(0, 10) ?? ""} onChange={(value) => update(item.id, { acquiredAt: value ? new Date(`${value}T00:00:00Z`).toISOString() : null })} />
             <label className="field field-full"><span>ライセンス証明</span><textarea value={item.licenseProof ?? ""} onChange={(event) => update(item.id, { licenseProof: event.target.value })} placeholder="証明書URL、注文番号、保管先など" /></label>
           </div>
           <div className="bgm-card-actions">

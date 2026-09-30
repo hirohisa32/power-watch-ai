@@ -23,6 +23,11 @@ const goldKhanjar = {
 };
 
 describe("approved BGM selection", () => {
+  it("marks every approved catalog track for commercial use", () => {
+    expect(manifest).toHaveLength(11);
+    expect(manifest.every((item) => item.licenseType === "Commercial Use Approved")).toBe(true);
+  });
+
   it("ranks historical luxury tracks for Gold Khanjar", () => {
     const top = rankBgm(catalog, goldKhanjar).slice(0, 3).map((item) => item.key);
     expect(top).toContain("royal-fairy-tale-opening");
