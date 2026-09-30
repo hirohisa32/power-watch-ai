@@ -100,7 +100,14 @@ export default async function VoicePreviewPage() {
         </p>
         {voiceAccess.map((voice, index) => (
           <p key={voice.voiceId}>
-            {VOICE_PREVIEW_OPTIONS[index].label}: {voice.accessible ? "API利用可" : "API利用不可"}
+            {VOICE_PREVIEW_OPTIONS[index].label}:{" "}
+            {voice.accessible
+              ? "Voice参照可"
+              : voice.status === 401 || voice.status === 403
+                ? "Voice参照権限なし（TTS可否は生成時確認）"
+                : voice.status === 404
+                  ? "Voice未登録"
+                  : "Voice参照失敗"}
             {voice.name ? ` / ${voice.name}` : ""} / status {voice.status || "network"}
           </p>
         ))}

@@ -97,10 +97,10 @@ export async function POST(request: Request) {
         await updateElevenLabsAuditCost(previous.id, history.characterCost);
       } else {
         const voiceAccess = await checkElevenLabsVoiceAccess(parsed.voiceId);
-        if (!voiceAccess.accessible)
+        if (!voiceAccess.accessible && voiceAccess.status === 404)
           return NextResponse.json(
             {
-              error: `指定VoiceをProduction API Keyから利用できません (ElevenLabs status: ${voiceAccess.status || "network"})`,
+              error: "指定VoiceはProduction API KeyのVoice Collectionに存在しません",
               code: "VOICE_NOT_ACCESSIBLE",
             },
             { status: 409 },
