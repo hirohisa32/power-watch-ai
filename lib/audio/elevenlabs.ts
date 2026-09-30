@@ -128,7 +128,10 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
       if (response.status === 402 || response.status === 429)
         throw new ElevenLabsError("CREDITS", "ElevenLabsのクレジット残高を確認してください");
       if (response.status === 400 || response.status === 404 || response.status === 422)
-        throw new ElevenLabsError("INVALID_REQUEST", "ナレーション原稿を確認してください");
+        throw new ElevenLabsError(
+          "INVALID_REQUEST",
+          `ElevenLabsが生成要求を拒否しました (${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""})`,
+        );
       throw new ElevenLabsError(
         "PROVIDER",
         `ElevenLabsで音声生成に失敗しました (${response.status}${detail ? `: ${detail.slice(0, 120)}` : ""})`,

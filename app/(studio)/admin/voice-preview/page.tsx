@@ -14,6 +14,7 @@ import { isAdminEmail } from "@/lib/ui/presentation";
 import { getDb } from "@/lib/db";
 import { audioRecords, elevenLabsGenerationAudits } from "@/lib/db/schema";
 import { privateObjectExists } from "@/lib/storage";
+import { checkElevenLabsVoiceAccess } from "@/lib/audio/voice-access";
 import { VoicePreviewClient } from "./voice-preview-client";
 
 export const metadata: Metadata = { title: "ElevenLabs Voice比較" };
@@ -68,6 +69,9 @@ export default async function VoicePreviewPage() {
   const initialResults = Object.fromEntries(
     savedPairs.filter((entry) => entry.value).map((entry) => [entry.key, entry.value!]),
   );
+  const voiceAccess = await Promise.all(
+    VOICE_PREVIEW_OPTIONS.map((option) => checkElevenLabsVoiceAccess(option.voiceId)),
+  );
   return (
     <main className="content">
       <div className="page-head">
@@ -94,6 +98,12 @@ export default async function VoicePreviewPage() {
         <p>
           修正後: stability 0.58 / similarity 0.76 / style 0 / speaker boost ON / 日本語正規化 ON
         </p>
+        {voiceAccess.map((voice, index) => (
+          <p key={voice.voiceId}>
+            {VOICE_PREVIEW_OPTIONS[index].label}: {voice.accessible ? "API利用可" : "API利用不可"}
+            {voice.name ? ` / ${voice.name}` : ""} / status {voice.status || "network"}
+          </p>
+        ))}
       </section>
       <section className="panel">
         <p className="eyebrow">直近の本番Narration記録</p>

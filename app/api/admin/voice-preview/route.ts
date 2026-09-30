@@ -8,6 +8,7 @@ import {
 import { narrationConfig } from "@/lib/audio/config";
 import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
 import { normalizeVoicePreviewAudio } from "@/lib/audio/normalize";
+import { checkElevenLabsVoiceAccess } from "@/lib/audio/voice-access";
 import {
   voicePreviewInputSchema,
   voicePreviewObjectKey,
@@ -95,6 +96,15 @@ export async function POST(request: Request) {
         await uploadPrivateObject(rawKey, rawBytes, history.contentType);
         await updateElevenLabsAuditCost(previous.id, history.characterCost);
       } else {
+        const voiceAccess = await checkElevenLabsVoiceAccess(parsed.voiceId);
+        if (!voiceAccess.accessible)
+          return NextResponse.json(
+            {
+              error: `指定VoiceをProduction API Keyから利用できません (ElevenLabs status: ${voiceAccess.status || "network"})`,
+              code: "VOICE_NOT_ACCESSIBLE",
+            },
+            { status: 409 },
+          );
         const result = await new ElevenLabsNarrationProvider().generate({
           originalScript: test.text,
           text: test.text,
