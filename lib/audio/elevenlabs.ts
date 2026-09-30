@@ -273,6 +273,7 @@ export function buildElevenLabsRequest(
     body: {
       text: input.text,
       model_id: model,
+      language_code: language,
       voice_settings: voiceSettings,
       apply_text_normalization: audit.applyTextNormalization,
       apply_language_text_normalization: audit.applyLanguageTextNormalization,
