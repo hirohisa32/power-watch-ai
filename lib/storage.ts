@@ -3,6 +3,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -49,6 +50,18 @@ export async function uploadPrivateObject(key: string, bytes: Uint8Array, conten
 export async function deletePrivateObject(key: string) {
   const { client, bucket } = storageClient();
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export async function privateObjectExists(key: string) {
+  const { client, bucket } = storageClient();
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return true;
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (status === 404) return false;
+    throw error;
+  }
 }
 
 export async function createReadUrl(
