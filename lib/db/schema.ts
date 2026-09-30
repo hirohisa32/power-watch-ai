@@ -51,6 +51,13 @@ export const openingStatus = pgEnum("opening_status", [
 export const costSettlementStatus = pgEnum("cost_settlement_status", ["pending_rate", "fixed"]);
 export const monthlyBillingStatus = pgEnum("monthly_billing_status", ["open", "closed"]);
 export const voiceRole = pgEnum("voice_role", ["narration", "dialogue"]);
+export const narrationQualityStatus = pgEnum("narration_quality_status", [
+  "pending",
+  "PASS",
+  "RETRY",
+  "HUMAN_REVIEW",
+  "failed",
+]);
 export const scenePreset = pgEnum("scene_preset", [
   "Opening",
   "VintageRoom",
@@ -393,6 +400,75 @@ export const elevenLabsGenerationAudits = pgTable(
   ],
 );
 
+export const japaneseReadingDictionary = pgTable(
+  "japanese_reading_dictionary",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    display: text("display").notNull(),
+    reading: text("reading").notNull(),
+    source: text("source").default("human").notNull(),
+    approved: boolean("approved").default(true).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("japanese_reading_dictionary_scope_unique").on(table.projectId, table.display),
+    index("japanese_reading_dictionary_lookup_idx").on(table.approved, table.display),
+  ],
+);
+
+export const narrationQualityRuns = pgTable(
+  "narration_quality_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    storyboardId: uuid("storyboard_id").references(() => storyboards.id, { onDelete: "cascade" }),
+    audioRecordId: uuid("audio_record_id").references(() => audioRecords.id, { onDelete: "set null" }),
+    status: narrationQualityStatus("status").default("pending").notNull(),
+    displayScript: text("display_script").notNull(),
+    voiceId: text("voice_id").notNull(),
+    model: text("model").notNull(),
+    segmentCount: integer("segment_count").notNull(),
+    scoreSummary: jsonb("score_summary").$type<Record<string, unknown>>().default({}).notNull(),
+    assembledObjectKey: text("assembled_object_key"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [index("narration_quality_runs_project_idx").on(table.projectId, table.createdAt)],
+);
+
+export const narrationQualitySegments = pgTable(
+  "narration_quality_segments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runId: uuid("run_id").notNull().references(() => narrationQualityRuns.id, { onDelete: "cascade" }),
+    segmentIndex: integer("segment_index").notNull(),
+    displayScript: text("display_script").notNull(),
+    ttsInputText: text("tts_input_text").notNull(),
+    expectedReading: text("expected_reading").notNull(),
+    recognizedSpeech: text("recognized_speech"),
+    readingMap: jsonb("reading_map").$type<Array<Record<string, unknown>>>().default([]).notNull(),
+    status: narrationQualityStatus("status").default("pending").notNull(),
+    retryCount: integer("retry_count").default(0).notNull(),
+    reasons: jsonb("reasons").$type<string[]>().default([]).notNull(),
+    scores: jsonb("scores").$type<Record<string, number>>().default({}).notNull(),
+    confidence: real("confidence"),
+    rawObjectKey: text("raw_object_key"),
+    normalizedObjectKey: text("normalized_object_key"),
+    durationSeconds: real("duration_seconds"),
+    units: integer("units"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("narration_quality_segments_run_index_unique").on(table.runId, table.segmentIndex),
+    index("narration_quality_segments_status_idx").on(table.status, table.updatedAt),
+  ],
+);
+
 export const voicePresets = pgTable(
   "voice_presets",
   {
@@ -663,6 +739,9 @@ export type VideoGeneration = typeof videoGenerations.$inferSelect;
 export type VideoJob = typeof videoJobs.$inferSelect;
 export type AudioRecord = typeof audioRecords.$inferSelect;
 export type ElevenLabsGenerationAudit = typeof elevenLabsGenerationAudits.$inferSelect;
+export type JapaneseReadingDictionaryEntry = typeof japaneseReadingDictionary.$inferSelect;
+export type NarrationQualityRun = typeof narrationQualityRuns.$inferSelect;
+export type NarrationQualitySegment = typeof narrationQualitySegments.$inferSelect;
 export type VoicePreset = typeof voicePresets.$inferSelect;
 export type SceneVoiceAssignment = typeof sceneVoiceAssignments.$inferSelect;
 export type FinalRender = typeof finalRenders.$inferSelect;

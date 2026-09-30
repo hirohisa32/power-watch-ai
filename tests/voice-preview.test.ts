@@ -31,31 +31,29 @@ describe("Gold Khanjar voice preview", () => {
       VOICE_PREVIEW_TEXT,
     ]);
     expect(VOICE_PREVIEW_TESTS.map((test) => test.ttsInputText)).toEqual([
-      "せんきゅうひゃく ななじゅうねんだい。",
-      "へんかくき の オマーン。",
-      "金色のカンジャルは、こっか から託された証でした。",
-      "せんきゅうひゃく ななじゅうねんだい、へんかくき の オマーン。金色のカンジャルは、こっか から託された証でした。",
+      "せんきゅうひゃくななじゅうねんだい。",
+      "へんかくきのオマーン。",
+      "金色のカンジャルは、こっかから託された証でした。",
+      "せんきゅうひゃくななじゅうねんだい、へんかくきのオマーン。金色のカンジャルは、こっかから託された証でした。",
     ]);
     expect(voicePreviewObjectKey(VOICE_PREVIEW_OPTIONS[0].voiceId, "test-1", "raw")).toBe(
-      "system-assets/previews/gold-khanjar/reading-v1/voice-a/test-1/raw.mp3",
+      "system-assets/previews/gold-khanjar/reading-v2-no-spaces/voice-a/test-1/raw.mp3",
     );
     expect(voicePreviewObjectKey(VOICE_PREVIEW_OPTIONS[1].voiceId, "test-4", "normalized")).toBe(
-      "system-assets/previews/gold-khanjar/reading-v1/voice-b/test-4/normalized.mp3",
+      "system-assets/previews/gold-khanjar/reading-v2-no-spaces/voice-b/test-4/normalized.mp3",
     );
   });
 
   it("applies only approved readings and records the applied map", () => {
     const result = applyGoldKhanjarReadingMap(
-      "アスプレイのシードゥエラー、1665、500万番台。",
+      "ASPREYのSea-Dweller。",
     );
     expect(result.ttsInputText).toBe(
-      "アスプレイのシードゥエラー、いち ろく ろく ご、ごひゃくまんばんだい。",
+      "アスプレイのシードゥエラー。",
     );
     expect(result.applied.map((entry) => entry.display)).toEqual([
-      "アスプレイ",
-      "シードゥエラー",
-      "1665",
-      "500万番台",
+      "Sea-Dweller",
+      "ASPREY",
     ]);
   });
 });
