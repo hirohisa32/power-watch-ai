@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingIncludes: {
+    "/api/admin/voice-preview": ["./.vercel-build-assets/**/*"],
     "/api/queues/final-render": [
       "./.vercel-build-assets/**/*",
       "./assets/opening/opening-master.mp4",

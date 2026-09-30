@@ -16,12 +16,14 @@ export function VoicePreviewClient({
   options,
   tests,
   generationEnabled,
+  initialResults = {},
 }: {
   options: Option[];
   tests: Test[];
   generationEnabled: boolean;
+  initialResults?: Record<string, Result>;
 }) {
-  const [results, setResults] = useState<Record<string, Result>>({});
+  const [results, setResults] = useState<Record<string, Result>>(initialResults);
 
   async function generate(option: Option, test: Test) {
     const resultKey = `${option.voiceId}:${test.id}`;
@@ -88,6 +90,9 @@ export function VoicePreviewClient({
                     <p className="status-message" aria-live="polite">
                       {result.message}
                     </p>
+                  )}
+                  {typeof result?.characterCost === "number" && (
+                    <p className="hint">ElevenLabs使用量: {result.characterCost} units</p>
                   )}
                   {result?.rawAudioUrl && result.normalizedAudioUrl && (
                     <>

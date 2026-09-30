@@ -47,6 +47,13 @@ export async function uploadPrivateObject(key: string, bytes: Uint8Array, conten
   );
 }
 
+export async function readPrivateObject(key: string) {
+  const { client, bucket } = storageClient();
+  const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  if (!response.Body) throw new Error("R2_OBJECT_BODY_EMPTY");
+  return new Uint8Array(await response.Body.transformToByteArray());
+}
+
 export async function deletePrivateObject(key: string) {
   const { client, bucket } = storageClient();
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));

@@ -8,10 +8,12 @@ import {
   VOICE_PREVIEW_OPTIONS,
   VOICE_PREVIEW_TESTS,
   VOICE_PREVIEW_TEXT,
+  voicePreviewObjectKey,
 } from "@/lib/audio/voice-preview";
 import { isAdminEmail } from "@/lib/ui/presentation";
 import { getDb } from "@/lib/db";
-import { audioRecords } from "@/lib/db/schema";
+import { audioRecords, elevenLabsGenerationAudits } from "@/lib/db/schema";
+import { privateObjectExists } from "@/lib/storage";
 import { VoicePreviewClient } from "./voice-preview-client";
 
 export const metadata: Metadata = { title: "ElevenLabs Voice比較" };
@@ -34,6 +36,38 @@ export default async function VoicePreviewPage() {
     .where(eq(audioRecords.provider, "elevenlabs"))
     .orderBy(desc(audioRecords.createdAt))
     .limit(5);
+  const recentPreviewAudits = await getDb()
+    .select()
+    .from(elevenLabsGenerationAudits)
+    .where(eq(elevenLabsGenerationAudits.purpose, "voice_preview"))
+    .orderBy(desc(elevenLabsGenerationAudits.generatedAt))
+    .limit(12);
+  const savedPairs = await Promise.all(
+    VOICE_PREVIEW_OPTIONS.flatMap((option) =>
+      VOICE_PREVIEW_TESTS.map(async (test) => {
+        const rawKey = voicePreviewObjectKey(option.voiceId, test.id, "raw");
+        const normalizedKey = voicePreviewObjectKey(option.voiceId, test.id, "normalized");
+        const [raw, normalized] = await Promise.all([
+          privateObjectExists(rawKey),
+          privateObjectExists(normalizedKey),
+        ]);
+        return {
+          key: `${option.voiceId}:${test.id}`,
+          value:
+            raw && normalized
+              ? {
+                  rawAudioUrl: `/api/admin/voice-preview?voiceId=${encodeURIComponent(option.voiceId)}&testId=${test.id}&variant=raw`,
+                  normalizedAudioUrl: `/api/admin/voice-preview?voiceId=${encodeURIComponent(option.voiceId)}&testId=${test.id}&variant=normalized`,
+                  message: "R2保存済み音声です。",
+                }
+              : undefined,
+        };
+      }),
+    ),
+  );
+  const initialResults = Object.fromEntries(
+    savedPairs.filter((entry) => entry.value).map((entry) => [entry.key, entry.value!]),
+  );
   return (
     <main className="content">
       <div className="page-head">
@@ -78,6 +112,29 @@ export default async function VoicePreviewPage() {
         )}
       </section>
       <section className="panel">
+        <p className="eyebrow">Voice Preview送信監査ログ</p>
+        {recentPreviewAudits.length ? (
+          recentPreviewAudits.map((record) => (
+            <article key={record.id}>
+              <p>
+                {record.generatedAt.toLocaleString("ja-JP")} · {record.voiceId} · {record.model} ·
+                {" "}{record.outputFormat} · {record.characterCost ?? "—"} units
+              </p>
+              <p className="hint">originalScript: {record.originalScript}</p>
+              <p className="hint">ttsInputText: {record.ttsInputText}</p>
+              <p className="hint">
+                settings: {JSON.stringify(record.voiceSettings)} / language: {record.language} /
+                normalize: {record.applyTextNormalization} / language normalize:{" "}
+                {record.applyLanguageTextNormalization ? "true" : "false"} / seed:{" "}
+                {record.seed ?? "未指定"}
+              </p>
+            </article>
+          ))
+        ) : (
+          <p>Preview送信記録はありません。</p>
+        )}
+      </section>
+      <section className="panel">
         <p className="eyebrow">次回の分割テスト（未生成）</p>
         {VOICE_PREVIEW_TESTS.map((test) => (
           <p key={test.id}>
@@ -89,6 +146,7 @@ export default async function VoicePreviewPage() {
         options={[...VOICE_PREVIEW_OPTIONS]}
         tests={[...VOICE_PREVIEW_TESTS]}
         generationEnabled={process.env.ELEVENLABS_VOICE_PREVIEW_GENERATION_ENABLED === "true"}
+        initialResults={initialResults}
       />
     </main>
   );

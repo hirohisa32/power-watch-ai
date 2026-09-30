@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { saveElevenLabsGenerationAudit } from "@/lib/audio/audit";
+import {
+  findLatestVoicePreviewAudit,
+  saveElevenLabsGenerationAudit,
+  updateElevenLabsAuditCost,
+} from "@/lib/audio/audit";
+import { narrationConfig } from "@/lib/audio/config";
 import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
 import { normalizeVoicePreviewAudio } from "@/lib/audio/normalize";
 import {
@@ -10,7 +15,12 @@ import {
 } from "@/lib/audio/voice-preview";
 import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
-import { createReadUrl, privateObjectExists, uploadPrivateObject } from "@/lib/storage";
+import {
+  createReadUrl,
+  privateObjectExists,
+  readPrivateObject,
+  uploadPrivateObject,
+} from "@/lib/storage";
 import { isAdminEmail } from "@/lib/ui/presentation";
 
 async function requireAdmin() {
@@ -57,35 +67,114 @@ export async function POST(request: Request) {
     const normalizedKey = voicePreviewObjectKey(parsed.voiceId, parsed.testId, "normalized");
     const rawAudioUrl = `/api/admin/voice-preview?voiceId=${encodeURIComponent(parsed.voiceId)}&testId=${encodeURIComponent(parsed.testId)}&variant=raw`;
     const normalizedAudioUrl = `/api/admin/voice-preview?voiceId=${encodeURIComponent(parsed.voiceId)}&testId=${encodeURIComponent(parsed.testId)}&variant=normalized`;
-    if ((await privateObjectExists(rawKey)) && (await privateObjectExists(normalizedKey)))
+    const rawExists = await privateObjectExists(rawKey);
+    const normalizedExists = await privateObjectExists(normalizedKey);
+    if (rawExists && normalizedExists)
       return NextResponse.json({ rawAudioUrl, normalizedAudioUrl, reused: true });
 
-    const result = await new ElevenLabsNarrationProvider().generate({
-      originalScript: test.text,
-      text: test.text,
-      speed: 1,
-      voiceId: parsed.voiceId,
-      language: "ja",
-    });
-    if (result.audit)
-      await saveElevenLabsGenerationAudit({
-        audit: result.audit,
-        purpose: "voice_preview",
-        requestId: result.requestId,
-      });
-    const normalizedBytes = await normalizeVoicePreviewAudio(result.bytes);
-    await uploadPrivateObject(rawKey, result.bytes, result.contentType);
+    let rawBytes: Uint8Array;
+    let characterCost: number | undefined;
+    let requestId: string | undefined;
+    let recovered = false;
+    if (rawExists) {
+      rawBytes = await readPrivateObject(rawKey);
+      recovered = true;
+    } else {
+      const previous = await findLatestVoicePreviewAudit(parsed.voiceId, test.text);
+      if (previous?.requestId) {
+        const history = await recoverElevenLabsHistoryAudio(previous.requestId, parsed.voiceId, test.text);
+        if (!history)
+          return NextResponse.json(
+            { error: "送信済み音声をElevenLabs履歴から回収できないため、重複生成を停止しました" },
+            { status: 409 },
+          );
+        rawBytes = history.bytes;
+        characterCost = history.characterCost;
+        requestId = previous.requestId;
+        recovered = true;
+        await uploadPrivateObject(rawKey, rawBytes, history.contentType);
+        await updateElevenLabsAuditCost(previous.id, history.characterCost);
+      } else {
+        const result = await new ElevenLabsNarrationProvider().generate({
+          originalScript: test.text,
+          text: test.text,
+          speed: 1,
+          voiceId: parsed.voiceId,
+          language: "ja",
+        });
+        rawBytes = result.bytes;
+        characterCost = result.characterCost;
+        requestId = result.requestId;
+        if (result.audit)
+          await saveElevenLabsGenerationAudit({
+            audit: result.audit,
+            purpose: "voice_preview",
+            requestId: result.requestId,
+            characterCost: result.characterCost,
+          });
+        // Persist paid output before optional post-processing so a retry never calls TTS twice.
+        await uploadPrivateObject(rawKey, result.bytes, result.contentType);
+      }
+    }
+    const normalizedBytes = await normalizeVoicePreviewAudio(rawBytes);
     await uploadPrivateObject(normalizedKey, normalizedBytes, "audio/mpeg");
     return NextResponse.json({
       rawAudioUrl,
       normalizedAudioUrl,
-      reused: false,
-      characterCost: result.characterCost,
-      requestId: result.requestId,
+      reused: recovered,
+      recovered,
+      characterCost,
+      requestId,
     });
   } catch (error) {
     if (error instanceof ElevenLabsError)
       return NextResponse.json({ error: error.message, code: error.code }, { status: 502 });
     return apiError(error, "Voice Previewを生成できませんでした");
   }
+}
+
+async function recoverElevenLabsHistoryAudio(
+  requestId: string,
+  voiceId: string,
+  text: string,
+) {
+  const config = narrationConfig();
+  if (!config.apiKey) throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
+  const params = new URLSearchParams({ page_size: "100", source: "TTS", search: text });
+  const historyResponse = await fetch(`https://api.elevenlabs.io/v1/history?${params}`, {
+    headers: { "xi-api-key": config.apiKey },
+    signal: AbortSignal.timeout(config.timeoutMs),
+  });
+  if (!historyResponse.ok) return null;
+  const body = (await historyResponse.json()) as {
+    history?: Array<{
+      history_item_id?: string;
+      request_id?: string;
+      voice_id?: string;
+      text?: string;
+      content_type?: string;
+      character_count_change_from?: number;
+      character_count_change_to?: number;
+    }>;
+  };
+  const item = body.history?.find(
+    (candidate) =>
+      candidate.request_id === requestId && candidate.voice_id === voiceId && candidate.text === text,
+  );
+  if (!item?.history_item_id) return null;
+  const audioResponse = await fetch(
+    `https://api.elevenlabs.io/v1/history/${encodeURIComponent(item.history_item_id)}/audio`,
+    {
+      headers: { "xi-api-key": config.apiKey },
+      signal: AbortSignal.timeout(config.timeoutMs),
+    },
+  );
+  if (!audioResponse.ok) return null;
+  const from = item.character_count_change_from ?? 0;
+  const to = item.character_count_change_to ?? from + [...text].length;
+  return {
+    bytes: new Uint8Array(await audioResponse.arrayBuffer()),
+    contentType: audioResponse.headers.get("content-type") || item.content_type || "audio/mpeg",
+    characterCost: Math.max(0, to - from) || [...text].length,
+  };
 }

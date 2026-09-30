@@ -377,6 +377,8 @@ export const elevenLabsGenerationAudits = pgTable(
       .default(false)
       .notNull(),
     requestId: text("request_id"),
+    characterCost: integer("character_cost"),
+    estimatedCost: real("estimated_cost"),
     status: text("status").default("completed").notNull(),
     errorMessage: text("error_message"),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
