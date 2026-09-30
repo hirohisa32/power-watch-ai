@@ -23,11 +23,13 @@ export function VoicePreviewClient({
   tests,
   generationEnabled,
   initialResults = {},
+  endpoint = "/api/admin/voice-preview",
 }: {
   options: Option[];
   tests: Test[];
   generationEnabled: boolean;
   initialResults?: Record<string, Result>;
+  endpoint?: string;
 }) {
   const [results, setResults] = useState<Record<string, Result>>(initialResults);
 
@@ -35,7 +37,7 @@ export function VoicePreviewClient({
     const resultKey = `${option.voiceId}:${test.id}`;
     setResults((current) => ({ ...current, [resultKey]: { loading: true } }));
     try {
-      const response = await fetch("/api/admin/voice-preview", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ voiceId: option.voiceId, testId: test.id }),

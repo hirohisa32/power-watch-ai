@@ -91,6 +91,9 @@ export default async function VoicePreviewPage() {
         <Link href="/admin" className="btn">
           管理トップへ
         </Link>
+        <Link href="/admin/voice-preview/oman" className="btn">
+          「オマーン」発音比較
+        </Link>
       </div>
       <section className="panel">
         <p className="eyebrow">監査対象となった比較テスト文</p>
