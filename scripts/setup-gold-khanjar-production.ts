@@ -134,6 +134,19 @@ const scenes = [
 ] as Array<Record<string, unknown>>;
 
 async function main() {
+  await mkdir(workDir, { recursive: true });
+  if (process.argv.includes("--render-only")) {
+    for (const scene of scenes.filter((item) => Number(item.order) >= 11)) {
+      const order = Number(scene.order);
+      renderStaticScene(
+        scene.file ? path.join(assetsDir, String(scene.file)) : null,
+        path.join(workDir, `scene-${order}.mp4`),
+        order,
+      );
+    }
+    console.log(JSON.stringify({ rendered: 10, directory: workDir }));
+    return;
+  }
   const databaseUrl = required("DATABASE_URL");
   const adminEmail = required("ADMIN_EMAIL");
   const accountId = required("R2_ACCOUNT_ID");
@@ -147,7 +160,6 @@ async function main() {
     },
   });
   const sql = postgres(databaseUrl, { max: 1, prepare: false });
-  await mkdir(workDir, { recursive: true });
   try {
     const [existing] = await sql`SELECT id, status FROM projects WHERE title = ${TITLE} LIMIT 1`;
     if (existing) {
