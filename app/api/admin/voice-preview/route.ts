@@ -4,6 +4,7 @@ import {
   findLatestVoicePreviewAudit,
   saveElevenLabsGenerationAudit,
   updateElevenLabsAuditCost,
+  updateElevenLabsAuditDuration,
 } from "@/lib/audio/audit";
 import { narrationConfig } from "@/lib/audio/config";
 import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
@@ -76,14 +77,20 @@ export async function POST(request: Request) {
     let rawBytes: Uint8Array;
     let characterCost: number | undefined;
     let requestId: string | undefined;
+    let auditId: string | undefined;
     let recovered = false;
+    const previous = await findLatestVoicePreviewAudit(parsed.voiceId, test.ttsInputText);
     if (rawExists) {
       rawBytes = await readPrivateObject(rawKey);
+      auditId = previous?.id;
       recovered = true;
     } else {
-      const previous = await findLatestVoicePreviewAudit(parsed.voiceId, test.text);
       if (previous?.requestId) {
-        const history = await recoverElevenLabsHistoryAudio(previous.requestId, parsed.voiceId, test.text);
+        const history = await recoverElevenLabsHistoryAudio(
+          previous.requestId,
+          parsed.voiceId,
+          test.ttsInputText,
+        );
         if (!history)
           return NextResponse.json(
             { error: "送信済み音声をElevenLabs履歴から回収できないため、重複生成を停止しました" },
@@ -92,6 +99,7 @@ export async function POST(request: Request) {
         rawBytes = history.bytes;
         characterCost = history.characterCost;
         requestId = previous.requestId;
+        auditId = previous.id;
         recovered = true;
         await uploadPrivateObject(rawKey, rawBytes, history.contentType);
         await updateElevenLabsAuditCost(previous.id, history.characterCost);
@@ -106,8 +114,8 @@ export async function POST(request: Request) {
             { status: 409 },
           );
         const result = await new ElevenLabsNarrationProvider().generate({
-          originalScript: test.text,
-          text: test.text,
+          originalScript: test.displayScript,
+          text: test.ttsInputText,
           speed: 1,
           voiceId: parsed.voiceId,
           language: "ja",
@@ -115,25 +123,31 @@ export async function POST(request: Request) {
         rawBytes = result.bytes;
         characterCost = result.characterCost;
         requestId = result.requestId;
-        if (result.audit)
-          await saveElevenLabsGenerationAudit({
+        if (result.audit) {
+          const auditRecord = await saveElevenLabsGenerationAudit({
             audit: result.audit,
             purpose: "voice_preview",
             requestId: result.requestId,
             characterCost: result.characterCost,
+            readingMap: test.applied,
           });
+          auditId = auditRecord?.id;
+        }
         // Persist paid output before optional post-processing so a retry never calls TTS twice.
         await uploadPrivateObject(rawKey, result.bytes, result.contentType);
       }
     }
-    const normalizedBytes = await normalizeVoicePreviewAudio(rawBytes);
-    await uploadPrivateObject(normalizedKey, normalizedBytes, "audio/mpeg");
+    const normalized = await normalizeVoicePreviewAudio(rawBytes);
+    await uploadPrivateObject(normalizedKey, normalized.bytes, "audio/mpeg");
+    if (auditId && normalized.durationSeconds !== undefined)
+      await updateElevenLabsAuditDuration(auditId, normalized.durationSeconds);
     return NextResponse.json({
       rawAudioUrl,
       normalizedAudioUrl,
       reused: recovered,
       recovered,
       characterCost,
+      durationSeconds: normalized.durationSeconds,
       requestId,
     });
   } catch (error) {

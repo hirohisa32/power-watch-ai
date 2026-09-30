@@ -1,16 +1,59 @@
 import { z } from "zod";
 
+export type ReadingMapEntry = {
+  display: string;
+  reading: string;
+  pauseBefore?: boolean;
+  pauseAfter?: boolean;
+};
+
+export const GOLD_KHANJAR_READING_MAP: readonly ReadingMapEntry[] = [
+  { display: "1970年代", reading: "せんきゅうひゃく ななじゅうねんだい" },
+  { display: "変革期", reading: "へんかくき", pauseAfter: true },
+  { display: "オマーン", reading: "オマーン", pauseBefore: true },
+  { display: "カンジャル", reading: "カンジャル" },
+  { display: "国家", reading: "こっか", pauseAfter: true },
+  { display: "アスプレイ", reading: "アスプレイ" },
+  { display: "シードゥエラー", reading: "シードゥエラー" },
+  { display: "1665", reading: "いち ろく ろく ご" },
+  { display: "500万番台", reading: "ごひゃくまんばんだい" },
+] as const;
+
+export function applyGoldKhanjarReadingMap(displayScript: string) {
+  let ttsInputText = displayScript;
+  const applied: ReadingMapEntry[] = [];
+  for (const entry of GOLD_KHANJAR_READING_MAP) {
+    if (!ttsInputText.includes(entry.display)) continue;
+    const replacement = `${entry.pauseBefore ? " " : ""}${entry.reading}${entry.pauseAfter ? " " : ""}`;
+    ttsInputText = ttsInputText.replaceAll(entry.display, replacement);
+    applied.push({ ...entry });
+  }
+  return {
+    ttsInputText: ttsInputText
+      .replace(/[ \t]+/g, " ")
+      .replace(/ +([。、！？])/g, "$1")
+      .trim(),
+    applied,
+  };
+}
+
+function previewTest(id: string, label: string, displayScript: string) {
+  const reading = applyGoldKhanjarReadingMap(displayScript);
+  return { id, label, displayScript, ...reading };
+}
+
 export const VOICE_PREVIEW_TEXT =
   "1970年代、変革期のオマーン。金色のカンジャルは、国家から託された証でした。";
 
 export const VOICE_PREVIEW_TESTS = [
-  { id: "test-1", label: "TEST 1 · 数字", text: "1970年代。" },
-  { id: "test-2", label: "TEST 2 · 固有名詞", text: "変革期のオマーン。" },
-  {
-    id: "test-3",
-    label: "TEST 3 · 文末イントネーション",
-    text: "金色のカンジャルは、国家から託された証でした。",
-  },
+  previewTest("test-1", "TEST 1 · 数字", "1970年代。"),
+  previewTest("test-2", "TEST 2 · 固有名詞", "変革期のオマーン。"),
+  previewTest(
+    "test-3",
+    "TEST 3 · 文末イントネーション",
+    "金色のカンジャルは、国家から託された証でした。",
+  ),
+  previewTest("test-4", "TEST 4 · 全体イントネーション", VOICE_PREVIEW_TEXT),
 ] as const;
 
 export const VOICE_PREVIEW_OPTIONS = [
@@ -20,7 +63,12 @@ export const VOICE_PREVIEW_OPTIONS = [
 
 export const voicePreviewInputSchema = z.object({
   voiceId: z.enum([VOICE_PREVIEW_OPTIONS[0].voiceId, VOICE_PREVIEW_OPTIONS[1].voiceId]),
-  testId: z.enum([VOICE_PREVIEW_TESTS[0].id, VOICE_PREVIEW_TESTS[1].id, VOICE_PREVIEW_TESTS[2].id]),
+  testId: z.enum([
+    VOICE_PREVIEW_TESTS[0].id,
+    VOICE_PREVIEW_TESTS[1].id,
+    VOICE_PREVIEW_TESTS[2].id,
+    VOICE_PREVIEW_TESTS[3].id,
+  ]),
 });
 
 export function voicePreviewOption(voiceId: string) {
@@ -36,7 +84,7 @@ export function voicePreviewObjectKey(
   if (!option) throw new Error("VOICE_PREVIEW_NOT_ALLOWED");
   const test = VOICE_PREVIEW_TESTS.find((item) => item.id === testId);
   if (!test) throw new Error("VOICE_PREVIEW_TEST_NOT_ALLOWED");
-  return `system-assets/previews/gold-khanjar/${option.key}/${test.id}/${variant}.mp3`;
+  return `system-assets/previews/gold-khanjar/reading-v1/${option.key}/${test.id}/${variant}.mp3`;
 }
 
 export function voicePreviewTest(testId: string) {

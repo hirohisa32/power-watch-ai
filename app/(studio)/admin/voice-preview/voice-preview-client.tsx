@@ -3,13 +3,19 @@
 import { useState } from "react";
 
 type Option = { label: string; voiceId: string; key: string };
-type Test = { id: string; label: string; text: string };
+type Test = {
+  id: string;
+  label: string;
+  displayScript: string;
+  ttsInputText: string;
+};
 type Result = {
   rawAudioUrl?: string;
   normalizedAudioUrl?: string;
   message?: string;
   loading?: boolean;
   characterCost?: number;
+  durationSeconds?: number;
 };
 
 export function VoicePreviewClient({
@@ -45,6 +51,7 @@ export function VoicePreviewClient({
             ? "R2保存済み音声を再利用しました。"
             : "ElevenLabsで1回生成し、R2へ保存しました。",
           characterCost: body.characterCost,
+          durationSeconds: body.durationSeconds,
         },
       }));
     } catch (error) {
@@ -71,7 +78,11 @@ export function VoicePreviewClient({
               return (
                 <div key={test.id}>
                   <p className="hint">
-                    {test.label}：{test.text}
+                    {test.label}
+                    <br />
+                    display：{test.displayScript}
+                    <br />
+                    TTS：{test.ttsInputText}
                   </p>
                   <button
                     className="btn btn-primary"
@@ -93,6 +104,9 @@ export function VoicePreviewClient({
                   )}
                   {typeof result?.characterCost === "number" && (
                     <p className="hint">ElevenLabs使用量: {result.characterCost} units</p>
+                  )}
+                  {typeof result?.durationSeconds === "number" && (
+                    <p className="hint">Duration: {result.durationSeconds.toFixed(2)}秒</p>
                   )}
                   {result?.rawAudioUrl && result.normalizedAudioUrl && (
                     <>

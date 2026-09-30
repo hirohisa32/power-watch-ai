@@ -46,6 +46,10 @@ export default async function VoicePreviewPage() {
   const savedPairs = await Promise.all(
     VOICE_PREVIEW_OPTIONS.flatMap((option) =>
       VOICE_PREVIEW_TESTS.map(async (test) => {
+        const audit = recentPreviewAudits.find(
+          (record) =>
+            record.voiceId === option.voiceId && record.ttsInputText === test.ttsInputText,
+        );
         const rawKey = voicePreviewObjectKey(option.voiceId, test.id, "raw");
         const normalizedKey = voicePreviewObjectKey(option.voiceId, test.id, "normalized");
         const [raw, normalized] = await Promise.all([
@@ -60,6 +64,8 @@ export default async function VoicePreviewPage() {
                   rawAudioUrl: `/api/admin/voice-preview?voiceId=${encodeURIComponent(option.voiceId)}&testId=${test.id}&variant=raw`,
                   normalizedAudioUrl: `/api/admin/voice-preview?voiceId=${encodeURIComponent(option.voiceId)}&testId=${test.id}&variant=normalized`,
                   message: "R2保存済み音声です。",
+                  characterCost: audit?.characterCost ?? undefined,
+                  durationSeconds: audit?.durationSeconds ?? undefined,
                 }
               : undefined,
         };
@@ -138,12 +144,16 @@ export default async function VoicePreviewPage() {
                 {" "}{record.outputFormat} · {record.characterCost ?? "—"} units
               </p>
               <p className="hint">originalScript: {record.originalScript}</p>
+              <p className="hint">displayScript: {record.displayScript}</p>
               <p className="hint">ttsInputText: {record.ttsInputText}</p>
+              <p className="hint">readingMap: {JSON.stringify(record.readingMap)}</p>
               <p className="hint">
                 settings: {JSON.stringify(record.voiceSettings)} / language: {record.language} /
                 normalize: {record.applyTextNormalization} / language normalize:{" "}
                 {record.applyLanguageTextNormalization ? "true" : "false"} / seed:{" "}
                 {record.seed ?? "未指定"}
+                {" / duration: "}
+                {record.durationSeconds === null ? "—" : `${record.durationSeconds.toFixed(2)}秒`}
               </p>
             </article>
           ))
@@ -155,7 +165,11 @@ export default async function VoicePreviewPage() {
         <p className="eyebrow">次回の分割テスト（未生成）</p>
         {VOICE_PREVIEW_TESTS.map((test) => (
           <p key={test.id}>
-            <strong>{test.label}</strong>：{test.text}
+            <strong>{test.label}</strong>
+            <br />
+            display：{test.displayScript}
+            <br />
+            TTS：{test.ttsInputText}
           </p>
         ))}
       </section>

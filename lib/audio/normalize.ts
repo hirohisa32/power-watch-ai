@@ -10,11 +10,11 @@ export async function normalizeVoicePreviewAudio(bytes: Uint8Array) {
   const output = path.join(directory, "normalized.mp3");
   try {
     await writeFile(input, bytes);
-    await runFfmpeg([
+    const outputLog = await runFfmpeg([
       "-y",
       "-hide_banner",
       "-loglevel",
-      "error",
+      "info",
       "-i",
       input,
       "-af",
@@ -29,7 +29,10 @@ export async function normalizeVoicePreviewAudio(bytes: Uint8Array) {
       "128k",
       output,
     ]);
-    return new Uint8Array(await readFile(output));
+    return {
+      bytes: new Uint8Array(await readFile(output)),
+      durationSeconds: parseFfmpegDuration(outputLog),
+    };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -38,7 +41,7 @@ export async function normalizeVoicePreviewAudio(bytes: Uint8Array) {
 function runFfmpeg(args: string[]) {
   const executable =
     process.env.FFMPEG_PATH ?? path.join(process.cwd(), ".vercel-build-assets", "ffmpeg");
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, { windowsHide: true });
     let output = "";
     child.stderr.on("data", (chunk) => (output += chunk.toString()));
@@ -49,8 +52,15 @@ function runFfmpeg(args: string[]) {
     });
     child.once("close", (code) => {
       clearTimeout(timeout);
-      if (code === 0) resolve();
+      if (code === 0) resolve(output);
       else reject(new Error(`VOICE_NORMALIZATION_FAILED:${output.slice(-800)}`));
     });
   });
+}
+
+function parseFfmpegDuration(output: string) {
+  const matches = [...output.matchAll(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g)];
+  const match = matches.at(-1);
+  if (!match) return undefined;
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
 }

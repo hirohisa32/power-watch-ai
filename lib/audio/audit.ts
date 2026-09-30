@@ -13,10 +13,12 @@ export async function saveElevenLabsGenerationAudit(input: {
   audioRecordId?: string;
   requestId?: string;
   characterCost?: number;
+  readingMap?: Array<Record<string, unknown>>;
+  durationSeconds?: number;
   status?: "completed" | "failed";
   errorMessage?: string;
 }) {
-  await getDb()
+  const [record] = await getDb()
     .insert(elevenLabsGenerationAudits)
     .values({
       projectId: input.projectId,
@@ -24,7 +26,9 @@ export async function saveElevenLabsGenerationAudit(input: {
       audioRecordId: input.audioRecordId,
       purpose: input.purpose,
       originalScript: input.audit.originalScript,
+      displayScript: input.audit.originalScript,
       ttsInputText: input.audit.ttsInputText,
+      readingMap: input.readingMap ?? [],
       voiceId: input.audit.voiceId,
       model: input.audit.model,
       voiceSettings: input.audit.voiceSettings,
@@ -39,10 +43,13 @@ export async function saveElevenLabsGenerationAudit(input: {
         input.characterCost === undefined
           ? undefined
           : (input.characterCost / 1000) * narrationConfig().pricePerThousandCharacters,
+      durationSeconds: input.durationSeconds,
       status: input.status ?? "completed",
       errorMessage: input.errorMessage,
       generatedAt: input.audit.generatedAt,
-    });
+    })
+    .returning({ id: elevenLabsGenerationAudits.id });
+  return record;
 }
 
 export async function findLatestVoicePreviewAudit(voiceId: string, ttsInputText: string) {
@@ -69,5 +76,12 @@ export async function updateElevenLabsAuditCost(id: string, characterCost: numbe
       estimatedCost:
         (characterCost / 1000) * narrationConfig().pricePerThousandCharacters,
     })
+    .where(eq(elevenLabsGenerationAudits.id, id));
+}
+
+export async function updateElevenLabsAuditDuration(id: string, durationSeconds: number) {
+  await getDb()
+    .update(elevenLabsGenerationAudits)
+    .set({ durationSeconds })
     .where(eq(elevenLabsGenerationAudits.id, id));
 }
