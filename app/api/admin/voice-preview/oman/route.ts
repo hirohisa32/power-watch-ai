@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findLatestVoicePreviewAudit, saveElevenLabsGenerationAudit, updateElevenLabsAuditDuration } from "@/lib/audio/audit";
+import { saveElevenLabsGenerationAudit, updateElevenLabsAuditDuration } from "@/lib/audio/audit";
 import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
 import { normalizeVoicePreviewAudio } from "@/lib/audio/normalize";
 import { omanPronunciationInputSchema, omanPronunciationObjectKey, omanPronunciationTest } from "@/lib/audio/oman-pronunciation-preview";
@@ -46,13 +46,11 @@ export async function POST(request: Request) {
     const normalizedAudioUrl = `/api/admin/voice-preview/oman?voiceId=${encodeURIComponent(parsed.voiceId)}&testId=${test.id}&variant=normalized`;
     const [rawExists, normalizedExists] = await Promise.all([privateObjectExists(rawKey), privateObjectExists(normalizedKey)]);
     if (rawExists && normalizedExists) return NextResponse.json({ rawAudioUrl, normalizedAudioUrl, reused: true });
-    const previous = await findLatestVoicePreviewAudit(parsed.voiceId, test.ttsInputText);
     let rawBytes: Uint8Array;
-    let auditId = previous?.id;
-    let characterCost = previous?.characterCost ?? undefined;
+    let auditId: string | undefined;
+    let characterCost: number | undefined;
     if (rawExists) rawBytes = await readPrivateObject(rawKey);
     else {
-      if (previous?.requestId) return NextResponse.json({ error: "同一Textの送信履歴があるため、重複生成を停止しました" }, { status: 409 });
       const result = await new ElevenLabsNarrationProvider().generate({ originalScript: test.displayScript, text: test.ttsInputText, speed: 1, voiceId: parsed.voiceId, language: "ja" });
       rawBytes = result.bytes;
       characterCost = result.characterCost;
