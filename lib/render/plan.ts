@@ -29,7 +29,7 @@ export function buildFinalRenderInput(input: {
       id: scene.sceneId,
       duration: scene.duration,
       narration: scene.narration,
-      subtitle: scene.narration,
+      subtitle: scene.subtitle,
     })),
   );
   const overlays: TextOverlay[] = [];

@@ -55,9 +55,9 @@ export function buildSubtitleCues(scenes: NarrationScene[]): SubtitleCue[] {
   const cues: SubtitleCue[] = [];
   let sceneStartMs = 0;
   for (const scene of scenes) {
-    // Viewer subtitles are derived only from spoken narration. Scene titles, visual descriptions,
-    // prompts, and editor labels are deliberately ignored even when persisted in `subtitle`.
-    const text = scene.narration.trim();
+    // Prefer the editor-approved short viewer caption. Narration remains the fallback for
+    // storyboards created before concise subtitles were introduced.
+    const text = scene.subtitle.trim() || scene.narration.trim();
     const sentences = splitSentences(text).flatMap((sentence) => splitReadableChunks(sentence, 24));
     const weights = sentences.map((sentence) => Math.max(1, [...sentence].length));
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);

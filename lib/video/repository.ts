@@ -10,7 +10,7 @@ import {
   videoJobs,
 } from "@/lib/db/schema";
 import { buildVideoPrompt } from "./prompt";
-import { estimateVideoCost } from "./cost";
+import { estimateVideoCost, providerDurationForScene } from "./cost";
 import { modelForStyle, videoConfig } from "./config";
 import { pickReferenceAssetIds } from "./orchestration";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
@@ -81,12 +81,13 @@ export async function createGenerationJob(input: {
       .where(eq(videoGenerations.sceneId, input.sceneId));
     const version = (latest.version ?? 0) + 1;
     const model = modelForStyle(owned.project.style);
+    const providerDuration = providerDurationForScene(owned.scene.duration);
     const prompt = buildVideoPrompt(
-      { ...owned.scene, referenceAvailable: referenceAssetIds.length > 0 },
+      { ...owned.scene, duration: providerDuration, referenceAvailable: referenceAssetIds.length > 0 },
       owned.project.style,
       input.regenerationInstruction,
     );
-    const estimate = estimateVideoCost(model, owned.scene.duration, videoConfig().creditCostUsd);
+    const estimate = estimateVideoCost(model, providerDuration, videoConfig().creditCostUsd);
     const [generation] = await transaction
       .insert(videoGenerations)
       .values({
@@ -98,7 +99,7 @@ export async function createGenerationJob(input: {
         prompt,
         regenerationInstruction: input.regenerationInstruction,
         referenceAssetIds,
-        requestedDuration: owned.scene.duration,
+        requestedDuration: providerDuration,
         estimatedCostCredits: estimate.credits,
         estimatedCostUsd: estimate.usd,
       })

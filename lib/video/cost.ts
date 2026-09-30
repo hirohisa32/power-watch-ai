@@ -13,3 +13,7 @@ export function estimateVideoCost(model: string, duration: number, creditCostUsd
 export function creditsToUsd(credits: number | undefined, creditCostUsd = 0.01) {
   return credits === undefined ? undefined : Number((credits * creditCostUsd).toFixed(4));
 }
+
+export function providerDurationForScene(sceneDuration: number) {
+  return sceneDuration <= 5 ? 5 : 10;
+}

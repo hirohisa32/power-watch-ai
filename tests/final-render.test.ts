@@ -8,6 +8,7 @@ import {
   buildCompatibilityConcatArgs,
   buildTransportStreamArgs,
   buildPrimingTrimArgs,
+  buildOpeningCompatibilityArgs,
 } from "@/lib/render/ffmpeg";
 import { buildFinalRenderInput, narrationObjectKey, renderObjectKey } from "@/lib/render/plan";
 import { canRetryRender, nextRenderState } from "@/lib/render/state";
@@ -132,13 +133,17 @@ describe("fixed Opening final render", () => {
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("concat=n=2");
     expect(filters).toContain("fps=24");
-    expect(args).toContain("libx265");
-    expect(args).toContain("yuv420p10le");
+    expect(args).toContain("libx264");
+    expect(args).toContain("yuv420p");
     expect(args).not.toContain(files.opening);
     expect(args).toContain(files.bgm);
     expect(args.join(" ")).not.toContain("aevalsrc='(0.018*sin");
     expect(filters).toContain("afade=t=out");
     expect(filters).toContain("sidechaincompress");
+
+    const openingCompatibility = buildOpeningCompatibilityArgs(files.opening, "opening.mp4", 24);
+    expect(openingCompatibility).toContain("libx264");
+    expect(openingCompatibility).toContain("aac");
 
     const remux = buildTransportStreamArgs(files.opening, "opening.ts");
     expect(remux).toContain("hevc_mp4toannexb");
@@ -161,6 +166,18 @@ describe("fixed Opening final render", () => {
     const concat = buildFixedOpeningConcatArgs(files, "combined.ts", "audio.m4a");
     expect(concat.slice(concat.indexOf("-c"), concat.indexOf("-c") + 2)).toEqual(["-c", "copy"]);
     expect(concat).not.toContain("-filter_complex");
+  });
+
+  it("uses concise approved subtitles instead of the full narration", () => {
+    const cues = buildSubtitleCues([
+      {
+        id: "s",
+        duration: 4,
+        narration: "これは表示しない長いナレーションです。",
+        subtitle: "GOLD KHANJAR",
+      },
+    ]);
+    expect(cues.map((cue) => cue.text)).toEqual(["GOLD KHANJAR"]);
   });
 
   it("records the immutable master and zero Opening credits", () => {

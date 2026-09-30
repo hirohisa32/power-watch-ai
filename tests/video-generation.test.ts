@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateVideoCost } from "@/lib/video/cost";
+import { estimateVideoCost, providerDurationForScene } from "@/lib/video/cost";
 import {
   decideJobAction,
   generationModeForScene,
@@ -74,6 +74,12 @@ describe("video generation domain", () => {
   it("estimates official Gen-4.5 credits and USD", () => {
     expect(estimateVideoCost("gen4.5", 5, 0.01)).toEqual({ credits: 60, usd: 0.6 });
     expect(estimateVideoCost("future-model", 5)).toEqual({ credits: null, usd: null });
+  });
+
+  it("requests a supported provider duration and trims it to the storyboard slot", () => {
+    expect(providerDurationForScene(3)).toBe(5);
+    expect(providerDurationForScene(5)).toBe(5);
+    expect(providerDurationForScene(6)).toBe(10);
   });
 
   it("maps provider statuses to poll, success, transient retry, and terminal failure", () => {

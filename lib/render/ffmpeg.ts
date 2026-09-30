@@ -1,8 +1,6 @@
 import { spawn } from "node:child_process";
-import { createReadStream, createWriteStream } from "node:fs";
-import { copyFile, rm, writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { pipeline } from "node:stream/promises";
 import type { FinalRenderInput } from "./types";
 import { SOUND_EFFECT_BY_PRESET } from "./plan";
 
@@ -64,15 +62,13 @@ export function buildFfmpegArgs(
     "-r",
     String(input.fps),
     "-c:v",
-    "libx265",
+    "libx264",
     "-preset",
     "medium",
     "-crf",
     "20",
     "-pix_fmt",
-    "yuv420p10le",
-    "-tag:v",
-    "hvc1",
+    "yuv420p",
     "-video_track_timescale",
     "12288",
     "-c:a",
@@ -134,6 +130,38 @@ export function buildCompatibilityConcatArgs(concatList: string, output: string)
   ];
 }
 
+export function buildOpeningCompatibilityArgs(input: string, output: string, fps: number) {
+  return [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-i",
+    input,
+    "-vf",
+    `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=${fps},format=yuv420p`,
+    "-r",
+    String(fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "medium",
+    "-crf",
+    "18",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-ar",
+    "32000",
+    "-ac",
+    "2",
+    "-movflags",
+    "+faststart",
+    output,
+  ];
+}
+
 export function buildPrimingTrimArgs(input: string, output: string) {
   return [
     "-y",
@@ -179,44 +207,28 @@ export async function renderWithFfmpeg(
 ) {
   const executable = resolveFfmpegPath();
   const bodyOutput = path.join(path.dirname(files.output), "body-master-compatible.mp4");
-  const openingTransport = path.join(path.dirname(files.output), "fixed-opening.ts");
-  const bodyTransport = path.join(path.dirname(files.output), "body-master-compatible.ts");
-  const combinedTransport = path.join(path.dirname(files.output), "fixed-opening-and-body.ts");
+  const openingCompatible = path.join(path.dirname(files.output), "fixed-opening-compatible.mp4");
   const concatList = path.join(path.dirname(files.output), "fixed-opening-audio-concat.txt");
-  const rawCombinedMedia = path.join(path.dirname(files.output), "fixed-opening-and-body-raw.mp4");
-  const combinedMedia = path.join(path.dirname(files.output), "fixed-opening-and-body.mp4");
   try {
     await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput), 270_000);
-    await run(executable, buildTransportStreamArgs(files.opening, openingTransport), 60_000);
-    await run(executable, buildTransportStreamArgs(bodyOutput, bodyTransport), 60_000);
-    await copyFile(openingTransport, combinedTransport);
-    await pipeline(
-      createReadStream(bodyTransport),
-      createWriteStream(combinedTransport, { flags: "a" }),
+    await run(
+      executable,
+      buildOpeningCompatibilityArgs(files.opening, openingCompatible, input.fps),
+      180_000,
     );
     await writeFile(
       concatList,
-      [files.opening, bodyOutput]
+      [openingCompatible, bodyOutput]
         .map((file) => `file '${file.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`)
         .join("\n"),
       "utf8",
     );
-    await run(executable, buildCompatibilityConcatArgs(concatList, rawCombinedMedia), 60_000);
-    await run(executable, buildPrimingTrimArgs(rawCombinedMedia, combinedMedia), 60_000);
-    await run(
-      executable,
-      buildFixedOpeningConcatArgs(files, combinedTransport, combinedMedia),
-      60_000,
-    );
+    await run(executable, buildCompatibilityConcatArgs(concatList, files.output), 90_000);
   } finally {
     await Promise.all([
       rm(bodyOutput, { force: true }),
-      rm(openingTransport, { force: true }),
-      rm(bodyTransport, { force: true }),
-      rm(combinedTransport, { force: true }),
+      rm(openingCompatible, { force: true }),
       rm(concatList, { force: true }),
-      rm(rawCombinedMedia, { force: true }),
-      rm(combinedMedia, { force: true }),
     ]);
   }
 }
