@@ -41,16 +41,34 @@ export function GoldKhanjarSetup() {
     }
   }
 
+  async function generateNarration() {
+    setBusy(true);
+    setMessage("Voice A / eleven_v4で本番Narrationを生成しています…");
+    try {
+      const response = await fetch("/api/admin/demo/gold-khanjar/narration", { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Narrationを生成できませんでした");
+      setProjectId(body.projectId);
+      setMessage(`${body.reused ? "既存音声を再利用" : "生成完了"}：${body.analysis?.durationSeconds?.toFixed?.(2) ?? body.durationSeconds}秒 / ${body.units} units`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Narrationを生成できませんでした");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="panel">
       <div className="button-row">
         <button className="btn btn-primary" disabled={busy} onClick={() => void initialize()}>1. Project初期化</button>
         <input ref={fileRef} hidden type="file" accept="image/jpeg,video/mp4" multiple onChange={(event) => event.target.files && void upload(event.target.files)} />
         <button className="btn btn-secondary" disabled={busy || !projectId} onClick={() => fileRef.current?.click()}>2. 17素材を登録</button>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => void generateNarration()}>Voice Aで本番Narrationを1回生成</button>
       </div>
       <p className="hint">画像7枚＋scene-11.mp4〜scene-20.mp4のみ受け付けます。</p>
       {message && <p className="status-message" aria-live="polite">{message}</p>}
       {projectId && <a className="btn btn-secondary" href={`/projects/${projectId}/storyboard`}>動画構成を開く</a>}
+      <a className="btn btn-secondary" href="/api/admin/demo/gold-khanjar/narration" target="_blank" rel="noreferrer">本番Narrationを試聴</a>
     </section>
   );
 }

@@ -68,6 +68,19 @@ describe("ElevenLabs narration adapter", () => {
     expect(body).not.toHaveProperty("apply_language_text_normalization");
   });
 
+  it("generates timestamped v4 speech in one request", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({
+      audio_base64: Buffer.from([1, 2, 3]).toString("base64"),
+      alignment: { characters: ["時", "間"], character_start_times_seconds: [0, 0.2], character_end_times_seconds: [0.2, 0.5] },
+      normalized_alignment: null,
+    }, { headers: { "character-cost": "2", "request-id": "timestamp-1" } }));
+    const result = await new ElevenLabsNarrationProvider(fetcher).generateWithTimestamps({ text: "時間", originalScript: "時間", speed: 1, model: "eleven_v4", voiceId: "voice-1", language: "ja" });
+    expect(fetcher.mock.calls[0][0]).toContain("/with-timestamps?output_format=");
+    expect(result.alignment?.characters.join("")).toBe("時間");
+    expect(result.characterCost).toBe(2);
+    expect(result.requestId).toBe("timestamp-1");
+  });
+
   it("maps Voice Library results without generating audio", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       Response.json({

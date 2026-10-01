@@ -7,7 +7,7 @@ import type { ElevenLabsRequestAudit } from "./elevenlabs";
 
 export async function saveElevenLabsGenerationAudit(input: {
   audit: ElevenLabsRequestAudit;
-  purpose: "voice_preview" | "final_narration";
+  purpose: "voice_preview" | "final_narration" | "narration";
   projectId?: string;
   storyboardId?: string;
   audioRecordId?: string;
