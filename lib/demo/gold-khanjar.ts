@@ -34,6 +34,39 @@ export const GOLD_KHANJAR_ASSETS: Record<string, string> = {
   "MG_1212.jpg": "Bracelet Clasp",
 };
 
+export const GOLD_KHANJAR_IDENTITY = {
+  serial: "5082955",
+  reference: "1665/0",
+  outerCasebackMark: "ASPREY",
+  identitySource: "client-demo/gold-khanjar/assets/MG_1202.jpg",
+  serialEditingAllowed: false,
+} as const;
+
+export const GOLD_KHANJAR_APPROVED_NARRATION_DURATION_SECONDS = 43.47;
+export const GOLD_KHANJAR_NARRATION_START_SECONDS = 15.2;
+
+export const GOLD_KHANJAR_TIMELINE = [
+  { order: 1, start: 0, end: 15.1, duration: 15.1, kind: "FixedOpening", title: "POWER WATCH Fixed Opening", narration: false },
+  { order: 6, start: 15.1, end: 17.4, duration: 2.3, kind: "StoryEntry", title: "Black → 古紙 → Ink → Map", narration: true },
+  { order: 7, start: 17.4, end: 20.6, duration: 3.2, kind: "Historical", title: "1970s / OMAN", narration: true },
+  { order: 8, start: 20.6, end: 23.8, duration: 3.2, kind: "Historical", title: "書簡 → カーブース時代", narration: true },
+  { order: 9, start: 23.8, end: 27, duration: 3.2, kind: "Historical", title: "OMAN × UNITED KINGDOM", narration: true },
+  { order: 10, start: 27, end: 30.2, duration: 3.2, kind: "Historical", title: "ASPREY / LONDON", narration: true },
+  { order: 11, start: 30.2, end: 33.4, duration: 3.2, kind: "CharacterWatch", title: "贈答箱が運ばれる", narration: true },
+  { order: 12, start: 33.4, end: 36.6, duration: 3.2, kind: "CharacterWatch", title: "白手袋で箱を開き、時計を持ち上げる", narration: true },
+  { order: 13, start: 36.6, end: 39.8, duration: 3.2, kind: "CharacterWatch", title: "Wrist → Reaction → 視線", narration: true },
+  { order: 14, start: 39.8, end: 43, duration: 3.2, kind: "ProductMacro", title: "視線先のDial Macro", narration: true },
+  { order: 15, start: 43, end: 46.2, duration: 3.2, kind: "ProductMacro", title: "Gold Khanjar Focus", narration: true },
+  { order: 16, start: 46.2, end: 49.4, duration: 3.2, kind: "ProductDetail", title: "Outer Caseback / ASPREY", narration: true },
+  { order: 17, start: 49.4, end: 52.6, duration: 3.2, kind: "ProductDetail", title: "Inner Caseback / Serial 5082955 / 1665", narration: true },
+  { order: 18, start: 52.6, end: 55.8, duration: 3.2, kind: "ProductDetail", title: "Movement / 5,000,000 Series", narration: true },
+  { order: 19, start: 55.8, end: 58.67, duration: 2.87, kind: "ProductHero", title: "Full Watch Hero / Story Payoff", narration: true },
+  { order: 20, start: 58.67, end: 60, duration: 1.33, kind: "Ending", title: "POWER WATCH Brand End", narration: false },
+] as const;
+
+export const GOLD_KHANJAR_NARRATION_END_SECONDS =
+  GOLD_KHANJAR_NARRATION_START_SECONDS + GOLD_KHANJAR_APPROVED_NARRATION_DURATION_SECONDS;
+
 export const GOLD_KHANJAR_SCENES = [
   [6, "CityEraEstablishing", "1970年代オマーン", "1970s\nOMAN", "1970s", "OMAN", "1970s Muscat, Oman at dusk, authentic low whitewashed buildings between rugged mountains and the sea, warm dusty atmosphere, restrained archival documentary realism, sparse period vehicles far in the distance, no readable text, no logos, no emblems, no watches, no modern skyline", "slow aerial-to-street push", "wide establishing shot", "late afternoon amber haze", "dust in the air and subtle distant movement", "sandstone, charcoal and muted amber", "restrained dissolve"],
   [7, "HistoricalCharacter", "国家と権威", "A NEW ERA", null, null, "1970s Omani palace interior, dignified Middle Eastern statesman seen from behind walking through a shadowed colonnade, historically appropriate white dishdasha and restrained turban, quiet authority, photorealistic historical documentary, no identifiable real person, no readable text, no logos, no royal crest, no watches", "measured tracking shot from behind", "medium-wide silhouette", "warm window shafts through dust", "slow deliberate walk and fabric movement", "dark wood, limestone and subdued gold", "dust dissolve"],
