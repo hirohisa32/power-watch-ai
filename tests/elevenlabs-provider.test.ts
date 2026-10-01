@@ -65,6 +65,7 @@ describe("ElevenLabs narration adapter", () => {
     await new ElevenLabsNarrationProvider(fetcher).generate({ text: "同一文章です。", speed: 1, model: "eleven_v4", language: "ja" });
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
     expect(body).toMatchObject({ model_id: "eleven_v4", language_code: "ja", voice_settings: { stability: 0.58, similarity_boost: 0.76, style: 0, use_speaker_boost: true, speed: 1 } });
+    expect(body).not.toHaveProperty("apply_language_text_normalization");
   });
 
   it("maps Voice Library results without generating audio", async () => {

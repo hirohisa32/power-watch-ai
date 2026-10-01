@@ -246,6 +246,7 @@ export function buildElevenLabsRequest(
   model: string,
 ) {
   const language = input.language ?? "ja";
+  const supportsLanguageTextNormalization = model !== "eleven_v4";
   const outputFormat = "mp3_44100_128" as const;
   const voiceSettings: ElevenLabsVoiceSettings = {
     stability: 0.58,
@@ -266,7 +267,7 @@ export function buildElevenLabsRequest(
     outputFormat,
     seed: input.seed ?? null,
     applyTextNormalization: "auto",
-    applyLanguageTextNormalization: language === "ja",
+    applyLanguageTextNormalization: language === "ja" && supportsLanguageTextNormalization,
     generatedAt: new Date(),
   };
   return {
@@ -277,7 +278,9 @@ export function buildElevenLabsRequest(
       language_code: language,
       voice_settings: voiceSettings,
       apply_text_normalization: audit.applyTextNormalization,
-      apply_language_text_normalization: audit.applyLanguageTextNormalization,
+      ...(supportsLanguageTextNormalization
+        ? { apply_language_text_normalization: audit.applyLanguageTextNormalization }
+        : {}),
       ...(input.seed === undefined ? {} : { seed: input.seed }),
     },
     audit,
