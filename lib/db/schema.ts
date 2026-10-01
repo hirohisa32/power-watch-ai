@@ -370,6 +370,7 @@ export const elevenLabsGenerationAudits = pgTable(
     audioRecordId: uuid("audio_record_id").references(() => audioRecords.id, {
       onDelete: "set null",
     }),
+    videoId: uuid("video_id"),
     purpose: text("purpose").notNull(),
     originalScript: text("original_script").notNull(),
     displayScript: text("display_script").notNull(),
@@ -387,6 +388,7 @@ export const elevenLabsGenerationAudits = pgTable(
       .notNull(),
     requestId: text("request_id"),
     characterCost: integer("character_cost"),
+    units: integer("units"),
     estimatedCost: real("estimated_cost"),
     durationSeconds: real("duration_seconds"),
     status: text("status").default("completed").notNull(),
@@ -396,6 +398,7 @@ export const elevenLabsGenerationAudits = pgTable(
   },
   (table) => [
     index("elevenlabs_generation_audits_project_idx").on(table.projectId, table.generatedAt),
+    index("elevenlabs_generation_audits_video_idx").on(table.videoId, table.generatedAt),
     index("elevenlabs_generation_audits_generated_idx").on(table.generatedAt),
   ],
 );

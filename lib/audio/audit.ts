@@ -11,6 +11,7 @@ export async function saveElevenLabsGenerationAudit(input: {
   projectId?: string;
   storyboardId?: string;
   audioRecordId?: string;
+  videoId?: string;
   requestId?: string;
   characterCost?: number;
   readingMap?: Array<Record<string, unknown>>;
@@ -24,6 +25,7 @@ export async function saveElevenLabsGenerationAudit(input: {
       projectId: input.projectId,
       storyboardId: input.storyboardId,
       audioRecordId: input.audioRecordId,
+      videoId: input.videoId,
       purpose: input.purpose,
       originalScript: input.audit.originalScript,
       displayScript: input.audit.originalScript,
@@ -39,6 +41,7 @@ export async function saveElevenLabsGenerationAudit(input: {
       applyLanguageTextNormalization: input.audit.applyLanguageTextNormalization,
       requestId: input.requestId,
       characterCost: input.characterCost,
+      units: input.characterCost,
       estimatedCost:
         input.characterCost === undefined
           ? undefined
@@ -73,6 +76,7 @@ export async function updateElevenLabsAuditCost(id: string, characterCost: numbe
     .update(elevenLabsGenerationAudits)
     .set({
       characterCost,
+      units: characterCost,
       estimatedCost:
         (characterCost / 1000) * narrationConfig().pricePerThousandCharacters,
     })

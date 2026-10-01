@@ -226,7 +226,9 @@ export async function processFinalRenderJob(
             projectId: row.render.projectId,
             storyboardId: row.render.storyboardId,
             audioRecordId: audio.id,
+            videoId: row.render.id,
             requestId: generated.requestId,
+            characterCost: generated.characterCost,
           });
         const segmentPath = path.join(workDir, `speech-${index}.mp3`);
         await writeFile(segmentPath, generated.bytes);

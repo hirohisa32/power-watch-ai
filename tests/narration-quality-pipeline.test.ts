@@ -23,4 +23,14 @@ describe("narration quality pipeline", () => {
     expect(result.status).toBe("HUMAN_REVIEW");
     expect(result.retryCount).toBe(0);
   });
+
+  it("requires human review for an ending cut or abnormal long silence", async () => {
+    const result = await runNarrationSegmentQualityGate(plan, {
+      synthesize: async () => ({ bytes: new Uint8Array([1]), durationSeconds: 4, units: 10, endedCleanly: false, maxSilenceSeconds: 3 }),
+      transcribe: async () => "へんかくきのオマーン。",
+      assessNaturalness: async () => ({ scores, confidence: 0.95, reasons: [] }),
+    });
+    expect(result.status).toBe("HUMAN_REVIEW");
+    expect(result.reasons).toEqual(expect.arrayContaining(["音声末尾Cut", "不自然な長時間無音"]));
+  });
 });

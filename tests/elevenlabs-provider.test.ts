@@ -8,7 +8,7 @@ describe("ElevenLabs narration adapter", () => {
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = "test-key";
     process.env.ELEVENLABS_DEFAULT_VOICE_ID = "voice-1";
-    process.env.ELEVENLABS_MODEL = "eleven_multilingual_v2";
+    process.env.ELEVENLABS_MODEL = "eleven_v4";
   });
 
   afterEach(() => {
@@ -17,7 +17,7 @@ describe("ElevenLabs narration adapter", () => {
     delete process.env.ELEVENLABS_MODEL;
   });
 
-  it("sends one server-side multilingual TTS request and records character cost", async () => {
+  it("sends one server-side v4 TTS request and records character cost", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(new Uint8Array([1, 2, 3]), {
         status: 200,
@@ -42,11 +42,11 @@ describe("ElevenLabs narration adapter", () => {
     expect(init.headers["xi-api-key"]).toBe("test-key");
     expect(JSON.parse(init.body)).toMatchObject({
       text: "時間は受け継がれる。",
-      model_id: "eleven_multilingual_v2",
+      model_id: "eleven_v4",
       voice_settings: { speed: 1.08, style: 0 },
       apply_text_normalization: "auto",
-      apply_language_text_normalization: true,
     });
+    expect(JSON.parse(init.body)).not.toHaveProperty("apply_language_text_normalization");
     expect(JSON.parse(init.body).text).toBe("時間は受け継がれる。");
   });
 

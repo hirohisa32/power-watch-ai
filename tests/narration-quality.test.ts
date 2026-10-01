@@ -5,12 +5,19 @@ import { classifyNarrationQuality, inspectRecognizedSpeech, retryAdjustment, spl
 const passingScores = { pronunciationAccuracy: 95, naturalness: 90, prosody: 88, pause: 90, sentenceEnding: 92, properNouns: 94, luxuryNarrationFit: 86 };
 
 describe("Japanese narration quality gate", () => {
-  it("splits narration into one or two sentence semantic segments without adding spaces", () => {
+  it("uses unmodified natural Japanese in the v4 standard path", () => {
     const segments = splitJapaneseNarration("1970年代、変革期。国家の物語です。Rolexが選ばれました。", SYSTEM_JAPANESE_READING_DICTIONARY);
     expect(segments).toHaveLength(2);
-    expect(segments[0].ttsInputText).toBe("せんきゅうひゃくななじゅうねんだい、へんかくき。こっかの物語です。");
-    expect(segments[0].ttsInputText).not.toContain(" ");
-    expect(segments[1].ttsInputText).toBe("ロレックスが選ばれました。");
+    expect(segments[0].ttsInputText).toBe("1970年代、変革期。国家の物語です。");
+    expect(segments[0].ttsInputText).toBe(segments[0].displayScript);
+    expect(segments[0].readingMap).toEqual([]);
+    expect(segments[1].ttsInputText).toBe("Rolexが選ばれました。");
+  });
+
+  it("applies the pronunciation dictionary only when explicitly selected as fallback", () => {
+    const [segment] = splitJapaneseNarration("1970年代、変革期。", SYSTEM_JAPANESE_READING_DICTIONARY, 2, 90, [], "pronunciation_dictionary");
+    expect(segment.ttsInputText).toBe("せんきゅうひゃくななじゅうねんだい、へんかくき。");
+    expect(segment.readingMap).toHaveLength(2);
   });
 
   it("passes accurate speech with strong naturalness scores", () => {

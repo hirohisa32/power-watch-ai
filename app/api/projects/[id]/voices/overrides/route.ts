@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { projects, scenes, sceneVoiceAssignments, storyboards } from "@/lib/db/schema";
+import { projects, scenes, sceneVoiceAssignments, storyboards, voicePresets } from "@/lib/db/schema";
 import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 
@@ -31,6 +31,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .where(and(eq(projects.id, id), eq(projects.userId, user.id)))
         .limit(1);
       if (!project) throw new Error("PROJECT_NOT_FOUND");
+      const [approvedVoice] = await transaction
+        .select({ id: voicePresets.id })
+        .from(voicePresets)
+        .where(and(eq(voicePresets.voiceId, input.voiceId), eq(voicePresets.approved, true)))
+        .limit(1);
+      if (!approvedVoice) throw new Error("VOICE_NOT_APPROVED");
       const [storyboard] = await transaction
         .select({ id: storyboards.id })
         .from(storyboards)
@@ -108,6 +114,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Storyboardが見つかりません" }, { status: 404 });
     if (error instanceof Error && error.message === "SPEAKER_NOT_FOUND")
       return NextResponse.json({ error: "指定されたSpeakerが見つかりません" }, { status: 404 });
+    if (error instanceof Error && error.message === "VOICE_NOT_APPROVED")
+      return NextResponse.json({ error: "承認済みVoiceを選択してください" }, { status: 400 });
     return apiError(error, "Voice Overrideを保存できませんでした");
   }
 }

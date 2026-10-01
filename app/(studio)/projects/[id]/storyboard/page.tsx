@@ -5,13 +5,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { assets, projects } from "@/lib/db/schema";
+import { assets, projects, voicePresets } from "@/lib/db/schema";
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
 import { isAdminEmail } from "@/lib/ui/presentation";
 import { FinalRenderPanel } from "./final-render-panel";
 import { StoryboardEditor } from "./storyboard-editor";
+import { NarratorVoiceSelector } from "./narrator-voice-selector";
 
 export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
@@ -33,9 +34,12 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
-  const [generations, renders] = await Promise.all([
+  const [generations, renders, approvedVoices] = await Promise.all([
     listSceneGenerations(id),
     listProjectRenders(id),
+    db.select({ voiceId: voicePresets.voiceId, name: voicePresets.name })
+      .from(voicePresets)
+      .where(eq(voicePresets.approved, true)),
   ]);
   return (
     <main className="content storyboard-page">
@@ -68,6 +72,11 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           completedAt: generation.completedAt?.toISOString() ?? null,
         }))}
         showTechnical={isAdmin}
+      />
+      <NarratorVoiceSelector
+        projectId={id}
+        voices={approvedVoices}
+        initialVoiceId={project.narratorVoiceId}
       />
       <FinalRenderPanel
         projectId={id}

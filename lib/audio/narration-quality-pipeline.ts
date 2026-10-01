@@ -1,7 +1,13 @@
 import type { NarrationSegmentPlan, NarrationQualityScores, NarrationQualityStatus } from "./narration-quality";
 import { classifyNarrationQuality, inspectRecognizedSpeech, retryAdjustment } from "./narration-quality";
 
-export type GeneratedQualityAudio = { bytes: Uint8Array; durationSeconds: number; units: number };
+export type GeneratedQualityAudio = {
+  bytes: Uint8Array;
+  durationSeconds: number;
+  units: number;
+  endedCleanly?: boolean;
+  maxSilenceSeconds?: number;
+};
 export type NaturalnessAssessment = { scores: NarrationQualityScores; confidence: number; reasons: string[] };
 export type QualitySegmentResult = {
   plan: NarrationSegmentPlan;
@@ -29,7 +35,11 @@ export async function runNarrationSegmentQualityGate(plan: NarrationSegmentPlan,
       dependencies.assessNaturalness({ audio: audio.bytes, displayScript: current.displayScript, expectedReading: current.expectedReading }),
     ]);
     const transcript = inspectRecognizedSpeech(current.expectedReading, recognizedSpeech);
-    const decision = classifyNarrationQuality({ transcript, scores: naturalness.scores, confidence: naturalness.confidence, retryCount, reasons: naturalness.reasons });
+    const audioReasons = [
+      ...(audio.endedCleanly === false ? ["音声末尾Cut"] : []),
+      ...((audio.maxSilenceSeconds ?? 0) > 2.5 ? ["不自然な長時間無音"] : []),
+    ];
+    const decision = classifyNarrationQuality({ transcript, scores: naturalness.scores, confidence: naturalness.confidence, retryCount, reasons: [...naturalness.reasons, ...audioReasons] });
     if (decision.status !== "RETRY") return { plan: current, status: decision.status, retryCount, recognizedSpeech, scores: naturalness.scores, confidence: naturalness.confidence, reasons: decision.reasons, audio };
     const adjustment = retryAdjustment(decision.reasons);
     current = {

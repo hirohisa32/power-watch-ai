@@ -26,6 +26,6 @@ describe("context pronunciation", () => {
     expect(safe.nextStep).toBe("regenerate_then_quality_gate");
     expect(unsafe.accepted).toBe(false);
     expect(unsafe.ttsInputText).toBe(display);
-    expect(CONTEXT_TTS_REMEDIATION_ORDER).toEqual(["pronunciation_dictionary", "approved_context_rule", "meaning_preserving_ai_rewrite", "regenerate", "quality_gate"]);
+    expect(CONTEXT_TTS_REMEDIATION_ORDER).toEqual(["v4_natural_text", "pronunciation_dictionary_if_issue", "approved_context_rule_if_issue", "human_review"]);
   });
 });

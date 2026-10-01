@@ -82,9 +82,8 @@ export function acceptContextRewriteCandidate(
 }
 
 export const CONTEXT_TTS_REMEDIATION_ORDER = [
-  "pronunciation_dictionary",
-  "approved_context_rule",
-  "meaning_preserving_ai_rewrite",
-  "regenerate",
-  "quality_gate",
+  "v4_natural_text",
+  "pronunciation_dictionary_if_issue",
+  "approved_context_rule_if_issue",
+  "human_review",
 ] as const;

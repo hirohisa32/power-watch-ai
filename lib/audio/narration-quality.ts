@@ -22,6 +22,8 @@ export type NarrationSegmentPlan = {
   readingMap: JapaneseReadingEntry[];
 };
 
+export type NarrationFallbackMode = "natural" | "pronunciation_dictionary" | "context_rule";
+
 export type TranscriptInspection = {
   accuracy: number;
   missingEnding: boolean;
@@ -42,10 +44,11 @@ const RETRYABLE_REASONS = new Set([
 
 export function splitJapaneseNarration(
   displayScript: string,
-  dictionary: readonly JapaneseReadingEntry[],
+  dictionary: readonly JapaneseReadingEntry[] = [],
   maxSentences = 2,
   maxCharacters = 90,
   contextRules: readonly ContextPronunciationRule[] = [],
+  fallbackMode: NarrationFallbackMode = "natural",
 ): NarrationSegmentPlan[] {
   const sentences = displayScript
     .match(/[^。！？!?]+[。！？!?]?/g)
@@ -66,8 +69,14 @@ export function splitJapaneseNarration(
   }
   if (current) groups.push(current);
   return groups.map((segment, index) => {
-    const context = applyApprovedContextRules(segment, contextRules);
-    const reading = applyJapaneseReadingDictionary(context.ttsInputText, dictionary);
+    // v4の標準経路では自然文を一切書き換えない。辞書とContext Ruleは
+    // Quality Gateで明確な誤読が検出された場合だけ、段階的に使用する。
+    const context = fallbackMode === "context_rule"
+      ? applyApprovedContextRules(segment, contextRules)
+      : { ttsInputText: segment, applied: [] };
+    const reading = fallbackMode === "pronunciation_dictionary"
+      ? applyJapaneseReadingDictionary(segment, dictionary)
+      : { ttsInputText: context.ttsInputText, applied: [] };
     return {
       index,
       displayScript: segment,
@@ -118,8 +127,12 @@ export function classifyNarrationQuality(input: {
 }
 
 export function retryAdjustment(reasons: readonly string[]) {
+  const pronunciationIssue = reasons.some((reason) =>
+    ["読み飛ばし・単語置換", "固有名詞発音", "数字の読み"].includes(reason),
+  );
   return {
-    applyDictionary: reasons.some((reason) => ["読み飛ばし・単語置換", "固有名詞発音", "数字の読み"].includes(reason)),
+    applyDictionary: pronunciationIssue,
+    allowContextRuleAfterDictionary: pronunciationIssue,
     adjustPunctuation: reasons.includes("Pause"),
     preserveDisplayScript: true,
     maxSpeedChangePercent: 3,
