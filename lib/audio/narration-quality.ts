@@ -1,5 +1,6 @@
 import type { JapaneseReadingEntry } from "./japanese-reading";
 import { applyJapaneseReadingDictionary } from "./japanese-reading";
+import { applyApprovedContextRules, type ContextPronunciationRule } from "./context-pronunciation";
 
 export type NarrationQualityStatus = "PASS" | "RETRY" | "HUMAN_REVIEW";
 
@@ -44,6 +45,7 @@ export function splitJapaneseNarration(
   dictionary: readonly JapaneseReadingEntry[],
   maxSentences = 2,
   maxCharacters = 90,
+  contextRules: readonly ContextPronunciationRule[] = [],
 ): NarrationSegmentPlan[] {
   const sentences = displayScript
     .match(/[^。！？!?]+[。！？!?]?/g)
@@ -64,13 +66,14 @@ export function splitJapaneseNarration(
   }
   if (current) groups.push(current);
   return groups.map((segment, index) => {
-    const reading = applyJapaneseReadingDictionary(segment, dictionary);
+    const context = applyApprovedContextRules(segment, contextRules);
+    const reading = applyJapaneseReadingDictionary(context.ttsInputText, dictionary);
     return {
       index,
       displayScript: segment,
       ttsInputText: reading.ttsInputText,
       expectedReading: reading.ttsInputText,
-      readingMap: reading.applied,
+      readingMap: [...context.applied.map((rule) => ({ display: rule.displayPattern, reading: rule.ttsTemplate, source: "human" as const })), ...reading.applied],
     };
   });
 }

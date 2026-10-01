@@ -419,6 +419,49 @@ export const japaneseReadingDictionary = pgTable(
   ],
 );
 
+export const contextPronunciationRules = pgTable(
+  "context_pronunciation_rules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    targetTerm: text("target_term").notNull(),
+    displayPattern: text("display_pattern").notNull(),
+    ttsTemplate: text("tts_template").notNull(),
+    problem: text("problem").notNull(),
+    semanticPolicy: text("semantic_policy").default("same_meaning_only").notNull(),
+    status: text("status").default("pending").notNull(),
+    source: text("source").default("human_calibration").notNull(),
+    approvedVoiceId: text("approved_voice_id"),
+    notes: text("notes"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("context_pronunciation_rules_scope_unique").on(table.projectId, table.displayPattern, table.ttsTemplate),
+    index("context_pronunciation_rules_lookup_idx").on(table.status, table.targetTerm),
+  ],
+);
+
+export const pronunciationCalibrationResults = pgTable(
+  "pronunciation_calibration_results",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    targetTerm: text("target_term").notNull(),
+    voiceId: text("voice_id").notNull(),
+    testId: text("test_id").notNull(),
+    displayScript: text("display_script").notNull(),
+    ttsInputText: text("tts_input_text").notNull(),
+    verdict: text("verdict").notNull(),
+    humanNotes: text("human_notes").notNull(),
+    calibratedAt: timestamp("calibrated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("pronunciation_calibration_result_unique").on(table.targetTerm, table.voiceId, table.testId),
+    index("pronunciation_calibration_target_idx").on(table.targetTerm, table.calibratedAt),
+  ],
+);
+
 export const narrationQualityRuns = pgTable(
   "narration_quality_runs",
   {
