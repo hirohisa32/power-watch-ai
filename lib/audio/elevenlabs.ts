@@ -49,6 +49,7 @@ export type ElevenLabsGenerationInput = {
   originalScript?: string;
   speed: number;
   voiceId?: string;
+  model?: "eleven_multilingual_v2" | "eleven_v4";
   language?: ElevenLabsLanguage;
   seed?: number;
 };
@@ -105,7 +106,7 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
     const voiceId = input.voiceId || config.defaultVoiceId;
     if (!config.apiKey || !voiceId)
       throw new ElevenLabsError("AUTH", "ElevenLabsの設定が不足しています");
-    const request = buildElevenLabsRequest(input, voiceId, config.model);
+    const request = buildElevenLabsRequest(input, voiceId, input.model ?? config.model);
     let response: Response;
     try {
       response = await this.fetcher(request.url, {

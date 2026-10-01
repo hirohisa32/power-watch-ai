@@ -60,6 +60,13 @@ describe("ElevenLabs narration adapter", () => {
     } satisfies Partial<ElevenLabsError>);
   });
 
+  it("allows an audited v4 override without changing voice settings", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200, headers: { "character-cost": "10" } }));
+    await new ElevenLabsNarrationProvider(fetcher).generate({ text: "同一文章です。", speed: 1, model: "eleven_v4", language: "ja" });
+    const body = JSON.parse(fetcher.mock.calls[0][1].body);
+    expect(body).toMatchObject({ model_id: "eleven_v4", language_code: "ja", voice_settings: { stability: 0.58, similarity_boost: 0.76, style: 0, use_speaker_boost: true, speed: 1 } });
+  });
+
   it("maps Voice Library results without generating audio", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       Response.json({
