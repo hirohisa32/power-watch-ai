@@ -9,7 +9,7 @@ import { uploadPrivateObject } from "@/lib/storage";
 import { isAdminEmail } from "@/lib/ui/presentation";
 
 export const maxDuration = 120;
-const SOURCE_SHA256 = "5e1a1ada469f76c450c4cdf789bd1d0e59f0d252735456c0c4e1bbe254957476";
+const SOURCE_SHA256 = "f715a075a1e0de37dfde471e0ab1a7fdabff1244e85797a0f5657fb8cd8f2e63";
 
 export async function POST(request: Request) {
   let renderId: string | undefined;
@@ -32,13 +32,24 @@ export async function POST(request: Request) {
       projectId: project.id, storyboardId: storyboard.id, audioRecordId: audio.id,
       version: (latest?.version ?? 0) + 1, status: "rendering", width: 1080, height: 1920, fps: 30,
       durationMs: 61570, bgmKey: "journey-begins", estimatedCost: 0,
-      renderInput: { sourceSha256: SOURCE_SHA256, source: "client-final-human-approved-local-render", narrationRegenerated: false, voiceId: "Bj4Malc5SZLoXfPtxRxH", model: "eleven_v4", historicalMode: "approved-production-assets-stylized-keyframes", runwayNewCredits: 0 },
+      renderInput: {
+        sourceSha256: SOURCE_SHA256,
+        source: "client-final-motion-upgrade",
+        narrationRegenerated: false,
+        voiceId: "Bj4Malc5SZLoXfPtxRxH",
+        model: "eleven_v4",
+        historicalMode: "approved-production-runway-motion",
+        productMode: "identity-locked-depth-motion",
+        runwayNewCredits: 0,
+        runwayReusedCredits: 300,
+        changedScenes: ["oman", "qaboos-era", "diplomacy", "asprey", "gift-preparation", "gift-delivery", "watch-reveal", "watch-lift", "reaction", "dial-macro", "khanjar-focus", "outer-caseback", "serial-5082955", "movement", "side-crown", "bracelet-clasp", "product-hero"],
+      },
     }).returning();
     renderId = render.id;
-    const media = await fetch(new URL("/client-final/gold-khanjar-client-final.mp4", request.url));
+    const media = await fetch(new URL("/client-final/gold-khanjar-motion-final.mp4", request.url));
     if (!media.ok) throw new Error(`Final MP4取得失敗: ${media.status}`);
     const bytes = new Uint8Array(await media.arrayBuffer());
-    if (bytes.length !== 28_228_019) throw new Error(`Final MP4 size mismatch: ${bytes.length}`);
+    if (bytes.length !== 42_819_831) throw new Error(`Final MP4 size mismatch: ${bytes.length}`);
     const objectKey = `projects/${project.id}/renders/${render.id}.mp4`;
     await uploadPrivateObject(objectKey, bytes, "video/mp4");
     await db.update(finalRenders).set({ status: "completed", outputObjectKey: objectKey, completedAt: new Date(), updatedAt: new Date() }).where(eq(finalRenders.id, render.id));
@@ -49,4 +60,3 @@ export async function POST(request: Request) {
   }
 }
 function result(id: string, reused: boolean) { return { renderId: id, status: "completed", reused, previewUrl: `/api/renders/${id}/video`, downloadUrl: `/api/renders/${id}/download` }; }
-
