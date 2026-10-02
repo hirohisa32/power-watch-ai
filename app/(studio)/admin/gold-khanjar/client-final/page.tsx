@@ -1,5 +1,5 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { HistoricalGenerator } from "./client";
+import { HistoricalGenerator, PublishFinal } from "./client";
 import { getDb } from "@/lib/db";
 import { audioRecords, projects, scenes as sceneTable, videoGenerations } from "@/lib/db/schema";
 import { GOLD_KHANJAR_TITLE } from "@/lib/demo/gold-khanjar";
@@ -17,6 +17,7 @@ export default async function ClientFinalPage() {
   const existingHistorical = await Promise.all(existingScenes.filter((item) => item.order >= 6 && item.order <= 10 && item.objectKey).map(async (item) => ({ ...item, url: await createReadUrl(item.objectKey!, 3600, "inline") })));
   const assets = await Promise.all(scenes.map(async (scene) => ({ scene, url: await privateObjectExists(`${prefix}/${scene}.mp4`) ? await createReadUrl(`${prefix}/${scene}.mp4`, 3600, "inline") : null })));
   return <main className="page-shell"><div className="page-heading"><div><p className="eyebrow">管理者専用</p><h1>Gold Khanjar Client Final</h1><p>承認済みNarrationを再生成せず、Historical 6 ShotだけをProduction Runwayで管理します。</p></div></div>
+    <section className="panel"><h2>Client Final Production登録</h2><p>61.57秒 / 1080×1920 / H.264 / AAC Stereo</p><PublishFinal /></section>
     <section className="panel"><h2>承認済みNarration</h2>{narrationUrl ? <a className="btn" href={narrationUrl}>ElevenLabs v4 / Voice Aを取得</a> : <p>承認済みNarrationが見つかりません。</p>}</section>
     <section className="panel"><h2>Historical Scene生成</h2><HistoricalGenerator /></section>
     <section className="panel"><h2>R2完成Asset</h2><div className="admin-table">{assets.map(({scene, url}) => <div key={scene}><span>{scene}</span><span>{url ? <a className="btn btn-secondary" href={url}>署名付きMP4</a> : "未回収"}</span></div>)}</div></section>
