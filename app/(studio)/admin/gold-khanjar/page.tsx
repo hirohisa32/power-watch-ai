@@ -12,6 +12,7 @@ export default function GoldKhanjarAdminPage() {
         <p>元時計Reference、Stylized Master、Character × Watch Previewを比較します。</p>
         <Link className="btn btn-secondary" href="/admin/gold-khanjar/character-watch">Character × Watchを確認</Link>
         <Link className="btn btn-secondary" href="/admin/gold-khanjar/shot-previews">Shot 1 / Shot 4を確認</Link>
+        <Link className="btn btn-secondary" href="/admin/gold-khanjar/client-final">Client Final制作</Link>
       </section>
       <GoldKhanjarSetup />
     </main>
