@@ -9,7 +9,7 @@ import { uploadPrivateObject } from "@/lib/storage";
 import { isAdminEmail } from "@/lib/ui/presentation";
 
 export const maxDuration = 120;
-const SOURCE_SHA256 = "f715a075a1e0de37dfde471e0ab1a7fdabff1244e85797a0f5657fb8cd8f2e63";
+const SOURCE_SHA256 = "c6bdae5ea21baa085a1ab97fe8fcb2cfb75c55b4530af70c6497846e07535e27";
 
 export async function POST(request: Request) {
   let renderId: string | undefined;
@@ -34,22 +34,23 @@ export async function POST(request: Request) {
       durationMs: 61570, bgmKey: "journey-begins", estimatedCost: 0,
       renderInput: {
         sourceSha256: SOURCE_SHA256,
-        source: "client-final-motion-upgrade",
+        source: "client-final-meaning-based-v2",
         narrationRegenerated: false,
         voiceId: "Bj4Malc5SZLoXfPtxRxH",
         model: "eleven_v4",
-        historicalMode: "approved-production-runway-motion",
+        historicalMode: "character-anchor-production-runway",
         productMode: "identity-locked-depth-motion",
-        runwayNewCredits: 0,
-        runwayReusedCredits: 300,
-        changedScenes: ["oman", "qaboos-era", "diplomacy", "asprey", "gift-preparation", "gift-delivery", "watch-reveal", "watch-lift", "reaction", "dial-macro", "khanjar-focus", "outer-caseback", "serial-5082955", "movement", "side-crown", "bracelet-clasp", "product-hero"],
+        runwayNewCredits: 540,
+        runwayReusedCredits: 0,
+        characterAnchors: ["CHAR_01", "CHAR_02", "CHAR_03_HANDS_ONLY"],
+        changedScenes: ["story-entry-oman", "qaboos-letter", "oman-uk", "asprey-london", "gift-preparation", "gift-reception", "watch-reveal", "watch-lift", "character-reaction", "dial-macro", "khanjar-focus", "outer-caseback", "serial-5082955", "movement", "side-crown", "bracelet-clasp", "product-hero"],
       },
     }).returning();
     renderId = render.id;
     const media = await fetch(new URL("/client-final/gold-khanjar-motion-final.mp4", request.url));
     if (!media.ok) throw new Error(`Final MP4取得失敗: ${media.status}`);
     const bytes = new Uint8Array(await media.arrayBuffer());
-    if (bytes.length !== 42_819_831) throw new Error(`Final MP4 size mismatch: ${bytes.length}`);
+    if (bytes.length !== 50_258_046) throw new Error(`Final MP4 size mismatch: ${bytes.length}`);
     const objectKey = `projects/${project.id}/renders/${render.id}.mp4`;
     await uploadPrivateObject(objectKey, bytes, "video/mp4");
     await db.update(finalRenders).set({ status: "completed", outputObjectKey: objectKey, completedAt: new Date(), updatedAt: new Date() }).where(eq(finalRenders.id, render.id));
