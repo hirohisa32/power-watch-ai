@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-const scenes = ["01-oman-establishing", "02-qaboos-era", "03-diplomacy", "04-london-jeweller", "05-gift-preparation", "06-gift-delivery"];
+const scenes = ["01-story-entry-oman", "02-qaboos-letter", "03-oman-uk", "04-asprey-london", "05-gift-preparation", "06-gift-reception", "07-character-reaction"];
 
 export function HistoricalGenerator() {
   const [status, setStatus] = useState<Record<string, string>>({});
