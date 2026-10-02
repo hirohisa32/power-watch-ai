@@ -5,13 +5,14 @@ const scenes = ["01-story-entry-oman", "02-qaboos-letter", "03-oman-uk", "04-asp
 
 export function HistoricalGenerator() {
   const [status, setStatus] = useState<Record<string, string>>({});
-  async function run(scene: string) {
-    setStatus((old) => ({ ...old, [scene]: "送信中" }));
-    const response = await fetch("/api/admin/demo/gold-khanjar/client-final-historical", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scene }) });
+  async function run(scene: string, retry = false) {
+    const key = retry ? `${scene}-retry` : scene;
+    setStatus((old) => ({ ...old, [key]: "送信中" }));
+    const response = await fetch("/api/admin/demo/gold-khanjar/client-final-historical", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scene, retry }) });
     const body = await response.json();
-    setStatus((old) => ({ ...old, [scene]: body.status ?? body.detail ?? body.error ?? `HTTP ${response.status}` }));
+    setStatus((old) => ({ ...old, [key]: body.status ?? body.detail ?? body.error ?? `HTTP ${response.status}` }));
   }
-  return <div className="admin-table">{scenes.map((scene) => <div key={scene}><span>{scene}<small>{status[scene] ?? "未確認"}</small></span><span><button className="btn btn-secondary" onClick={() => run(scene)}>生成／状態更新</button> <a className="btn btn-secondary" href={`/api/admin/demo/gold-khanjar/client-final-historical?scene=${scene}`} target="_blank" rel="noreferrer">Preview</a></span></div>)}</div>;
+  return <div className="admin-table">{scenes.map((scene) => <div key={scene}><span>{scene}<small>{status[scene] ?? "未確認"}</small>{(scene === "02-qaboos-letter" || scene === "07-character-reaction") && <small>再生成: {status[`${scene}-retry`] ?? "未実行"}</small>}</span><span><button className="btn btn-secondary" onClick={() => run(scene)}>生成／状態更新</button> {(scene === "02-qaboos-letter" || scene === "07-character-reaction") && <button className="btn btn-secondary" onClick={() => run(scene, true)}>失敗条件変更で再生成</button>} <a className="btn btn-secondary" href={`/api/admin/demo/gold-khanjar/client-final-historical?scene=${scene}`} target="_blank" rel="noreferrer">Preview</a></span></div>)}</div>;
 }
 
 export function PublishFinal() {

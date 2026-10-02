@@ -22,7 +22,10 @@ type SceneId = keyof typeof SCENES;
 type TaskRecord = { taskId: string; status: "submitted" | "completed" | "failed"; estimatedCredits: number; actualCredits?: number; submittedAt: string; completedAt?: string; failure?: string };
 
 function sceneId(value: unknown): SceneId | null { return typeof value === "string" && value in SCENES ? value as SceneId : null; }
-function keys(id: SceneId) { return { video: `${PREFIX}/${id}.mp4`, task: `${PREFIX}/${id}.json` }; }
+function keys(id: SceneId, retry = false) {
+  const name = retry ? `${id}-retry-1` : id;
+  return { video: `${PREFIX}/${name}.mp4`, task: `${PREFIX}/${name}.json` };
+}
 async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
@@ -35,7 +38,8 @@ export async function GET(request: Request) {
     const denied = await requireAdmin(); if (denied) return denied;
     const id = sceneId(new URL(request.url).searchParams.get("scene"));
     if (!id) return NextResponse.json({ error: "Scene指定が不正です" }, { status: 400 });
-    const target = keys(id);
+    const retry = new URL(request.url).searchParams.get("retry") === "1";
+    const target = keys(id, retry);
     if (!(await privateObjectExists(target.video))) return NextResponse.json({ error: "未生成です" }, { status: 404 });
     return NextResponse.redirect(await createReadUrl(target.video, 3600, "inline"));
   } catch (error) { return apiError(error, "Story Sceneを取得できませんでした"); }
@@ -46,35 +50,39 @@ export async function POST(request: Request) {
     await assertSameOrigin(request);
     const denied = await requireAdmin(); if (denied) return denied;
     if (!process.env.RUNWAY_API_KEY) return NextResponse.json({ error: "Production RUNWAY_API_KEYが設定されていません" }, { status: 409 });
-    const id = sceneId((await request.json() as { scene?: string }).scene);
+    const body = await request.json() as { scene?: string; retry?: boolean };
+    const id = sceneId(body.scene);
     if (!id) return NextResponse.json({ error: "Scene指定が不正です" }, { status: 400 });
-    const target = keys(id);
+    const retry = body.retry === true;
+    if (retry && id !== "02-qaboos-letter" && id !== "07-character-reaction") return NextResponse.json({ error: "再生成対象ではありません" }, { status: 400 });
+    const target = keys(id, retry);
     const provider = new RunwayVideoProvider();
     const record = await readRecord(target.task);
-    if (record?.status === "completed" && await privateObjectExists(target.video)) return NextResponse.json(response(id, record, true));
-    if (record?.status === "failed") return NextResponse.json(response(id, record, true), { status: 409 });
+    if (record?.status === "completed" && await privateObjectExists(target.video)) return NextResponse.json(response(id, record, true, retry));
+    if (record?.status === "failed") return NextResponse.json(response(id, record, true, retry), { status: 409 });
     if (record) {
       const status = await provider.getStatus(record.taskId);
-      if (status.status === "pending" || status.status === "running") return NextResponse.json({ ...response(id, record, true), status: status.status, progress: status.status === "running" ? status.progress : undefined }, { status: 202 });
+      if (status.status === "pending" || status.status === "running") return NextResponse.json({ ...response(id, record, true, retry), status: status.status, progress: status.status === "running" ? status.progress : undefined }, { status: 202 });
       if (status.status === "failed" || status.status === "canceled") {
         const failed: TaskRecord = { ...record, status: "failed", actualCredits: status.actualCostCredits, completedAt: new Date().toISOString(), failure: status.message };
         await writeRecord(target.task, failed);
-        return NextResponse.json(response(id, failed, true), { status: 409 });
+        return NextResponse.json(response(id, failed, true, retry), { status: 409 });
       }
       const output = await fetch(status.outputUrl);
       if (!output.ok) throw new Error(`Runway動画取得に失敗しました: ${output.status}`);
       await uploadPrivateObject(target.video, new Uint8Array(await output.arrayBuffer()), "video/mp4");
       const completed: TaskRecord = { ...record, status: "completed", actualCredits: status.actualCostCredits ?? record.estimatedCredits, completedAt: new Date().toISOString() };
       await writeRecord(target.task, completed);
-      return NextResponse.json(response(id, completed, true));
+      return NextResponse.json(response(id, completed, true, retry));
     }
     const referenceImageUrl = new URL(`/client-final/gold-khanjar-v2/keyframes/${SCENES[id].image}`, request.url).toString();
-    const generation = await provider.generate({ model: "gen4.5", prompt: SCENES[id].prompt, duration: 5, ratio: "720:1280", referenceImageUrl });
+    const retryConstraint = retry ? " STRICT FAILURE CORRECTION: keep the lips, mouth and jaw completely closed and motionless for the entire shot. Do not animate speech or facial expression. Animate only a tiny eye movement, one subtle blink, slight breathing below the shoulders, and the camera. Preserve the reference face exactly." : "";
+    const generation = await provider.generate({ model: "gen4.5", prompt: `${SCENES[id].prompt}${retryConstraint}`, duration: 5, ratio: "720:1280", referenceImageUrl });
     const estimatedCredits = generation.estimatedCostCredits ?? 60;
     if (estimatedCredits > 60) { await provider.cancel?.(generation.taskId); throw new Error(`推定${estimatedCredits} creditsのためScene上限60を超えました`); }
     const submitted: TaskRecord = { taskId: generation.taskId, status: "submitted", estimatedCredits, submittedAt: new Date().toISOString() };
     await writeRecord(target.task, submitted);
-    return NextResponse.json(response(id, submitted, false), { status: 202 });
+    return NextResponse.json(response(id, submitted, false, retry), { status: 202 });
   } catch (error) {
     console.error("Gold Khanjar story generation failed", error);
     return NextResponse.json({ error: "Story Sceneを生成できませんでした", detail: error instanceof Error ? error.message : "unknown" }, { status: 500 });
@@ -83,4 +91,4 @@ export async function POST(request: Request) {
 
 async function readRecord(key: string) { if (!(await privateObjectExists(key))) return null; return JSON.parse(new TextDecoder().decode(await readPrivateObject(key))) as TaskRecord; }
 async function writeRecord(key: string, record: TaskRecord) { await uploadPrivateObject(key, new TextEncoder().encode(JSON.stringify(record)), "application/json"); }
-function response(id: SceneId, record: TaskRecord, reused: boolean) { return { scene: id, status: record.status, model: "gen4.5", durationSeconds: 5, estimatedCredits: record.estimatedCredits, actualCredits: record.actualCredits, submittedAt: record.submittedAt, completedAt: record.completedAt, failure: record.failure, reused, previewUrl: `/api/admin/demo/gold-khanjar/client-final-historical?scene=${id}` }; }
+function response(id: SceneId, record: TaskRecord, reused: boolean, retry = false) { return { scene: id, retry, status: record.status, model: "gen4.5", durationSeconds: 5, estimatedCredits: record.estimatedCredits, actualCredits: record.actualCredits, submittedAt: record.submittedAt, completedAt: record.completedAt, failure: record.failure, reused, previewUrl: `/api/admin/demo/gold-khanjar/client-final-historical?scene=${id}${retry ? "&retry=1" : ""}` }; }
