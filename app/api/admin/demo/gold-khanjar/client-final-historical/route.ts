@@ -77,10 +77,15 @@ export async function POST(request: Request) {
     const submitted: TaskRecord = { taskId: generation.taskId, status: "submitted", estimatedCredits, submittedAt: new Date().toISOString() };
     await writeRecord(target.task, submitted);
     return NextResponse.json(response(id, submitted, false), { status: 202 });
-  } catch (error) { return apiError(error, "Historical Sceneを生成できませんでした"); }
+  } catch (error) {
+    console.error("Gold Khanjar historical generation failed", error);
+    return NextResponse.json(
+      { error: "Historical Sceneを生成できませんでした", detail: error instanceof Error ? error.message : "unknown" },
+      { status: 500 },
+    );
+  }
 }
 
 async function readRecord(key: string) { if (!(await privateObjectExists(key))) return null; return JSON.parse(new TextDecoder().decode(await readPrivateObject(key))) as TaskRecord; }
 async function writeRecord(key: string, record: TaskRecord) { await uploadPrivateObject(key, new TextEncoder().encode(JSON.stringify(record)), "application/json"); }
 function response(id: SceneId, record: TaskRecord, reused: boolean) { return { scene: id, status: record.status, model: "gen4.5", durationSeconds: 5, estimatedCredits: record.estimatedCredits, actualCredits: record.actualCredits, submittedAt: record.submittedAt, completedAt: record.completedAt, failure: record.failure, reused, previewUrl: `/api/admin/demo/gold-khanjar/client-final-historical?scene=${id}` }; }
-
