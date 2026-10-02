@@ -9,8 +9,7 @@ export function HistoricalGenerator() {
     setStatus((old) => ({ ...old, [scene]: "送信中" }));
     const response = await fetch("/api/admin/demo/gold-khanjar/client-final-historical", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scene }) });
     const body = await response.json();
-    setStatus((old) => ({ ...old, [scene]: body.status ?? body.error ?? `HTTP ${response.status}` }));
+    setStatus((old) => ({ ...old, [scene]: body.status ?? body.detail ?? body.error ?? `HTTP ${response.status}` }));
   }
   return <div className="admin-table">{scenes.map((scene) => <div key={scene}><span>{scene}<small>{status[scene] ?? "未確認"}</small></span><span><button className="btn btn-secondary" onClick={() => run(scene)}>生成／状態更新</button> <a className="btn btn-secondary" href={`/api/admin/demo/gold-khanjar/client-final-historical?scene=${scene}`} target="_blank" rel="noreferrer">Preview</a></span></div>)}</div>;
 }
-
