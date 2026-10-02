@@ -11,6 +11,7 @@ export default function GoldKhanjarAdminPage() {
         <h2>Human Quality Gate</h2>
         <p>元時計Reference、Stylized Master、Character × Watch Previewを比較します。</p>
         <Link className="btn btn-secondary" href="/admin/gold-khanjar/character-watch">Character × Watchを確認</Link>
+        <Link className="btn btn-secondary" href="/admin/gold-khanjar/shot-previews">Shot 1 / Shot 4を確認</Link>
       </section>
       <GoldKhanjarSetup />
     </main>

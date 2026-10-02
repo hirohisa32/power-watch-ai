@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   poweredByHeader: false,
   outputFileTracingIncludes: {
     "/api/admin/voice-preview": ["./.vercel-build-assets/**/*"],
     "/api/admin/demo/gold-khanjar/character-watch": ["./assets/gold-khanjar-preview/**/*"],
+    "/api/admin/demo/gold-khanjar/shot-previews": ["./assets/gold-khanjar-preview/**/*"],
     "/api/queues/final-render": [
       "./.vercel-build-assets/**/*",
       "./assets/opening/opening-master.mp4",
