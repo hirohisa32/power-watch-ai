@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -28,7 +28,17 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     .from(storyboards)
     .where(and(eq(storyboards.projectId, project.id), eq(storyboards.isActive, true)))
     .limit(1);
-  const [completedRender] = await db.select({ id: finalRenders.id, width: finalRenders.width, height: finalRenders.height, durationMs: finalRenders.durationMs }).from(finalRenders).where(and(eq(finalRenders.projectId, id), eq(finalRenders.status, "completed"))).limit(1);
+  const [completedRender] = await db
+    .select({
+      id: finalRenders.id,
+      width: finalRenders.width,
+      height: finalRenders.height,
+      durationMs: finalRenders.durationMs,
+    })
+    .from(finalRenders)
+    .where(and(eq(finalRenders.projectId, id), eq(finalRenders.status, "completed")))
+    .orderBy(desc(finalRenders.version), desc(finalRenders.createdAt))
+    .limit(1);
   return (
     <main className="content">
       <div className="page-head">
