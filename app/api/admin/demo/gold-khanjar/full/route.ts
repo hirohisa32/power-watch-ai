@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   if (scene && await privateObjectExists(sceneKey(scene))) return NextResponse.redirect(await createReadUrl(sceneKey(scene), 3600, "inline"));
   if (url.searchParams.get("asset") === "narration" && await privateObjectExists(narrationKey())) return NextResponse.redirect(await createReadUrl(narrationKey(), 3600, "inline"));
   const render = await existingRender();
-  return NextResponse.json({ scenes: await sceneResults(), narrationReady: await privateObjectExists(narrationKey()), render: render ? renderResult(render.id, true) : null });
+  return NextResponse.json({ scenes: await sceneResults(), narrationReady: await privateObjectExists(narrationKey()), productsReady: await productMotionsReady(), render: render ? renderResult(render.id, true) : null });
 }
 
 export async function POST(request: Request) {
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
     const body = await request.json() as { action?: string };
     if (body.action === "start") return start(request);
     if (body.action === "poll") return poll();
+    if (body.action === "prepare-products") return prepareProductMotions();
     if (body.action === "render") return renderFull();
     return NextResponse.json({ error: "操作が不正です" }, { status: 400 });
   } catch (error) {
@@ -100,11 +101,28 @@ async function poll() {
     await writeTask(id, record);
   }
   const scenes = await sceneResults();
-  return NextResponse.json({ scenes, allCompleted: scenes.every((item) => item.status === "completed") });
+  return NextResponse.json({ scenes, allCompleted: scenes.every((item) => item.status === "completed"), productsReady: await productMotionsReady() });
+}
+
+async function prepareProductMotions() {
+  const work = await mkdtemp(path.join(tmpdir(), "gold-khanjar-products-"));
+  try {
+    for (const [index, product] of GOLD_KHANJAR_PRODUCT_SCENES.entries()) {
+      const objectKey = productMotionKey(product.id);
+      if (await privateObjectExists(objectKey)) continue;
+      const output = path.join(work, `product-${index}.mp4`);
+      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 5, "ultrafast");
+      await uploadPrivateObject(objectKey, new Uint8Array(await readFile(output)), "video/mp4");
+    }
+    return NextResponse.json({ productsReady: true });
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
 }
 
 async function renderFull() {
   const existing = await existingRender(); if (existing) return NextResponse.json(renderResult(existing.id, true));
+  if (!(await productMotionsReady())) return NextResponse.json({ error: "Product Motionの事前準備が未完了です" }, { status: 409 });
   for (const id of Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]) if (!(await privateObjectExists(sceneKey(id)))) return NextResponse.json({ error: `${id}が未完成です` }, { status: 409 });
   const context = await productionContext();
   const narration = await latestNarration(context.project.id); if (!narration?.objectKey || !narration.durationMs) return NextResponse.json({ error: "全編Narrationが未完成です" }, { status: 409 });
@@ -114,16 +132,12 @@ async function renderFull() {
   const endingAsset = await selectedSystemAsset(context.project.endingAssetId, "ending");
   const [latest] = await getDb().select({ version: finalRenders.version }).from(finalRenders).where(eq(finalRenders.projectId, context.project.id)).orderBy(desc(finalRenders.version)).limit(1);
   const totalDuration = GOLD_KHANJAR_FULL_BODY_DURATION + (openingAsset?.duration ?? 0) + (endingAsset?.duration ?? 0);
-  const [render] = await getDb().insert(finalRenders).values({ projectId: context.project.id, storyboardId: context.storyboard.id, audioRecordId: narration.id, version: (latest?.version ?? 0) + 1, status: "rendering", width: 1080, height: 1920, fps: 30, durationMs: Math.round(totalDuration * 1000), bgmKey: bgm.key, estimatedCost: 0, renderInput: { purpose: "gold-khanjar-refined-final-v3", openingAsset, endingAsset, voiceId: GOLD_KHANJAR_FULL_VOICE, model: GOLD_KHANJAR_FULL_MODEL, approvedQuarterReused: true, originalProductPhotosOnly: true, sceneCount: 9, endingBgmContinuation: true } }).returning();
+  const [render] = await getDb().insert(finalRenders).values({ projectId: context.project.id, storyboardId: context.storyboard.id, audioRecordId: narration.id, version: (latest?.version ?? 0) + 1, status: "rendering", width: 1080, height: 1920, fps: 30, durationMs: Math.round(totalDuration * 1000), bgmKey: bgm.key, estimatedCost: 0, renderInput: { purpose: "gold-khanjar-refined-final-v4", openingAsset, endingAsset, voiceId: GOLD_KHANJAR_FULL_VOICE, model: GOLD_KHANJAR_FULL_MODEL, approvedQuarterReused: true, originalProductPhotosOnly: true, sceneCount: 9, endingBgmContinuation: true, productMotionCache: true } }).returning();
   const work = await mkdtemp(path.join(tmpdir(), "gold-khanjar-full-"));
   try {
     const videos: string[] = [];
     for (const [index, id] of GOLD_KHANJAR_REFINED_STORY_SCENES.entries()) { const file = path.join(work, `story-${index}.mp4`); await writeFile(file, await readPrivateObject(sceneKey(id))); videos.push(file); }
-    for (const [index, product] of GOLD_KHANJAR_PRODUCT_SCENES.entries()) {
-      const output = path.join(work, `product-${index}.mp4`);
-      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 5, "ultrafast");
-      videos.push(output);
-    }
+    for (const [index, product] of GOLD_KHANJAR_PRODUCT_SCENES.entries()) { const file = path.join(work, `product-${index}.mp4`); await writeFile(file, await readPrivateObject(productMotionKey(product.id))); videos.push(file); }
     const narrationFile = path.join(work, "narration.mp3"); await writeFile(narrationFile, await readPrivateObject(narration.objectKey));
     const bgmFile = path.join(work, `bgm${path.extname(bgm.filePath) || ".mp3"}`); await writeFile(bgmFile, await readPrivateObject(bgm.filePath));
     const openingFile = openingAsset ? path.join(work, "opening.mp4") : undefined; if (openingAsset && openingFile) await writeFile(openingFile, await readPrivateObject(openingAsset.storagePath));
@@ -133,8 +147,8 @@ async function renderFull() {
     const subtitleFile = path.join(work, "subtitles.ass"); await writeFile(subtitleFile, createAssSubtitles(input), "utf8");
     const baseOutput = path.join(work, "gold-khanjar-refined-base.mp4");
     const output = path.join(work, "gold-khanjar-refined-final.mp4");
-    // Vercel's five-minute ceiling includes product-motion preparation. The
-    // ultrafast encoder keeps CRF 18/image fidelity while avoiding a timeout.
+    // Product-motion preparation is cached separately so this render remains
+    // inside Vercel's five-minute ceiling without reducing CRF/image fidelity.
     await renderWithFfmpeg(input, { opening: openingFile, ending: endingFile, videos, narration: narrationFile, bgm: bgmFile, subtitles: subtitleFile, output: baseOutput }, undefined, "ultrafast", false);
     if (endingAsset) await continueBgmThroughEnding({ video: baseOutput, bgm: bgmFile, output, openingDuration: openingAsset?.duration ?? 0, bodyDuration: GOLD_KHANJAR_FULL_BODY_DURATION, endingDuration: endingAsset.duration });
     else await copyFile(baseOutput, output);
@@ -195,7 +209,9 @@ function taskKey(id: GoldKhanjarStorySceneId) { return `${GOLD_KHANJAR_FULL_PREF
 async function readTask(id: GoldKhanjarStorySceneId) { if (!(await privateObjectExists(taskKey(id)))) return null; return JSON.parse(new TextDecoder().decode(await readPrivateObject(taskKey(id)))) as TaskRecord; }
 async function writeTask(id: GoldKhanjarStorySceneId, record: TaskRecord) { await uploadPrivateObject(taskKey(id), new TextEncoder().encode(JSON.stringify(record)), "application/json"); }
 async function sceneResults() { return Promise.all((Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]).map(async (id) => { const scene = GOLD_KHANJAR_STORY_SCENES[id]; if (scene.source === "approved-quarter") return { id, status: await privateObjectExists(sceneKey(id)) ? "completed" : "missing", reused: true, credits: 0 }; const task = await readTask(id); return { id, status: task?.status ?? "missing", reused: false, credits: task?.actualCredits ?? task?.estimatedCredits ?? 0, failure: task?.failure, previewUrl: task?.status === "completed" ? `/api/admin/demo/gold-khanjar/full?scene=${id}` : null }; })); }
-async function existingRender() { const context = await productionContext(); return (await getDb().select().from(finalRenders).where(and(eq(finalRenders.projectId, context.project.id), eq(finalRenders.status, "completed"))).orderBy(desc(finalRenders.createdAt)).limit(40)).find((item) => (item.renderInput as { purpose?: string }).purpose === "gold-khanjar-refined-final-v3"); }
+async function existingRender() { const context = await productionContext(); return (await getDb().select().from(finalRenders).where(and(eq(finalRenders.projectId, context.project.id), eq(finalRenders.status, "completed"))).orderBy(desc(finalRenders.createdAt)).limit(40)).find((item) => (item.renderInput as { purpose?: string }).purpose === "gold-khanjar-refined-final-v4"); }
+function productMotionKey(id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-products/v1/${id}.mp4`; }
+async function productMotionsReady() { return (await Promise.all(GOLD_KHANJAR_PRODUCT_SCENES.map((item) => privateObjectExists(productMotionKey(item.id))))).every(Boolean); }
 async function cleanupStaleRenders() {
   const context = await productionContext();
   const staleBefore = Date.now() - 5 * 60 * 1000;
