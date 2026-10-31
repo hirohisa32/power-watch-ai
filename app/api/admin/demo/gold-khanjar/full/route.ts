@@ -37,6 +37,7 @@ type TaskRecord = { taskId: string; status: "submitted" | "completed" | "failed"
 
 export async function GET(request: Request) {
   const denied = await requireAdmin(); if (denied) return denied;
+  await cleanupStaleRenders();
   const url = new URL(request.url);
   const scene = sceneId(url.searchParams.get("scene"));
   if (scene && await privateObjectExists(sceneKey(scene))) return NextResponse.redirect(await createReadUrl(sceneKey(scene), 3600, "inline"));
@@ -175,5 +176,15 @@ async function readTask(id: GoldKhanjarStorySceneId) { if (!(await privateObject
 async function writeTask(id: GoldKhanjarStorySceneId, record: TaskRecord) { await uploadPrivateObject(taskKey(id), new TextEncoder().encode(JSON.stringify(record)), "application/json"); }
 async function sceneResults() { return Promise.all((Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]).map(async (id) => { const scene = GOLD_KHANJAR_STORY_SCENES[id]; if (scene.source === "approved-quarter") return { id, status: await privateObjectExists(sceneKey(id)) ? "completed" : "missing", reused: true, credits: 0 }; const task = await readTask(id); return { id, status: task?.status ?? "missing", reused: false, credits: task?.actualCredits ?? task?.estimatedCredits ?? 0, failure: task?.failure, previewUrl: task?.status === "completed" ? `/api/admin/demo/gold-khanjar/full?scene=${id}` : null }; })); }
 async function existingRender() { const context = await productionContext(); return (await getDb().select().from(finalRenders).where(and(eq(finalRenders.projectId, context.project.id), eq(finalRenders.status, "completed"))).orderBy(desc(finalRenders.createdAt)).limit(40)).find((item) => (item.renderInput as { purpose?: string }).purpose === "gold-khanjar-full-approved-quarter-standard"); }
+async function cleanupStaleRenders() {
+  const context = await productionContext();
+  const staleBefore = Date.now() - 5 * 60 * 1000;
+  const rows = await getDb().select().from(finalRenders).where(and(eq(finalRenders.projectId, context.project.id), eq(finalRenders.status, "rendering")));
+  for (const item of rows) {
+    const purpose = (item.renderInput as { purpose?: string }).purpose;
+    if (purpose !== "gold-khanjar-full-approved-quarter-standard" || item.outputObjectKey || item.createdAt.getTime() >= staleBefore) continue;
+    await getDb().update(finalRenders).set({ status: "failed", errorCode: "VERCEL_RENDER_LIMIT", errorMessage: "Vercel実行上限により停止。完成版Renderで解消済み。", completedAt: new Date(), updatedAt: new Date() }).where(eq(finalRenders.id, item.id));
+  }
+}
 function renderResult(id: string, reused: boolean) { return { renderId: id, status: "completed", reused, previewUrl: `/api/renders/${id}/video`, downloadUrl: `/api/renders/${id}/download` }; }
 
