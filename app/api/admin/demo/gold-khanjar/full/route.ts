@@ -117,7 +117,12 @@ async function renderFull() {
   try {
     const videos: string[] = [];
     for (const [index, id] of (Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]).entries()) { const file = path.join(work, `story-${index}.mp4`); await writeFile(file, await readPrivateObject(sceneKey(id))); videos.push(file); }
-    for (const [index, product] of GOLD_KHANJAR_PRODUCT_SCENES.entries()) { const output = path.join(work, `product-${index}.mp4`); await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 3.75); videos.push(output); }
+    const productVideos = await Promise.all(GOLD_KHANJAR_PRODUCT_SCENES.map(async (product, index) => {
+      const output = path.join(work, `product-${index}.mp4`);
+      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 3.75);
+      return output;
+    }));
+    videos.push(...productVideos);
     const narrationFile = path.join(work, "narration.mp3"); await writeFile(narrationFile, await readPrivateObject(narration.objectKey));
     const bgmFile = path.join(work, `bgm${path.extname(bgm.filePath) || ".mp3"}`); await writeFile(bgmFile, await readPrivateObject(bgm.filePath));
     const openingFile = openingAsset ? path.join(work, "opening.mp4") : undefined; if (openingAsset && openingFile) await writeFile(openingFile, await readPrivateObject(openingAsset.storagePath));
