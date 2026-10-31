@@ -149,6 +149,7 @@ export function buildSystemMediaCompatibilityArgs(
   fps: number,
   duration: number | undefined,
   hasAudio: boolean,
+  preset = "medium",
 ) {
   const audioInput = hasAudio
     ? []
@@ -173,7 +174,7 @@ export function buildSystemMediaCompatibilityArgs(
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+    preset,
     "-crf",
     "18",
     "-c:a",
@@ -315,12 +316,12 @@ export async function assemblePreparedRender(input: {
   try {
     const segments: string[] = [];
     if (input.opening && input.openingDuration) {
-      await run(executable, buildSystemMediaCompatibilityArgs(input.opening, openingCompatible, input.fps, input.openingDuration, input.openingHasAudio ?? true), 180_000);
+      await run(executable, buildSystemMediaCompatibilityArgs(input.opening, openingCompatible, input.fps, input.openingDuration, input.openingHasAudio ?? true, "ultrafast"), 180_000);
       segments.push(openingCompatible);
     }
     segments.push(...input.bodySegments);
     if (input.ending && input.endingDuration) {
-      await run(executable, buildSystemMediaCompatibilityArgs(input.ending, endingCompatible, input.fps, input.endingDuration, input.endingHasAudio ?? true), 180_000);
+      await run(executable, buildSystemMediaCompatibilityArgs(input.ending, endingCompatible, input.fps, input.endingDuration, input.endingHasAudio ?? true, "ultrafast"), 180_000);
       segments.push(endingCompatible);
     }
     await writeFile(concatList, segments.map((file) => `file '${file.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
