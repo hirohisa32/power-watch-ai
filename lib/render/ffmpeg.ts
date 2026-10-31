@@ -354,13 +354,14 @@ export async function continueBgmThroughEnding(input: {
   const fadeDuration = Math.min(1.8, input.endingDuration);
   const fadeStart = Math.max(0, input.endingDuration - fadeDuration);
   const delayMs = Math.round(endingStart * 1000);
+  const totalDuration = endingStart + input.endingDuration;
   const filter = [
-    `[1:a]atrim=start=${input.bodyDuration}:end=${input.bodyDuration + input.endingDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,afade=t=out:st=${fadeStart.toFixed(3)}:d=${fadeDuration.toFixed(3)},adelay=${delayMs}|${delayMs}[bgmtail]`,
+    `[1:a]asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,afade=t=out:st=${fadeStart.toFixed(3)}:d=${fadeDuration.toFixed(3)},adelay=${delayMs}|${delayMs}[bgmtail]`,
     `[0:a][bgmtail]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.92[aout]`,
   ].join(";");
   await run(resolveFfmpegPath(), [
-    "-y", "-hide_banner", "-loglevel", "warning", "-i", input.video, "-stream_loop", "-1", "-i", input.bgm,
-    "-filter_complex", filter, "-map", "0:v:0", "-map", "[aout]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "32000", "-ac", "2", "-movflags", "+faststart", input.output,
+    "-y", "-hide_banner", "-loglevel", "warning", "-i", input.video, "-ss", String(input.bodyDuration), "-t", String(input.endingDuration), "-i", input.bgm,
+    "-filter_complex", filter, "-map", "0:v:0", "-map", "[aout]", "-t", String(totalDuration), "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "32000", "-ac", "2", "-movflags", "+faststart", input.output,
   ], 120_000);
 }
 
