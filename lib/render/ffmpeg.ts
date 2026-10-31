@@ -379,6 +379,7 @@ export function buildLuxuryEndingTextAnimationArgs(input: {
   const fadeDuration = Math.min(Math.max(input.fadeDuration, 0.1), input.duration / 2);
   const fadeOutStart = Math.max(0, input.duration - fadeDuration);
   const videoFilter = [
+    "fps=15",
     `fade=t=in:st=0:d=${fadeDuration.toFixed(3)}:color=black`,
     `fade=t=in:st=0:d=${fadeDuration.toFixed(3)}:color=black`,
     `fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDuration.toFixed(3)}:color=black`,
@@ -388,7 +389,7 @@ export function buildLuxuryEndingTextAnimationArgs(input: {
   return [
     "-y", "-hide_banner", "-loglevel", "warning", "-i", input.source,
     "-vf", videoFilter,
-    "-t", input.duration.toFixed(3), "-r", "30",
+    "-t", input.duration.toFixed(3), "-r", "15",
     "-c:v", "libx264", "-preset", input.preset ?? "ultrafast", "-crf", "20", "-pix_fmt", "yuv420p",
     "-c:a", "copy", "-movflags", "+faststart", input.output,
   ];

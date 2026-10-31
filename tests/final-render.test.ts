@@ -233,6 +233,8 @@ describe("fixed Opening final render", () => {
     expect(filter.match(/fade=t=in/g)).toHaveLength(2);
     expect(filter.match(/fade=t=out/g)).toHaveLength(2);
     expect(filter).toContain("st=3.500:d=1.500");
+    expect(filter).toContain("fps=15");
+    expect(args.slice(args.indexOf("-r"), args.indexOf("-r") + 2)).toEqual(["-r", "15"]);
     expect(args).not.toContain("scale");
   });
 
