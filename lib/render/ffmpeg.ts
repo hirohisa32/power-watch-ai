@@ -331,6 +331,17 @@ export async function assemblePreparedRender(input: {
   }
 }
 
+export async function normalizeSystemMedia(input: {
+  source: string;
+  output: string;
+  fps: number;
+  duration: number;
+  hasAudio: boolean;
+  preset?: string;
+}) {
+  await run(resolveFfmpegPath(), buildSystemMediaCompatibilityArgs(input.source, input.output, input.fps, input.duration, input.hasAudio, input.preset ?? "ultrafast"), 270_000);
+}
+
 export async function continueBgmThroughEnding(input: {
   video: string;
   bgm: string;
