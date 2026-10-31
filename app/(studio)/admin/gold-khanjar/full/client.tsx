@@ -10,6 +10,7 @@ export function GoldKhanjarFullClient() {
   const repairedFinal = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<State>({});
   const [busy, setBusy] = useState(false);
+  const [recoveryUrl, setRecoveryUrl] = useState("");
   async function call(action: "start" | "poll" | "prepare-products" | "prepare-story-body" | "prepare-product-body" | "prepare-opening" | "prepare-ending" | "render") {
     setBusy(true);
     const response = await fetch("/api/admin/demo/gold-khanjar/full", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
@@ -22,6 +23,7 @@ export function GoldKhanjarFullClient() {
     try {
       const init = await fetch("/api/admin/demo/gold-khanjar/final-cache").then((response) => response.json());
       if (!init.uploadUrl || init.size !== file.size) throw new Error(init.error ?? "Upload開始に失敗しました");
+      setRecoveryUrl(init.uploadUrl);
       const upload = await fetch(init.uploadUrl, { method: "PUT", headers: { "content-type": "video/mp4" }, body: file });
       if (!upload.ok) throw new Error(`R2 Uploadに失敗しました (${upload.status})`);
       const body = await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST" }).then((response) => response.json());
@@ -30,9 +32,15 @@ export function GoldKhanjarFullClient() {
       setState((old) => ({ ...old, error: error instanceof Error ? error.message : "Final MP4を登録できませんでした" }));
     } finally { setBusy(false); }
   }
+  async function confirmRepairedFinal() {
+    setBusy(true);
+    const body = await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST" }).then((response) => response.json());
+    setState((old) => ({ ...old, ...body }));
+    setBusy(false);
+  }
   const render = state.render;
   return <>
-    <section className="panel"><input ref={repairedFinal} hidden type="file" accept="video/mp4" onChange={(event) => event.target.files?.[0] && void uploadRepairedFinal(event.target.files[0])} /><div className="button-row"><button className="btn btn-primary" disabled={busy} onClick={() => call("start")}>残りScene生成</button><button className="btn btn-secondary" disabled={busy} onClick={() => call("poll")}>状態更新</button><button className="btn btn-secondary" disabled={busy || !state.allCompleted || state.productsReady} onClick={() => call("prepare-products")}>{state.productsReady ? "Product Motion準備済み" : "Product Motion準備"}</button><button className="btn btn-secondary" disabled={busy || !state.productsReady || state.storyBodyReady} onClick={() => call("prepare-story-body")}>{state.storyBodyReady ? "本編前半準備済み" : "本編前半準備"}</button><button className="btn btn-secondary" disabled={busy || !state.productsReady || state.productBodyReady} onClick={() => call("prepare-product-body")}>{state.productBodyReady ? "本編後半準備済み" : "本編後半準備"}</button><button className="btn btn-secondary" disabled={busy || state.openingReady} onClick={() => call("prepare-opening")}>{state.openingReady ? "Opening準備済み" : "Opening準備"}</button><button className="btn btn-secondary" disabled={busy || state.endingReady} onClick={() => call("prepare-ending")}>{state.endingReady ? "Ending準備済み" : "Ending準備"}</button><button className="btn btn-secondary" disabled={busy || !render} onClick={() => repairedFinal.current?.click()}>Final MP4修復登録</button><button className="btn btn-primary" disabled={busy || !state.allCompleted || !state.storyBodyReady || !state.productBodyReady || !state.openingReady || !state.endingReady} onClick={() => call("render")}>Final Render</button></div>{state.error && <p className="error-text">{state.error} {state.detail}</p>}</section>
+    <section className="panel"><input ref={repairedFinal} hidden type="file" accept="video/mp4" onChange={(event) => event.target.files?.[0] && void uploadRepairedFinal(event.target.files[0])} /><input data-final-recovery-url hidden readOnly value={recoveryUrl} /><div className="button-row"><button className="btn btn-primary" disabled={busy} onClick={() => call("start")}>残りScene生成</button><button className="btn btn-secondary" disabled={busy} onClick={() => call("poll")}>状態更新</button><button className="btn btn-secondary" disabled={busy || !state.allCompleted || state.productsReady} onClick={() => call("prepare-products")}>{state.productsReady ? "Product Motion準備済み" : "Product Motion準備"}</button><button className="btn btn-secondary" disabled={busy || !state.productsReady || state.storyBodyReady} onClick={() => call("prepare-story-body")}>{state.storyBodyReady ? "本編前半準備済み" : "本編前半準備"}</button><button className="btn btn-secondary" disabled={busy || !state.productsReady || state.productBodyReady} onClick={() => call("prepare-product-body")}>{state.productBodyReady ? "本編後半準備済み" : "本編後半準備"}</button><button className="btn btn-secondary" disabled={busy || state.openingReady} onClick={() => call("prepare-opening")}>{state.openingReady ? "Opening準備済み" : "Opening準備"}</button><button className="btn btn-secondary" disabled={busy || state.endingReady} onClick={() => call("prepare-ending")}>{state.endingReady ? "Ending準備済み" : "Ending準備"}</button><button className="btn btn-secondary" disabled={busy || !render} onClick={() => repairedFinal.current?.click()}>Final MP4修復登録</button><button className="btn btn-secondary" disabled={busy || !recoveryUrl} onClick={() => void confirmRepairedFinal()}>Final MP4登録確認</button><button className="btn btn-primary" disabled={busy || !state.allCompleted || !state.storyBodyReady || !state.productBodyReady || !state.openingReady || !state.endingReady} onClick={() => call("render")}>Final Render</button></div>{state.error && <p className="error-text">{state.error} {state.detail}</p>}</section>
     <section className="panel"><h2>Story Scene</h2><div className="admin-table">{(state.scenes ?? []).map((scene) => <div key={scene.id}><span>{scene.id}<small>{scene.reused ? "承認済み素材を再利用" : `${scene.credits} credits`} · {scene.status}</small></span><span>{scene.previewUrl && <a className="btn btn-secondary" href={scene.previewUrl} target="_blank">Preview</a>}</span></div>)}</div></section>
     {render && <section className="panel"><h2>完成版</h2><p>{render.duration?.toFixed(2)}秒 · Opening: {render.opening ?? "なし"} · Ending: {render.ending ?? "なし"}</p><div className="button-row"><a className="btn btn-primary" href={render.previewUrl} target="_blank">Production Preview</a><a className="btn btn-secondary" href={render.downloadUrl}>MP4 Download</a></div></section>}
   </>;
