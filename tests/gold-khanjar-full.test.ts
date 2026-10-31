@@ -3,6 +3,7 @@ import {
   GOLD_KHANJAR_FULL_MODEL,
   GOLD_KHANJAR_FULL_VOICE,
   GOLD_KHANJAR_PRODUCT_SCENES,
+  GOLD_KHANJAR_REFINED_STORY_SCENES,
   GOLD_KHANJAR_STORY_SCENES,
 } from "@/lib/demo/gold-khanjar-full";
 
@@ -23,6 +24,14 @@ describe("Gold Khanjar approved full production", () => {
     expect(GOLD_KHANJAR_PRODUCT_SCENES.map((scene) => scene.file)).toEqual([
       "MG_1220.jpg", "MG_1204.jpg", "MG_1202.jpg", "MG_1200.jpg", "1.jpg",
     ]);
+  });
+
+  it("reduces the refined final to nine five-second meaning units", () => {
+    expect(GOLD_KHANJAR_REFINED_STORY_SCENES).toHaveLength(4);
+    expect(GOLD_KHANJAR_REFINED_STORY_SCENES).toEqual([
+      "01-oman-entry", "02-char-01-letter", "03-uk-asprey", "06-char-01-receives",
+    ]);
+    expect(GOLD_KHANJAR_REFINED_STORY_SCENES.length + GOLD_KHANJAR_PRODUCT_SCENES.length).toBe(9);
   });
 });
 

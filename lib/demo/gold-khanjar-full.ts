@@ -57,6 +57,15 @@ export const GOLD_KHANJAR_STORY_SCENES = {
 
 export type GoldKhanjarStorySceneId = keyof typeof GOLD_KHANJAR_STORY_SCENES;
 
+// Human review: retain only face-stable, story-critical scenes so the final
+// edit has nine meaning units instead of twelve short cuts.
+export const GOLD_KHANJAR_REFINED_STORY_SCENES: GoldKhanjarStorySceneId[] = [
+  "01-oman-entry",
+  "02-char-01-letter",
+  "03-uk-asprey",
+  "06-char-01-receives",
+];
+
 export const GOLD_KHANJAR_PRODUCT_SCENES = [
   { id: "08-dial-khanjar", file: "MG_1220.jpg", title: "GOLD KHANJAR", subtitle: "金色のカンジャル", preset: "WatchMacro" },
   { id: "09-caseback-asprey", file: "MG_1204.jpg", title: "ASPREY", subtitle: "ASPREYの刻印", preset: "ProductHero" },

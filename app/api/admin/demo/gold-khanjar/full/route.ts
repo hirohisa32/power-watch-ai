@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
@@ -20,11 +20,12 @@ import {
   GOLD_KHANJAR_FULL_TITLE,
   GOLD_KHANJAR_FULL_VOICE,
   GOLD_KHANJAR_PRODUCT_SCENES,
+  GOLD_KHANJAR_REFINED_STORY_SCENES,
   GOLD_KHANJAR_STORY_SCENES,
   type GoldKhanjarStorySceneId,
 } from "@/lib/demo/gold-khanjar-full";
 import { createAssSubtitles } from "@/lib/render/ass";
-import { renderWithFfmpeg } from "@/lib/render/ffmpeg";
+import { continueBgmThroughEnding, renderWithFfmpeg } from "@/lib/render/ffmpeg";
 import type { FinalRenderInput, RenderScene, RenderSystemAsset } from "@/lib/render/types";
 import { assertSameOrigin } from "@/lib/security";
 import { createReadUrl, privateObjectExists, readPrivateObject, uploadPrivateObject } from "@/lib/storage";
@@ -113,14 +114,14 @@ async function renderFull() {
   const endingAsset = await selectedSystemAsset(context.project.endingAssetId, "ending");
   const [latest] = await getDb().select({ version: finalRenders.version }).from(finalRenders).where(eq(finalRenders.projectId, context.project.id)).orderBy(desc(finalRenders.version)).limit(1);
   const totalDuration = GOLD_KHANJAR_FULL_BODY_DURATION + (openingAsset?.duration ?? 0) + (endingAsset?.duration ?? 0);
-  const [render] = await getDb().insert(finalRenders).values({ projectId: context.project.id, storyboardId: context.storyboard.id, audioRecordId: narration.id, version: (latest?.version ?? 0) + 1, status: "rendering", width: 1080, height: 1920, fps: 30, durationMs: Math.round(totalDuration * 1000), bgmKey: bgm.key, estimatedCost: 0, renderInput: { purpose: "gold-khanjar-full-approved-quarter-standard", openingAsset, endingAsset, voiceId: GOLD_KHANJAR_FULL_VOICE, model: GOLD_KHANJAR_FULL_MODEL, approvedQuarterReused: true, originalProductPhotosOnly: true } }).returning();
+  const [render] = await getDb().insert(finalRenders).values({ projectId: context.project.id, storyboardId: context.storyboard.id, audioRecordId: narration.id, version: (latest?.version ?? 0) + 1, status: "rendering", width: 1080, height: 1920, fps: 30, durationMs: Math.round(totalDuration * 1000), bgmKey: bgm.key, estimatedCost: 0, renderInput: { purpose: "gold-khanjar-refined-final-v2", openingAsset, endingAsset, voiceId: GOLD_KHANJAR_FULL_VOICE, model: GOLD_KHANJAR_FULL_MODEL, approvedQuarterReused: true, originalProductPhotosOnly: true, sceneCount: 9, endingBgmContinuation: true } }).returning();
   const work = await mkdtemp(path.join(tmpdir(), "gold-khanjar-full-"));
   try {
     const videos: string[] = [];
-    for (const [index, id] of (Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]).entries()) { const file = path.join(work, `story-${index}.mp4`); await writeFile(file, await readPrivateObject(sceneKey(id))); videos.push(file); }
+    for (const [index, id] of GOLD_KHANJAR_REFINED_STORY_SCENES.entries()) { const file = path.join(work, `story-${index}.mp4`); await writeFile(file, await readPrivateObject(sceneKey(id))); videos.push(file); }
     for (const [index, product] of GOLD_KHANJAR_PRODUCT_SCENES.entries()) {
       const output = path.join(work, `product-${index}.mp4`);
-      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 3.75, "veryfast");
+      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 5, "veryfast");
       videos.push(output);
     }
     const narrationFile = path.join(work, "narration.mp3"); await writeFile(narrationFile, await readPrivateObject(narration.objectKey));
@@ -128,9 +129,13 @@ async function renderFull() {
     const openingFile = openingAsset ? path.join(work, "opening.mp4") : undefined; if (openingAsset && openingFile) await writeFile(openingFile, await readPrivateObject(openingAsset.storagePath));
     const endingFile = endingAsset ? path.join(work, "ending.mp4") : undefined; if (endingAsset && endingFile) await writeFile(endingFile, await readPrivateObject(endingAsset.storagePath));
     const rows = renderRows();
-    const input: FinalRenderInput = { width: 1080, height: 1920, fps: 30, language: "ja", bgmKey: bgm.key, totalDuration, missingSceneCount: 0, scenes: rows, subtitles: subtitles(), overlays: [], voiceAssignments: [], openingAsset, endingAsset };
+    const input: FinalRenderInput = { width: 1080, height: 1920, fps: 30, language: "ja", bgmKey: bgm.key, totalDuration, missingSceneCount: 0, scenes: rows, subtitles: subtitles(), overlays: overlays(), voiceAssignments: [], openingAsset, endingAsset };
     const subtitleFile = path.join(work, "subtitles.ass"); await writeFile(subtitleFile, createAssSubtitles(input), "utf8");
-    const output = path.join(work, "gold-khanjar-full.mp4"); await renderWithFfmpeg(input, { opening: openingFile, ending: endingFile, videos, narration: narrationFile, bgm: bgmFile, subtitles: subtitleFile, output }, undefined, "veryfast");
+    const baseOutput = path.join(work, "gold-khanjar-refined-base.mp4");
+    const output = path.join(work, "gold-khanjar-refined-final.mp4");
+    await renderWithFfmpeg(input, { opening: openingFile, ending: endingFile, videos, narration: narrationFile, bgm: bgmFile, subtitles: subtitleFile, output: baseOutput }, undefined, "veryfast", false);
+    if (endingAsset) await continueBgmThroughEnding({ video: baseOutput, bgm: bgmFile, output, openingDuration: openingAsset?.duration ?? 0, bodyDuration: GOLD_KHANJAR_FULL_BODY_DURATION, endingDuration: endingAsset.duration });
+    else await copyFile(baseOutput, output);
     const objectKey = `projects/${context.project.id}/renders/${render.id}.mp4`; await uploadPrivateObject(objectKey, new Uint8Array(await readFile(output)), "video/mp4");
     await getDb().transaction(async (tx) => { await tx.update(finalRenders).set({ status: "completed", outputObjectKey: objectKey, completedAt: new Date(), updatedAt: new Date() }).where(eq(finalRenders.id, render.id)); await tx.insert(apiUsage).values({ projectId: context.project.id, provider: "internal-render", operation: "gold_khanjar_full_render", model: "ffmpeg-h264-aac-v1", durationMs: 0, estimatedCost: 0 }); });
     return NextResponse.json({ ...renderResult(render.id, false), duration: totalDuration, opening: openingAsset?.key ?? null, ending: endingAsset?.key ?? null });
@@ -153,15 +158,28 @@ async function ensureNarration(projectId: string, storyboardId: string) {
 }
 
 function renderRows(): RenderScene[] {
-  const storyIds = Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[];
-  const story = storyIds.map((id, index) => row(id, index + 1, index === 0 ? "CityEraEstablishing" : "HistoricalCharacter", sceneKey(id)));
+  const story = GOLD_KHANJAR_REFINED_STORY_SCENES.map((id, index) => row(id, index + 1, index === 0 ? "CityEraEstablishing" : "HistoricalCharacter", sceneKey(id)));
   const products = GOLD_KHANJAR_PRODUCT_SCENES.map((item, index) => row(item.id, story.length + index + 1, item.preset, `original-photo:${item.file}`));
   return [...story, ...products];
 }
-function row(id: string, order: number, preset: string, objectKey: string): RenderScene { return { sceneId: id, generationId: id, order, preset, transition: order === 8 ? "light transition" : "dissolve", duration: 3.75, narration: "", subtitle: "", year: null, location: null, objectKey }; }
+function row(id: string, order: number, preset: string, objectKey: string): RenderScene { return { sceneId: id, generationId: id, order, preset, transition: order === 9 ? "ending dissolve" : order === 5 ? "light transition" : "dissolve", duration: 5, narration: "", subtitle: "", year: null, location: null, objectKey }; }
 function subtitles() { return [
-  [300, 3500, "1970年代、オマーン"], [4100, 7400, "新しい時代の始まり"], [7900, 11100, "国に尽くした功労者へ"], [11700, 15100, "英国王室とも縁の深い名門"], [15600, 19000, "ASPREY / LONDON"], [19600, 23000, "特別な贈り物"], [23500, 26700, "選ばれたのは、ロレックス"], [27200, 30600, "GOLD KHANJAR"], [31100, 34300, "ASPREYの刻印"], [34800, 38200, "500万番台 / 1665/0"], [38700, 41800, "時計製造の歴史"], [42000, 44700, "時を超え、物語を宿す一本"],
+  [250, 2500, "1970年代、オマーンは新しい時代へ"], [2600, 4900, "変革の時代を迎えていました"],
+  [5100, 7300, "カーブース国王は"], [7400, 9800, "国に尽くした功労者へ"],
+  [10100, 12400, "特別な時計を贈ります"], [12500, 14800, "その製作を託されたのは"],
+  [15100, 17400, "英国王室とも縁の深い"], [17500, 19900, "名門ジュエラー、アスプレイ"],
+  [20100, 22400, "選ばれたのは、ロレックス"], [22500, 24800, "文字盤に輝く"],
+  [25100, 27400, "金色のカンジャル"], [27500, 29800, "ただの装飾ではありません"],
+  [30100, 32300, "ASPREYの刻印"], [32400, 34600, "500万番台のシリアル"],
+  [34700, 36900, "そして、1665/0"], [37100, 39400, "国家と英国"],
+  [39500, 42000, "時計製造の歴史が刻まれています"], [42100, 44800, "時を超え、物語を宿す一本"],
 ].map(([startMs, endMs, text], index) => ({ sceneId: String(index + 1), startMs: Number(startMs), endMs: Number(endMs), text: String(text) })); }
+function overlays() { return [
+  { kind: "year-location" as const, startMs: 400, endMs: 3400, primary: "1970s", secondary: "OMAN" },
+  { kind: "year-location" as const, startMs: 15300, endMs: 18600, primary: "ASPREY", secondary: "LONDON" },
+  { kind: "year-location" as const, startMs: 25200, endMs: 28200, primary: "GOLD KHANJAR" },
+  { kind: "year-location" as const, startMs: 34800, endMs: 37300, primary: "Ref.1665/0" },
+]; }
 
 async function productionContext() { const [project] = await getDb().select().from(projects).where(eq(projects.title, GOLD_KHANJAR_FULL_TITLE)).limit(1); if (!project) throw new Error("Gold Khanjarプロジェクトが見つかりません"); const [storyboard] = await getDb().select().from(storyboards).where(and(eq(storyboards.projectId, project.id), eq(storyboards.isActive, true))).limit(1); if (!storyboard) throw new Error("Active Storyboardが見つかりません"); return { project, storyboard }; }
 async function latestNarration(projectId: string) { return (await getDb().select().from(audioRecords).where(and(eq(audioRecords.projectId, projectId), eq(audioRecords.model, GOLD_KHANJAR_FULL_MODEL), eq(audioRecords.voiceId, GOLD_KHANJAR_FULL_VOICE), eq(audioRecords.script, GOLD_KHANJAR_FULL_SCRIPT), eq(audioRecords.status, "completed"), isNotNull(audioRecords.objectKey))).orderBy(desc(audioRecords.createdAt)).limit(1))[0]; }
@@ -175,7 +193,7 @@ function taskKey(id: GoldKhanjarStorySceneId) { return `${GOLD_KHANJAR_FULL_PREF
 async function readTask(id: GoldKhanjarStorySceneId) { if (!(await privateObjectExists(taskKey(id)))) return null; return JSON.parse(new TextDecoder().decode(await readPrivateObject(taskKey(id)))) as TaskRecord; }
 async function writeTask(id: GoldKhanjarStorySceneId, record: TaskRecord) { await uploadPrivateObject(taskKey(id), new TextEncoder().encode(JSON.stringify(record)), "application/json"); }
 async function sceneResults() { return Promise.all((Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]).map(async (id) => { const scene = GOLD_KHANJAR_STORY_SCENES[id]; if (scene.source === "approved-quarter") return { id, status: await privateObjectExists(sceneKey(id)) ? "completed" : "missing", reused: true, credits: 0 }; const task = await readTask(id); return { id, status: task?.status ?? "missing", reused: false, credits: task?.actualCredits ?? task?.estimatedCredits ?? 0, failure: task?.failure, previewUrl: task?.status === "completed" ? `/api/admin/demo/gold-khanjar/full?scene=${id}` : null }; })); }
-async function existingRender() { const context = await productionContext(); return (await getDb().select().from(finalRenders).where(and(eq(finalRenders.projectId, context.project.id), eq(finalRenders.status, "completed"))).orderBy(desc(finalRenders.createdAt)).limit(40)).find((item) => (item.renderInput as { purpose?: string }).purpose === "gold-khanjar-full-approved-quarter-standard"); }
+async function existingRender() { const context = await productionContext(); return (await getDb().select().from(finalRenders).where(and(eq(finalRenders.projectId, context.project.id), eq(finalRenders.status, "completed"))).orderBy(desc(finalRenders.createdAt)).limit(40)).find((item) => (item.renderInput as { purpose?: string }).purpose === "gold-khanjar-refined-final-v2"); }
 async function cleanupStaleRenders() {
   const context = await productionContext();
   const staleBefore = Date.now() - 5 * 60 * 1000;

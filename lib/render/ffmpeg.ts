@@ -20,6 +20,7 @@ export function buildFfmpegArgs(
   fontDirectory: string,
   bodyOutput = files.output,
   preset = "medium",
+  fadeBgmAtBodyEnd = true,
 ) {
   const bodyDuration = input.scenes.reduce((sum, scene) => sum + scene.duration, 0);
   const args = ["-y", "-hide_banner", "-loglevel", "warning"];
@@ -35,7 +36,11 @@ export function buildFfmpegArgs(
 
   const videoFilters = input.scenes.map((scene, index) => {
     const incoming = index > 0 ? transitionFadeSeconds(input.scenes[index - 1].transition) : 0;
-    const outgoing = index < input.scenes.length - 1 ? transitionFadeSeconds(scene.transition) : 0;
+    const outgoing = index < input.scenes.length - 1
+      ? transitionFadeSeconds(scene.transition)
+      : input.endingAsset
+        ? transitionFadeSeconds(scene.transition)
+        : 0;
     const fades = [
       incoming > 0 ? `fade=t=in:st=0:d=${incoming}` : "",
       outgoing > 0
@@ -48,7 +53,7 @@ export function buildFfmpegArgs(
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
   const audio = [
     `[${narrationIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,afade=t=out:st=${Math.max(0, bodyDuration - 1.5).toFixed(3)}:d=1.5,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
+    `[${bgmIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11${fadeBgmAtBodyEnd ? `,afade=t=out:st=${Math.max(0, bodyDuration - 1.5).toFixed(3)}:d=1.5` : ""},aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
     `[bgm][side]sidechaincompress=threshold=0.02:ratio=5:attack=35:release=650:makeup=1[ducked]`,
     `[${seIndex}:a]highpass=f=40,lowpass=f=7000,volume=0.11[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
@@ -226,6 +231,7 @@ export async function renderWithFfmpeg(
   files: FfmpegRenderFiles,
   fontDirectory = resolveFontDirectory(),
   preset = "medium",
+  fadeBgmAtBodyEnd = true,
 ) {
   const executable = resolveFfmpegPath();
   const bodyOutput = path.join(path.dirname(files.output), "body-master-compatible.mp4");
@@ -233,7 +239,7 @@ export async function renderWithFfmpeg(
   const endingCompatible = path.join(path.dirname(files.output), "selected-ending-compatible.mp4");
   const concatList = path.join(path.dirname(files.output), "system-media-concat.txt");
   try {
-    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput, preset), 270_000);
+    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput, preset, fadeBgmAtBodyEnd), 270_000);
     const segments: string[] = [];
     if (files.opening && input.openingAsset) {
       await run(
@@ -285,6 +291,28 @@ export async function renderWithFfmpeg(
       rm(concatList, { force: true }),
     ]);
   }
+}
+
+export async function continueBgmThroughEnding(input: {
+  video: string;
+  bgm: string;
+  output: string;
+  openingDuration: number;
+  bodyDuration: number;
+  endingDuration: number;
+}) {
+  const endingStart = input.openingDuration + input.bodyDuration;
+  const fadeDuration = Math.min(1.8, input.endingDuration);
+  const fadeStart = Math.max(0, input.endingDuration - fadeDuration);
+  const delayMs = Math.round(endingStart * 1000);
+  const filter = [
+    `[1:a]atrim=start=${input.bodyDuration}:end=${input.bodyDuration + input.endingDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,afade=t=out:st=${fadeStart.toFixed(3)}:d=${fadeDuration.toFixed(3)},adelay=${delayMs}|${delayMs}[bgmtail]`,
+    `[0:a][bgmtail]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.92[aout]`,
+  ].join(";");
+  await run(resolveFfmpegPath(), [
+    "-y", "-hide_banner", "-loglevel", "warning", "-i", input.video, "-stream_loop", "-1", "-i", input.bgm,
+    "-filter_complex", filter, "-map", "0:v:0", "-map", "[aout]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "32000", "-ac", "2", "-movflags", "+faststart", input.output,
+  ], 120_000);
 }
 
 export async function probeDurationMs(file: string) {
@@ -375,6 +403,7 @@ export function transitionFadeSeconds(transition?: string) {
 
 export function transitionSpec(transition?: string) {
   const value = transition?.toLocaleLowerCase() ?? "";
+  if (/ending|brand end/.test(value)) return { name: "fadeblack", seconds: 1 };
   if (/light|bloom|film burn|optical/.test(value)) return { name: "fadewhite", seconds: 0.12 };
   if (/dust|memory|fade to black/.test(value)) return { name: "fadeblack", seconds: 0.14 };
   if (/dissolve/.test(value)) return { name: "fade", seconds: 0.18 };

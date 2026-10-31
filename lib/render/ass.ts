@@ -11,7 +11,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Subtitle,Noto Sans JP,52,&H00FFFFFF,&H00FFFFFF,&HCC000000,&H9A000000,-1,0,0,0,100,100,1,0,3,2,0,2,112,112,330,1
-Style: Meta,Noto Sans JP,60,&H00FFFFFF,&H00FFFFFF,&HAA000000,&H66000000,-1,0,0,0,100,100,3,0,1,3,0,7,96,96,220,1
+Style: Meta,Noto Sans JP,60,&H007A9CBF,&H007A9CBF,&HAA000000,&H66000000,-1,0,0,0,100,100,3,0,1,3,0,7,96,96,220,1
 Style: Brand,Noto Sans JP,82,&H00F2E8D6,&H00F2E8D6,&HAA000000,&H22000000,-1,0,0,0,100,100,10,0,1,2,0,5,96,96,0,1
 
 [Events]
@@ -19,14 +19,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
   const events: string[] = [];
   for (const cue of input.subtitles) {
     events.push(
-      `Dialogue: 10,${assTime(cue.startMs)},${assTime(cue.endMs)},Subtitle,,0,0,0,,${escapeAss(cue.text)}`,
+      `Dialogue: 10,${assTime(cue.startMs)},${assTime(cue.endMs)},Subtitle,,0,0,0,,{\\fad(140,160)}${escapeAss(cue.text)}`,
     );
   }
   for (const overlay of input.overlays) {
     const style = overlay.kind === "brand" ? "Brand" : "Meta";
     const text = [overlay.primary, overlay.secondary].filter(Boolean).map(escapeAss).join("\\N");
     events.push(
-      `Dialogue: 20,${assTime(overlay.startMs)},${assTime(overlay.endMs)},${style},,0,0,0,,${text}`,
+      `Dialogue: 20,${assTime(overlay.startMs)},${assTime(overlay.endMs)},${style},,0,0,0,,{\\fad(180,220)}${text}`,
     );
   }
   return `${header}\n${events.join("\n")}\n`;
