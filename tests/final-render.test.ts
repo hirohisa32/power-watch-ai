@@ -3,6 +3,7 @@ import { buildAudioRecord } from "@/lib/audio/record";
 import { buildNarrationScript, buildSubtitleCues, narrationSpeed } from "@/lib/audio/timing";
 import { createAssSubtitles } from "@/lib/render/ass";
 import {
+  buildDocumentaryEndingTransitionArgs,
   buildFixedOpeningConcatArgs,
   buildFfmpegArgs,
   buildCompatibilityConcatArgs,
@@ -204,6 +205,20 @@ describe("fixed Opening final render", () => {
       },
       endingAsset: null,
     });
+  });
+
+  it("builds a restrained deep-brown documentary ending transition", () => {
+    const args = buildDocumentaryEndingTransitionArgs({
+      source: "product.mp4",
+      output: "transitioned.mp4",
+      totalDuration: 25,
+      transitionDuration: 1.2,
+    });
+    const filter = args[args.indexOf("-vf") + 1];
+    expect(filter).toContain("st=23.800");
+    expect(filter).toContain("d=1.200");
+    expect(filter).toContain("color=0x120B07");
+    expect(args.slice(args.indexOf("-c:a"), args.indexOf("-c:a") + 2)).toEqual(["-c:a", "copy"]);
   });
 
   it("uses valid render status transitions and stable output paths", () => {

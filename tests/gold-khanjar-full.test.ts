@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  GOLD_KHANJAR_ENDING_TRANSITION_SECONDS,
   GOLD_KHANJAR_FULL_MODEL,
   GOLD_KHANJAR_FULL_VOICE,
+  GOLD_KHANJAR_NARRATION_SUBTITLES_ENABLED,
   GOLD_KHANJAR_PRODUCT_SCENES,
   GOLD_KHANJAR_REFINED_STORY_SCENES,
   GOLD_KHANJAR_STORY_SCENES,
@@ -32,6 +34,12 @@ describe("Gold Khanjar approved full production", () => {
       "01-oman-entry", "02-char-01-letter", "03-uk-asprey", "06-char-01-receives",
     ]);
     expect(GOLD_KHANJAR_REFINED_STORY_SCENES.length + GOLD_KHANJAR_PRODUCT_SCENES.length).toBe(9);
+  });
+
+  it("uses the approved subtitle-free documentary ending treatment", () => {
+    expect(GOLD_KHANJAR_NARRATION_SUBTITLES_ENABLED).toBe(false);
+    expect(GOLD_KHANJAR_ENDING_TRANSITION_SECONDS).toBeGreaterThanOrEqual(0.8);
+    expect(GOLD_KHANJAR_ENDING_TRANSITION_SECONDS).toBeLessThanOrEqual(1.5);
   });
 });
 

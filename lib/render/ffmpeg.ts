@@ -342,6 +342,33 @@ export async function normalizeSystemMedia(input: {
   await run(resolveFfmpegPath(), buildSystemMediaCompatibilityArgs(input.source, input.output, input.fps, input.duration, input.hasAudio, input.preset ?? "ultrafast"), 270_000);
 }
 
+export function buildDocumentaryEndingTransitionArgs(input: {
+  source: string;
+  output: string;
+  totalDuration: number;
+  transitionDuration: number;
+  preset?: string;
+}) {
+  const duration = Math.min(Math.max(input.transitionDuration, 0.1), input.totalDuration);
+  const start = Math.max(0, input.totalDuration - duration);
+  return [
+    "-y", "-hide_banner", "-loglevel", "warning", "-i", input.source,
+    "-vf", `fade=t=out:st=${start.toFixed(3)}:d=${duration.toFixed(3)}:color=0x120B07`,
+    "-c:v", "libx264", "-preset", input.preset ?? "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+    "-c:a", "copy", "-movflags", "+faststart", input.output,
+  ];
+}
+
+export async function applyDocumentaryEndingTransition(input: {
+  source: string;
+  output: string;
+  totalDuration: number;
+  transitionDuration: number;
+  preset?: string;
+}) {
+  await run(resolveFfmpegPath(), buildDocumentaryEndingTransitionArgs(input), 180_000);
+}
+
 export async function mixBgmIntoEndingSegment(input: {
   video: string;
   bgm: string;
