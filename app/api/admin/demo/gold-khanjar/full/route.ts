@@ -172,10 +172,15 @@ async function prepareSystemAsset(kind: "opening" | "ending") {
   if (await privateObjectExists(objectKey)) return NextResponse.json(kind === "opening" ? { openingReady: true } : { endingReady: true });
   const work = await mkdtemp(path.join(tmpdir(), `gold-khanjar-${kind}-`));
   try {
-    const source = path.join(work, `${kind}-source.mp4`); await writeFile(source, await readPrivateObject(asset.storagePath));
     const compatible = path.join(work, `${kind}-compatible.mp4`);
     const output = path.join(work, `${kind}-final.mp4`);
-    await normalizeSystemMedia({ source, output: compatible, fps: 30, duration: asset.duration, hasAudio: asset.hasAudio, preset: "veryfast" });
+    const reusableKey = legacySystemMediaKey(kind, asset.id);
+    if (kind === "ending" && await privateObjectExists(reusableKey)) {
+      await writeFile(compatible, await readPrivateObject(reusableKey));
+    } else {
+      const source = path.join(work, `${kind}-source.mp4`); await writeFile(source, await readPrivateObject(asset.storagePath));
+      await normalizeSystemMedia({ source, output: compatible, fps: 30, duration: asset.duration, hasAudio: asset.hasAudio, preset: "veryfast" });
+    }
     if (kind === "ending") {
       const bgm = await approvedBgm();
       const bgmFile = path.join(work, `bgm${path.extname(bgm.filePath) || ".mp3"}`); await writeFile(bgmFile, await readPrivateObject(bgm.filePath));
@@ -273,7 +278,8 @@ async function existingRender() { const context = await productionContext(); ret
 function productMotionKey(id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-products/v2/${id}.mp4`; }
 async function productMotionsReady() { return (await Promise.all(GOLD_KHANJAR_PRODUCT_SCENES.map((item) => privateObjectExists(productMotionKey(item.id))))).every(Boolean); }
 function bodySegmentKey(kind: "story" | "product") { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-body/v2/${kind}.mp4`; }
-function systemMediaKey(kind: "opening" | "ending", id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-system/v3/${kind}-${id}.mp4`; }
+function systemMediaKey(kind: "opening" | "ending", id: string) { const version = kind === "ending" ? "v4" : "v3"; return `${GOLD_KHANJAR_FULL_PREFIX}/refined-system/${version}/${kind}-${id}.mp4`; }
+function legacySystemMediaKey(kind: "opening" | "ending", id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-system/v2/${kind}-${id}.mp4`; }
 async function systemMediaReady() { const context = await productionContext(); const opening = await selectedSystemAsset(context.project.openingAssetId, "opening"); const ending = await selectedSystemAsset(context.project.endingAssetId, "ending"); return { openingReady: !opening || await privateObjectExists(systemMediaKey("opening", opening.id)), endingReady: !ending || await privateObjectExists(systemMediaKey("ending", ending.id)) }; }
 async function cleanupStaleRenders() {
   const context = await productionContext();
