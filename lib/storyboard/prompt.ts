@@ -7,6 +7,8 @@ type StoryboardPromptInput = {
   language: "ja" | "en" | "zh";
   targetDuration: 60 | 90;
   assetLabels: string[];
+  openingSelected?: boolean;
+  endingSelected?: boolean;
 };
 
 const languageName = { ja: "Japanese", en: "English", zh: "Simplified Chinese" } as const;
@@ -15,9 +17,9 @@ export function buildStoryboardPrompt(input: StoryboardPromptInput) {
   if (!input.script.trim()) throw new Error("MISSING_SCRIPT");
   const styleDirection =
     input.style === "cinematic_real"
-      ? "Photorealistic luxury editorial filmmaking, cinematic lighting, restrained camera movement, premium product cinematography."
-      : "Cinematic illustrated animation, consistent mature character design, non-childish luxury editorial tone, restrained motion.";
-  const sceneRange = input.targetDuration === 60 ? "14-18" : "20-27";
+      ? "Photorealistic cinematic historical documentary, natural people and lighting, large-format cinema camera language, restrained film grain, mature luxury documentary tone."
+      : "Cinematic illustrated animation made like a professional editorial illustrator's work: sophisticated Japanese animation-inspired visual language, elegant linework, painterly but controlled shading, carefully drawn mature faces, textured premium magazine illustration, cinematic light, and one consistent hand-crafted style. Never childish, chibi, comic, cheap anime, fantasy, game CG, glossy 3D character art, or watercolor-only ambiguity.";
+  const sceneRange = input.targetDuration === 60 ? "10-14" : "15-20";
   const durationGuide = Object.entries(EPOCA_STORY_STYLE.sceneDurationRules)
     .map(([preset, rule]) => `${preset}=${rule.min}-${rule.max}s (preferred ${rule.preferred}s)`)
     .join(", ");
@@ -28,24 +30,22 @@ Turn the supplied script into a production-ready scene storyboard for image-to-v
 NON-NEGOTIABLE RULES
 1. Preserve the script's meaning. Never invent people, dates, places, product claims, or historical facts.
 2. First rewrite the ORIGINAL SCRIPT internally as one coherent, human documentary narration. Preserve its meaning and causal order. Then distribute complete consecutive sentences across scenes. narration must never read like a visual description, shot list, prompt, title, or isolated label.
-3. Build dramatic structure: HOOK → WORLD/ERA → CHARACTER → EVENT → WATCH CONNECTION → PRODUCT DETAIL → EMOTIONAL PAYOFF → ENDING. Omit beats unsupported by the script; do not divide the script into equal chunks.
+3. STORY FIRST. Build dramatic structure: HOOK → WORLD/ERA → CHARACTER/EVENT → WATCH CONNECTION → ORIGINAL PRODUCT EVIDENCE → DETAIL/EVIDENCE → HERO/PAYOFF. Omit unsupported beats and never force a wrist, hand-held watch, or character/watch interaction.
 4. Each scene is 3-8 seconds. Produce ${sceneRange} scenes totaling exactly ${input.targetDuration} seconds. Follow these preferred rules: ${durationGuide}.
-5. The first four scenes are fixed and must use these presets in order:
-   1) Opening — an old wooden door opens into a dusty room; no title and no watch.
-   2) VintageRoom — travel through the room and arrive at an old desk; no title and no watch.
-   3) OldBook — reveal a thick closed book on the desk. Reserve the book cover as clean negative space for an exact post-production POWER WATCH overlay. The generated cover has no legible text.
-   4) WatchReveal — the book opens, the real referenced watch appears, its hands begin to move, and that motion carries us into the story.
-6. Never put the literal words POWER WATCH in visualPrompt or ask the model to generate them. POWER WATCH is overlaid only on the closed book cover in post-production, never on the door, wall, room, or watch.
+5. Opening and ending are independent pre-made System Assets selected by the user. Do not create Opening/OldBook/WatchReveal/Ending filler scenes and do not include their duration. The storyboard describes only the story body.
+6. The story script, factual content, narration and product evidence are the same in both visual styles. Style changes only the historical/editorial scene rendering.
 7. visualPrompt must be concise English and directly usable by a video model. Include subject, environment, era, composition, camera/lens feel, lighting, motion, color, and cinematic direction. Never ask the model to render subtitles, titles, logos, dates, locations, labels, UI, or any other readable text.
 8. title, narration, and subtitle must be natural ${languageName[input.language]}. title is an internal editor label and is never viewer-facing. subtitle must be the same narration sentence or a shorter verbatim excerpt from it—never a scene title or description.
-9. Use watchReference=true whenever the physical watch is visible. preferredAssetLabels may only use the supplied labels. Prioritize the strongest uploaded view for that shot. If no suitable supplied image exists, use an empty list and conceal exact product geometry through silhouette, partial detail, reflection, dark reveal, wrist context, or environmental implication—never invent a precise frontal watch.
-10. In every product scene preserve the uploaded watch's dial, hands, indices, logo, bezel, case, crown, strap/bracelet, color, and proportions. Product scenes animate camera, light, focus, reflections, hands, or one simple wrist gesture, not the watch design.
+9. Use watchReference=true whenever the physical watch is visible. This marks ORIGINAL PRODUCT EVIDENCE. preferredAssetLabels may only use supplied labels and must select the strongest original photograph. The production pipeline will animate it non-generatively; never describe a redesigned, illustrated, stylized, worn, held, or AI-generated watch.
+10. Product Evidence keeps the original photo pixels and identity. Permitted editorial motion is limited to slow camera crop/dolly, mask reveal, rack-focus-style blur, light/reflection overlay, shadow movement, foreground depth, grain, match cut and text. Never redraw, stylize, reconstruct, morph, generatively fill, alter or hallucinate dial, hands, indices, logo, bezel, case, crown, bracelet, engraving, serial, movement, patina or scratches.
 11. Establish a stable visual identity for every recurring named character (face shape, age, hair, wardrobe, build, and palette) and repeat it verbatim in that character's visualPrompt.
 12. Use year and location only when supported by the script. They will be exact post-production overlays, not generated inside the video.
 13. Keep narration comfortably speakable within each scene duration. Use natural sentence endings, causal bridges, and breathing room; never compensate with unnatural speed.
 14. Set narrationTone when a specific delivery such as documentary, solemn, tense, warm, or energetic is useful.
 15. Use dialogue only for words actually supported by the supplied script. Each dialogue item must identify a stable speaker name and tone. Do not turn ordinary narration into invented quotes.
-16. Viewer-facing text is limited to narration subtitles, supported year/location, the single POWER WATCH book-cover overlay, and the final brand mark. Internal scene labels, titles, descriptions, preset names, and prompt text must never be shown.
+16. Viewer-facing text is limited to concise narration subtitles and supported year/location or factual evidence labels. Internal scene labels, descriptions, preset names, prompts and generated readable text must never appear.
+17. Make the real product photograph a story payoff: historical event → evidence transition (letter, gift, archive, box, black/light transition) → original product photo reveal → details → hero. Story scenes explain why the watch matters; the real photo proves what it is.
+18. Historical people use silent acting without lip sync. Recurring characters must keep the same face, age, hair, wardrobe, build and palette across scenes. Animation mode must keep one illustration style across people and backgrounds.
 
 STYLE
 ${styleDirection}
@@ -61,6 +61,11 @@ ${serializeEpocaStoryStyle()}`,
         style: input.style,
         outputLanguage: languageName[input.language],
         availableWatchAssetLabels: input.assetLabels,
+        systemMedia: {
+          openingSelected: Boolean(input.openingSelected),
+          endingSelected: Boolean(input.endingSelected),
+          note: "These are external System Assets and are not storyboard scenes.",
+        },
       },
       script: input.script,
     }),

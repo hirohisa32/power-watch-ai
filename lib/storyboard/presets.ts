@@ -147,7 +147,16 @@ export const SCENE_PRESETS: Record<ScenePresetName, ScenePresetDefinition> = {
 };
 
 export function serializePresetGuide() {
+  const deprecatedForStandardPipeline = new Set<ScenePresetName>([
+    "Opening",
+    "VintageRoom",
+    "OldBook",
+    "WatchReveal",
+    "WristShot",
+    "Ending",
+  ]);
   return Object.entries(SCENE_PRESETS)
+    .filter(([name]) => !deprecatedForStandardPipeline.has(name as ScenePresetName))
     .map(
       ([name, preset]) =>
         `${name}: camera=${preset.camera}; shot=${preset.shotType}; lighting=${preset.lighting}; motion=${preset.motion}; color=${preset.colorMood}; transition=${preset.transition}; reference=${preset.watchReferencePolicy}`,

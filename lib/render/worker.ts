@@ -20,10 +20,7 @@ import {
   audioRecords,
   bgmAssets,
   finalRenders,
-  projects,
   renderJobs,
-  scenes,
-  sceneVoiceAssignments,
 } from "@/lib/db/schema";
 import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
 import { createAssSubtitles } from "./ass";
@@ -31,7 +28,7 @@ import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
 import { narrationObjectKey, renderObjectKey } from "./plan";
 import type { FinalRenderInput } from "./types";
 import { settleCompletedRender } from "@/lib/billing/service";
-import { fixedOpeningMasterPath } from "@/lib/opening/fixed-master";
+import { HAYASHI_VOICE } from "@/lib/system-media/config";
 
 type WorkerDependencies = {
   narration: NarrationProvider;
@@ -85,7 +82,7 @@ export async function processFinalRenderJob(
   const renderInput = row.render.renderInput as FinalRenderInput;
   let audioId: string | undefined;
   let stage:
-    "narration" | "audio-upload" | "scene-download" | "bgm-download" | "ffmpeg" | "render-upload" =
+    "narration" | "audio-upload" | "scene-download" | "system-media-download" | "bgm-download" | "ffmpeg" | "render-upload" =
     "narration";
   const workDir = await mkdtemp(path.join(tmpdir(), "power-watch-render-"));
   try {
@@ -112,11 +109,9 @@ export async function processFinalRenderJob(
     const overallSpeed = narrationSpeed(script, bodyDuration, renderInput.language);
     assertNarrationFits(script, bodyDuration, overallSpeed, renderInput.language);
     const config = narrationConfig();
-    const narratorVoiceId =
-      (renderInput.voiceAssignments ?? []).find(
-        (assignment) => assignment.role === "narration" && assignment.speakerKey === "narrator",
-      )?.voiceId ?? config.defaultVoiceId;
-    if (!narratorVoiceId) throw new ElevenLabsError("AUTH", "ElevenLabs Voice IDが未設定です");
+    const narratorVoiceId = HAYASHI_VOICE.voiceId;
+    if (config.model !== HAYASHI_VOICE.model)
+      throw new ElevenLabsError("INVALID_REQUEST", "Narration ModelがProduction固定設定と一致しません");
     const narrationPath = path.join(workDir, "narration.mp3");
     const [cachedAudio] = await db
       .select()
@@ -176,49 +171,17 @@ export async function processFinalRenderJob(
       });
       const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
       const segmentDurations = allocateSpeechSegmentDurations(renderInput, speechSegments);
-      const unavailableVoiceFallbacks: Array<{
-        sceneId: string | null;
-        speakerKey: string;
-        role: "narration" | "dialogue";
-        originalVoiceId: string;
-      }> = [];
       for (const [index, segment] of speechSegments.entries()) {
         const segmentDuration = segmentDurations[index];
         const speed = narrationSpeed(segment.text, segmentDuration, renderInput.language);
         assertNarrationFits(segment.text, segmentDuration, speed, renderInput.language);
-        let generated: NarrationResult;
-        try {
-          generated = await dependencies.narration.generate({
-            originalScript: segment.text,
-            text: segment.text,
-            speed,
-            voiceId: segment.voiceId,
-            language: renderInput.language,
-          });
-        } catch (error) {
-          if (
-            error instanceof ElevenLabsError &&
-            error.code === "INVALID_REQUEST" &&
-            config.defaultVoiceId &&
-            segment.voiceId !== config.defaultVoiceId
-          ) {
-            generated = await dependencies.narration.generate({
-              originalScript: segment.text,
-              text: segment.text,
-              speed,
-              voiceId: config.defaultVoiceId,
-              language: renderInput.language,
-            });
-            unavailableVoiceFallbacks.push({
-              sceneId: segment.sceneId,
-              speakerKey: segment.speakerKey,
-              role: segment.role,
-              originalVoiceId: segment.voiceId,
-            });
-          } else {
-            throw error;
-          }
-        }
+        const generated: NarrationResult = await dependencies.narration.generate({
+          originalScript: segment.text,
+          text: segment.text,
+          speed,
+          voiceId: narratorVoiceId,
+          language: renderInput.language,
+        });
         if (generated.audit)
           await saveElevenLabsGenerationAudit({
             audit: generated.audit,
@@ -250,63 +213,11 @@ export async function processFinalRenderJob(
       );
       const narrationCost = (characterCost / 1000) * config.pricePerThousandCharacters;
       await db.transaction(async (transaction) => {
-        for (const fallback of unavailableVoiceFallbacks) {
-          const reason = `選択Voice ${fallback.originalVoiceId} が利用不可のためELEVENLABS_DEFAULT_VOICE_IDへFallback`;
-          const assignmentCondition = fallback.sceneId
-            ? and(
-                eq(sceneVoiceAssignments.projectId, row.render.projectId),
-                eq(sceneVoiceAssignments.sceneId, fallback.sceneId),
-                eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
-                eq(sceneVoiceAssignments.role, fallback.role),
-              )
-            : and(
-                eq(sceneVoiceAssignments.projectId, row.render.projectId),
-                eq(sceneVoiceAssignments.speakerKey, fallback.speakerKey),
-                eq(sceneVoiceAssignments.role, fallback.role),
-              );
-          await transaction
-            .update(sceneVoiceAssignments)
-            .set({
-              voiceId: config.defaultVoiceId!,
-              selectionSource: "default_fallback",
-              selectionReason: reason,
-              selectionMetadata: {
-                source: "default_fallback",
-                unavailableVoiceId: fallback.originalVoiceId,
-              },
-              updatedAt: new Date(),
-            })
-            .where(assignmentCondition);
-          if (fallback.role === "narration")
-            await transaction
-              .update(projects)
-              .set({
-                narratorVoiceId: config.defaultVoiceId!,
-                narratorSelectionReason: reason,
-                updatedAt: new Date(),
-              })
-              .where(eq(projects.id, row.render.projectId));
-          if (fallback.role === "narration")
-            await transaction
-              .update(scenes)
-              .set({
-                voiceId: config.defaultVoiceId!,
-                voiceSelectionSource: "default_fallback",
-                voiceSelectionMetadata: {
-                  source: "default_fallback",
-                  unavailableVoiceId: fallback.originalVoiceId,
-                },
-                updatedAt: new Date(),
-              })
-              .where(eq(scenes.projectId, row.render.projectId));
-        }
         await transaction
           .update(audioRecords)
           .set({
             status: "completed",
-            voiceId: unavailableVoiceFallbacks.some((item) => item.role === "narration")
-              ? config.defaultVoiceId!
-              : narratorVoiceId,
+            voiceId: narratorVoiceId,
             durationMs: audioDurationMs,
             objectKey: audioKey,
             mimeType: "audio/mpeg",
@@ -345,6 +256,19 @@ export async function processFinalRenderJob(
       await writeFile(file, bytes);
       videoPaths.push(file);
     }
+    stage = "system-media-download";
+    const openingPath = renderInput.openingAsset
+      ? path.join(workDir, "selected-opening.mp4")
+      : undefined;
+    const endingPath = renderInput.endingAsset ? path.join(workDir, "selected-ending.mp4") : undefined;
+    if (renderInput.openingAsset && openingPath) {
+      const url = await dependencies.sign(renderInput.openingAsset.storagePath, 15 * 60);
+      await writeFile(openingPath, await dependencies.download(url, 250 * 1024 * 1024));
+    }
+    if (renderInput.endingAsset && endingPath) {
+      const url = await dependencies.sign(renderInput.endingAsset.storagePath, 15 * 60);
+      await writeFile(endingPath, await dependencies.download(url, 250 * 1024 * 1024));
+    }
     const subtitlePath = path.join(workDir, "overlays.ass");
     await writeFile(subtitlePath, createAssSubtitles(renderInput), "utf8");
     stage = "bgm-download";
@@ -361,7 +285,8 @@ export async function processFinalRenderJob(
     stage = "ffmpeg";
     const renderStarted = Date.now();
     await dependencies.render(renderInput, {
-      opening: fixedOpeningMasterPath(),
+      opening: openingPath,
+      ending: endingPath,
       videos: videoPaths,
       narration: narrationPath,
       bgm: bgmPath,
@@ -510,6 +435,7 @@ function renderError(stage: string, error: unknown) {
   const map: Record<string, { code: string; message: string }> = {
     "audio-upload": { code: "R2_AUDIO_UPLOAD_FAILED", message: "NarrationのR2保存に失敗しました" },
     "scene-download": { code: "MISSING_SCENE_VIDEO", message: "Scene動画を取得できませんでした" },
+    "system-media-download": { code: "SYSTEM_MEDIA_NOT_AVAILABLE", message: "選択したオープニングまたは締め動画を取得できませんでした" },
     "bgm-download": { code: "BGM_NOT_AVAILABLE", message: "承認済みBGMを取得できませんでした" },
     ffmpeg: { code: "FFMPEG_FAILED", message: "完成動画の結合処理に失敗しました" },
     "render-upload": { code: "R2_RENDER_UPLOAD_FAILED", message: "完成動画のR2保存に失敗しました" },

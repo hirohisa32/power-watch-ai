@@ -10,6 +10,8 @@ export type GenerateStoryboardInput = {
   language: "ja" | "en" | "zh";
   targetDuration: 60 | 90;
   assetLabels: string[];
+  openingSelected?: boolean;
+  endingSelected?: boolean;
 };
 
 export async function generateAndSaveStoryboard(

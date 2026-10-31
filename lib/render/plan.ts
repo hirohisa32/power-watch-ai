@@ -1,7 +1,7 @@
 import { buildSubtitleCues } from "@/lib/audio/timing";
 import type { VoiceAssignment } from "@/lib/audio/voices";
-import type { FinalRenderInput, RenderScene, TextOverlay } from "./types";
-import { FIXED_OPENING_MASTER, isFixedOpeningPreset } from "@/lib/opening/fixed-master";
+import type { FinalRenderInput, RenderScene, RenderSystemAsset, TextOverlay } from "./types";
+import { isFixedOpeningPreset } from "@/lib/opening/fixed-master";
 
 export const SOUND_EFFECT_BY_PRESET: Record<string, { key: string; frequency: number }> = {
   Opening: { key: "door", frequency: 58 },
@@ -19,6 +19,8 @@ export function buildFinalRenderInput(input: {
   scenes: RenderScene[];
   totalSceneCount: number;
   voiceAssignments?: VoiceAssignment[];
+  openingAsset?: RenderSystemAsset | null;
+  endingAsset?: RenderSystemAsset | null;
 }): FinalRenderInput {
   const scenes = [...input.scenes]
     .filter((scene) => !isFixedOpeningPreset(scene.preset))
@@ -64,23 +66,20 @@ export function buildFinalRenderInput(input: {
   return {
     width: 1080,
     height: 1920,
-    fps: FIXED_OPENING_MASTER.fps,
+    fps: 30,
     language: input.language,
     bgmKey: input.bgmKey,
     totalDuration:
-      FIXED_OPENING_MASTER.durationSeconds + scenes.reduce((sum, scene) => sum + scene.duration, 0),
+      (input.openingAsset?.duration ?? 0) +
+      scenes.reduce((sum, scene) => sum + scene.duration, 0) +
+      (input.endingAsset?.duration ?? 0),
     missingSceneCount: Math.max(0, input.totalSceneCount - scenes.length),
     scenes,
     subtitles,
     overlays,
     voiceAssignments: input.voiceAssignments ?? [],
-    fixedOpening: {
-      version: FIXED_OPENING_MASTER.version,
-      duration: FIXED_OPENING_MASTER.durationSeconds,
-      systemAsset: FIXED_OPENING_MASTER.file,
-      sha256: FIXED_OPENING_MASTER.sha256,
-      credits: 0,
-    },
+    openingAsset: input.openingAsset ?? null,
+    endingAsset: input.endingAsset ?? null,
   };
 }
 

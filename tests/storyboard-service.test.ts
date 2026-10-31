@@ -48,7 +48,11 @@ describe("storyboard save flow", () => {
 
   it("records provider usage when generated output fails validation", async () => {
     const invalid = storyboardFixture(60);
-    invalid.scenes[0].preset = "HistoricalEvent";
+    invalid.scenes.forEach((scene) => {
+      scene.preset = "HistoricalEvent";
+      scene.watchReference = false;
+      scene.preferredAssetLabels = [];
+    });
     const usage = {
       model: "mock-model",
       inputTokens: 100,
@@ -77,7 +81,7 @@ describe("storyboard save flow", () => {
         director,
         persistence,
       ),
-    ).rejects.toThrow("Opening");
+    ).rejects.toThrow("時計を主役にしたScene");
     expect(replace).not.toHaveBeenCalled();
     expect(recordUsage).toHaveBeenCalledWith({
       projectId: "project-1",

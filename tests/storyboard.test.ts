@@ -81,9 +81,9 @@ describe("storyboard schema", () => {
       "CHARACTER",
       "EVENT",
       "WATCH_CONNECTION",
-      "PRODUCT_DETAIL",
+      "ORIGINAL_PRODUCT_EVIDENCE",
+      "DETAIL_OR_EVIDENCE",
       "EMOTIONAL_PAYOFF",
-      "ENDING",
     ]);
     const result = validateStoryboard(storyboardFixture(60), 60, []);
     expect(result.scenes[0].duration).toBeLessThanOrEqual(
@@ -94,12 +94,10 @@ describe("storyboard schema", () => {
     );
   });
 
-  it("enforces door, room, book, and watch reveal opening order", () => {
+  it("does not require legacy generated opening or ending scenes", () => {
     const fixture = storyboardFixture(60);
     fixture.scenes[2].preset = "HistoricalEvent";
-    expect(() => validateStoryboard(fixture, 60, [])).toThrow(
-      "Opening(Door)、Room、Book、Watch Reveal",
-    );
+    expect(() => validateStoryboard(fixture, 60, [])).not.toThrow();
   });
 
   it("replaces internal subtitle copy with spoken narration", () => {
@@ -108,7 +106,7 @@ describe("storyboard schema", () => {
     expect(narrationOnlySubtitles(fixture).scenes[4].subtitle).toBe(fixture.scenes[4].narration);
   });
 
-  it("includes coherent narration, watch-reference, and book-overlay rules in the prompt", () => {
+  it("includes coherent narration, external media, and original-product evidence rules", () => {
     const prompt = buildStoryboardPrompt({
       script: "一本の時計がレーサーと歩んだ歴史。",
       style: "animation",
@@ -117,7 +115,8 @@ describe("storyboard schema", () => {
       assetLabels: ["Front"],
     }).system;
     expect(prompt).toContain("one coherent, human documentary narration");
-    expect(prompt).toContain("POWER WATCH is overlaid only on the closed book cover");
-    expect(prompt).toContain("never invent a precise frontal watch");
+    expect(prompt).toContain("Opening and ending are independent pre-made System Assets");
+    expect(prompt).toContain("ORIGINAL PRODUCT EVIDENCE");
+    expect(prompt).toContain("Never redraw, stylize, reconstruct");
   });
 });

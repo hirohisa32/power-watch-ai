@@ -25,10 +25,21 @@ export type TextOverlay = {
   secondary?: string;
 };
 
+export type RenderSystemAsset = {
+  id: string;
+  key: string;
+  storagePath: string;
+  duration: number;
+  width: number;
+  height: number;
+  fps: number;
+  hasAudio: boolean;
+};
+
 export type FinalRenderInput = {
   width: 1080;
   height: 1920;
-  fps: 24;
+  fps: 30;
   language: "ja" | "en" | "zh";
   bgmKey: string;
   totalDuration: number;
@@ -37,11 +48,6 @@ export type FinalRenderInput = {
   subtitles: SubtitleCue[];
   overlays: TextOverlay[];
   voiceAssignments: VoiceAssignment[];
-  fixedOpening: {
-    version: number;
-    duration: number;
-    systemAsset: string;
-    sha256: string;
-    credits: 0;
-  };
+  openingAsset: RenderSystemAsset | null;
+  endingAsset: RenderSystemAsset | null;
 };

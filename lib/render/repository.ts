@@ -2,20 +2,17 @@ import "server-only";
 import { and, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
-  apiUsage,
   finalRenders,
   projects,
   renderJobs,
   sceneVoiceAssignments,
   scenes,
   storyboards,
+  systemVideoAssets,
   videoGenerations,
-  voicePresets,
 } from "@/lib/db/schema";
-import { narrationConfig } from "@/lib/audio/config";
-import { ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
-import { VoiceRouter } from "@/lib/audio/router";
-import type { ApprovedVoicePreset } from "@/lib/audio/voices";
+import type { VoiceAssignment } from "@/lib/audio/voices";
+import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { buildFinalRenderInput } from "./plan";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
 
@@ -81,80 +78,37 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         location: row.scene.location,
         objectKey: row.outputObjectKey!,
       }));
-    const presetRows = await transaction
-      .select()
-      .from(voicePresets)
-      .where(eq(voicePresets.approved, true));
-    const savedAssignmentRows = await transaction
-      .select({
-        speakerKey: sceneVoiceAssignments.speakerKey,
-        role: sceneVoiceAssignments.role,
-        voiceId: sceneVoiceAssignments.voiceId,
-        selectionSource: sceneVoiceAssignments.selectionSource,
-        selectionReason: sceneVoiceAssignments.selectionReason,
-        selectionMetadata: sceneVoiceAssignments.selectionMetadata,
-        manualOverride: sceneVoiceAssignments.manualOverride,
+    const voiceAssignments: VoiceAssignment[] = renderable.flatMap((scene) => [
+      {
+        sceneId: scene.sceneId,
+        speakerKey: "narrator",
+        role: "narration" as const,
+        voiceId: HAYASHI_VOICE.voiceId,
+        tone: scene.narrationTone || "documentary",
+        selectionSource: "production_fixed" as const,
+        selectionReason: `通常生成は${HAYASHI_VOICE.name} / ${HAYASHI_VOICE.model}に固定`,
+        selectionMetadata: { fixed: true, model: HAYASHI_VOICE.model },
+      },
+      ...(scene.dialogue ?? []).map((line) => ({
+        sceneId: scene.sceneId,
+        speakerKey: line.speaker.trim().toLocaleLowerCase().replace(/\s+/g, "-") || "speaker",
+        role: "dialogue" as const,
+        voiceId: HAYASHI_VOICE.voiceId,
+        tone: line.tone || "neutral",
+        selectionSource: "production_fixed" as const,
+        selectionReason: `通常生成は${HAYASHI_VOICE.name} / ${HAYASHI_VOICE.model}に固定`,
+        selectionMetadata: { fixed: true, model: HAYASHI_VOICE.model },
+      })),
+    ]);
+    await transaction
+      .update(projects)
+      .set({
+        narratorVoiceId: HAYASHI_VOICE.voiceId,
+        narratorSelectionReason: `通常生成は${HAYASHI_VOICE.name} / ${HAYASHI_VOICE.model}に固定`,
+        updatedAt: new Date(),
       })
-      .from(sceneVoiceAssignments)
-      .where(eq(sceneVoiceAssignments.projectId, project.id));
-    let voicePlan;
-    const voiceRouteStarted = Date.now();
-    try {
-      voicePlan = await new VoiceRouter(new ElevenLabsNarrationProvider()).select({
-        language: project.language,
-        style: project.style,
-        scenes: renderable.map((scene) => ({
-          sceneId: scene.sceneId,
-          preset: scene.preset,
-          title: rows.find((row) => row.scene.id === scene.sceneId)?.scene.title ?? "",
-          narration: scene.narration,
-          narrationTone: scene.narrationTone,
-          dialogue: scene.dialogue,
-          characterContext: rows.find((row) => row.scene.id === scene.sceneId)?.scene.title ?? "",
-        })),
-        presets: presetRows.map((preset): ApprovedVoicePreset => ({
-          id: preset.id,
-          key: preset.key,
-          voiceId: preset.voiceId,
-          name: preset.name,
-          gender:
-            preset.gender === "female" || preset.gender === "neutral" ? preset.gender : "male",
-          roles: preset.roles,
-          tones: preset.tones,
-          languages: preset.languages,
-          priority: preset.priority,
-          approved: preset.approved,
-        })),
-        defaultVoiceId: narrationConfig().defaultVoiceId,
-        projectNarratorVoiceId: project.narratorVoiceId,
-        projectNarratorSelectionReason: project.narratorSelectionReason,
-        savedAssignments: savedAssignmentRows,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.message === "ELEVENLABS_DEFAULT_VOICE_ID_REQUIRED")
-        throw new RenderRequestError("ELEVENLABS_DEFAULT_VOICE_IDを設定してください");
-      throw error;
-    }
-    if (voicePlan.librarySearch.performed)
-      await transaction.insert(apiUsage).values({
-        projectId: project.id,
-        provider: "elevenlabs",
-        operation: "voice_library_search",
-        model: "shared-voices-v1",
-        units: voicePlan.librarySearch.candidateCount,
-        durationMs: Date.now() - voiceRouteStarted,
-        estimatedCost: 0,
-      });
-    if (!project.narratorVoiceId || !project.narratorSelectionReason)
-      await transaction
-        .update(projects)
-        .set({
-          narratorVoiceId: voicePlan.narratorVoiceId,
-          narratorSelectionReason: voicePlan.narratorSelectionReason,
-          updatedAt: new Date(),
-        })
-        .where(eq(projects.id, project.id));
-    for (const assignment of voicePlan.assignments) {
+      .where(eq(projects.id, project.id));
+    for (const assignment of voiceAssignments) {
       await transaction
         .insert(sceneVoiceAssignments)
         .values({
@@ -163,7 +117,6 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
           sceneId: assignment.sceneId,
           speakerKey: assignment.speakerKey,
           role: assignment.role,
-          voicePresetId: assignment.voicePresetId,
           voiceId: assignment.voiceId,
           tone: assignment.tone,
           selectionSource: assignment.selectionSource,
@@ -178,7 +131,6 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
             sceneVoiceAssignments.role,
           ],
           set: {
-            voicePresetId: assignment.voicePresetId,
             voiceId: assignment.voiceId,
             tone: assignment.tone,
             selectionSource: assignment.selectionSource,
@@ -199,6 +151,14 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
           })
           .where(eq(scenes.id, assignment.sceneId));
     }
+    const [openingAsset] = project.openingAssetId
+      ? await transaction.select().from(systemVideoAssets).where(and(eq(systemVideoAssets.id, project.openingAssetId), eq(systemVideoAssets.type, "opening"), eq(systemVideoAssets.active, true))).limit(1)
+      : [];
+    const [endingAsset] = project.endingAssetId
+      ? await transaction.select().from(systemVideoAssets).where(and(eq(systemVideoAssets.id, project.endingAssetId), eq(systemVideoAssets.type, "ending"), eq(systemVideoAssets.active, true))).limit(1)
+      : [];
+    if (project.openingAssetId && !openingAsset) throw new RenderRequestError("選択したオープニン素材を利用できません");
+    if (project.endingAssetId && !endingAsset) throw new RenderRequestError("選択した締め動画素材を利用できません");
     let renderInput;
     try {
       renderInput = buildFinalRenderInput({
@@ -206,7 +166,9 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         bgmKey: project.bgmKey,
         scenes: renderable,
         totalSceneCount: bodyRows.length,
-        voiceAssignments: voicePlan.assignments,
+        voiceAssignments,
+        openingAsset: openingAsset ? toRenderSystemAsset(openingAsset) : null,
+        endingAsset: endingAsset ? toRenderSystemAsset(endingAsset) : null,
       });
     } catch (error) {
       if (error instanceof Error && error.message === "MISSING_SCENE_VIDEO")
@@ -233,6 +195,19 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       .returning();
     return { render, job };
   });
+}
+
+function toRenderSystemAsset(asset: typeof systemVideoAssets.$inferSelect) {
+  return {
+    id: asset.id,
+    key: asset.key,
+    storagePath: asset.storagePath,
+    duration: asset.durationMs / 1000,
+    width: asset.width,
+    height: asset.height,
+    fps: asset.fps,
+    hasAudio: asset.hasAudio,
+  };
 }
 
 export async function listProjectRenders(projectId: string) {

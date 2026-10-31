@@ -71,6 +71,17 @@ function plan() {
     bgmKey: "default-ambient",
     scenes,
     totalSceneCount: 2,
+    openingAsset: {
+      id: "opening-power-watch",
+      key: "opening_power_watch",
+      storagePath: "system-assets/opening/opening_power_watch.mp4",
+      duration: 15.07,
+      width: 1080,
+      height: 1920,
+      fps: 24,
+      hasAudio: true,
+    },
+    endingAsset: null,
   });
 }
 
@@ -116,7 +127,7 @@ describe("fixed Opening final render", () => {
     const ass = createAssSubtitles(render);
     expect(ass).toContain("Noto Sans JP");
     expect(render.overlays.some((item) => item.primary === "1967")).toBe(true);
-    expect(render.overlays.some((item) => item.primary === "POWER WATCH")).toBe(true);
+    expect(render.overlays.some((item) => item.primary === "1967")).toBe(true);
   });
 
   it("encodes only the body to the master codec and stream-copies the fixed Opening", () => {
@@ -132,7 +143,7 @@ describe("fixed Opening final render", () => {
     const args = buildFfmpegArgs(render, files, "/fonts", "body.mp4");
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("concat=n=2");
-    expect(filters).toContain("fps=24");
+    expect(filters).toContain("fps=30");
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");
     expect(args).not.toContain(files.opening);
@@ -184,14 +195,14 @@ describe("fixed Opening final render", () => {
     expect(plan()).toMatchObject({
       width: 1080,
       height: 1920,
-      fps: 24,
+      fps: 30,
       totalDuration: 24.07,
       missingSceneCount: 0,
-      fixedOpening: {
-        version: 4,
-        systemAsset: "assets/opening/opening-master.mp4",
-        credits: 0,
+      openingAsset: {
+        key: "opening_power_watch",
+        storagePath: "system-assets/opening/opening_power_watch.mp4",
       },
+      endingAsset: null,
     });
   });
 

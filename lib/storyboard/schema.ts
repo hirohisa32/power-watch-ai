@@ -158,13 +158,6 @@ export function validateStoryboard(
       availableAssetLabels,
     ),
   );
-  const openingPresets = storyboard.scenes.slice(0, 4).map((scene) => scene.preset);
-  if (openingPresets.join(",") !== "Opening,VintageRoom,OldBook,WatchReveal")
-    throw new StoryboardValidationError(
-      "StoryboardはOpening(Door)、Room、Book、Watch Revealの順で開始する必要があります",
-    );
-  if (storyboard.scenes.at(-1)?.preset !== "Ending")
-    throw new StoryboardValidationError("StoryboardはEndingで終了する必要があります");
   if (
     !storyboard.scenes.some((scene) =>
       ["WatchReveal", "WatchMacro", "ProductHero"].includes(scene.preset),

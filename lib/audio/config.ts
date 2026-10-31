@@ -1,8 +1,12 @@
+import { HAYASHI_VOICE } from "@/lib/system-media/config";
+
 export function narrationConfig() {
   return {
     apiKey: process.env.ELEVENLABS_API_KEY,
-    defaultVoiceId: process.env.ELEVENLABS_DEFAULT_VOICE_ID || process.env.ELEVENLABS_VOICE_ID,
-    model: process.env.ELEVENLABS_MODEL || "eleven_v4",
+    // Production narration is intentionally immutable. If this voice is unavailable,
+    // the render must safe-stop instead of silently changing the client's brand voice.
+    defaultVoiceId: HAYASHI_VOICE.voiceId,
+    model: HAYASHI_VOICE.model,
     pricePerThousandCharacters: positiveNumber(process.env.ELEVENLABS_PRICE_PER_1K_CHARACTERS, 0.1),
     timeoutMs: boundedInt(process.env.ELEVENLABS_TIMEOUT_MS, 90_000, 5_000, 180_000),
   };

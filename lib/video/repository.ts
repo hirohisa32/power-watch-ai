@@ -14,6 +14,7 @@ import { estimateVideoCost, providerDurationForScene } from "./cost";
 import { modelForStyle, videoConfig } from "./config";
 import { pickReferenceAssetIds } from "./orchestration";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { PRODUCT_EVIDENCE_MODEL, PRODUCT_EVIDENCE_PROVIDER } from "./product-photo";
 
 export class GenerationRequestError extends Error {
   name = "GenerationRequestError";
@@ -80,21 +81,26 @@ export async function createGenerationJob(input: {
       .from(videoGenerations)
       .where(eq(videoGenerations.sceneId, input.sceneId));
     const version = (latest.version ?? 0) + 1;
-    const model = modelForStyle(owned.project.style);
+    const productEvidence = owned.scene.watchReference;
+    if (productEvidence && !referenceAssetIds.length)
+      throw new GenerationRequestError("時計を表示するSceneに元の商品写真がありません");
+    const model = productEvidence ? PRODUCT_EVIDENCE_MODEL : modelForStyle(owned.project.style);
     const providerDuration = providerDurationForScene(owned.scene.duration);
     const prompt = buildVideoPrompt(
       { ...owned.scene, duration: providerDuration, referenceAvailable: referenceAssetIds.length > 0 },
       owned.project.style,
       input.regenerationInstruction,
     );
-    const estimate = estimateVideoCost(model, providerDuration, videoConfig().creditCostUsd);
+    const estimate = productEvidence
+      ? { credits: 0, usd: 0 }
+      : estimateVideoCost(model, providerDuration, videoConfig().creditCostUsd);
     const [generation] = await transaction
       .insert(videoGenerations)
       .values({
         projectId: input.projectId,
         sceneId: input.sceneId,
         version,
-        provider: "runway",
+        provider: productEvidence ? PRODUCT_EVIDENCE_PROVIDER : "runway",
         model,
         prompt,
         regenerationInstruction: input.regenerationInstruction,

@@ -44,7 +44,7 @@ export function buildVideoPrompt(
       : "Photorealistic premium cinema; accurate materials and restrained luxury grading.";
   const productConstraint = scene.watchReference
     ? scene.referenceAvailable !== false
-      ? `The supplied watch image is the exact product identity and first frame (${short(scene.preferredAssetLabels.join(", ") || "registered watch", 40)}). Preserve exactly its dial layout, indices, hands, logo, bezel, case, crown, proportions, material, strap and color. Move only camera, light, focus, reflection or hands. Do not redesign, invent, distort, mirror, relabel or add text.`
+      ? `ORIGINAL PRODUCT EVIDENCE (${short(scene.preferredAssetLabels.join(", ") || "registered watch", 40)}). This scene is rendered by the non-generative product-photo pipeline. Never redraw, stylize, reconstruct, morph, fill, relabel or alter the watch.`
       : "No real watch reference is available. Do not invent a precise frontal watch or readable dial. Show only silhouette, partial detail, reflection, a dark reveal, a distant wrist, or environmental implication so product identity is not fabricated."
     : "Do not introduce readable logos, watermarks, captions, or interface text.";
   const presetQuality = scene.preset ? QUALITY_BY_PRESET[scene.preset] : undefined;

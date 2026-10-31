@@ -4,8 +4,8 @@ export type WizardDraft = {
   style: "cinematic_real" | "animation";
   language: "ja" | "en" | "zh";
   targetDuration: 60 | 90;
-  narration: "auto" | "manual";
-  voiceId: string;
+  openingAssetId: string;
+  endingAssetId: string;
   bgm: "auto" | "manual";
   bgmKey: string;
 };

@@ -38,7 +38,7 @@ describe("video generation domain", () => {
       "6 seconds",
       "front, crown",
       "make the move slower",
-      "Do not redesign",
+      "Never redraw",
       "stable silhouette",
     ]) {
       expect(prompt).toContain(value);
@@ -48,7 +48,8 @@ describe("video generation domain", () => {
   it("routes animation style without losing product constraints", () => {
     const prompt = buildVideoPrompt(scene, "animation");
     expect(prompt).toContain("Premium cinematic animation");
-    expect(prompt).toContain("Preserve exactly its dial layout");
+    expect(prompt).toContain("ORIGINAL PRODUCT EVIDENCE");
+    expect(prompt).toContain("Never redraw, stylize, reconstruct");
   });
 
   it("keeps product and revision controls within Runway's 1,000-unit prompt limit", () => {
@@ -66,8 +67,8 @@ describe("video generation domain", () => {
       "revision ".repeat(100),
     );
     expect(prompt.length).toBeLessThanOrEqual(1000);
-    expect(prompt).toContain("exact product identity");
-    expect(prompt).toContain("Do not redesign");
+    expect(prompt).toContain("ORIGINAL PRODUCT EVIDENCE");
+    expect(prompt).toContain("Never redraw");
     expect(prompt).toContain("Revision instruction");
   });
 

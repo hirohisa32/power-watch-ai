@@ -43,7 +43,12 @@ export type VoiceAssignment = {
 };
 
 export type VoiceSelectionSource =
-  "manual_override" | "saved" | "approved_preset" | "voice_library" | "default_fallback";
+  | "production_fixed"
+  | "manual_override"
+  | "saved"
+  | "approved_preset"
+  | "voice_library"
+  | "default_fallback";
 
 export type VoicePlan = {
   narratorVoiceId: string;

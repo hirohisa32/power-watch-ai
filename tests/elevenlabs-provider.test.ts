@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { ElevenLabsError, ElevenLabsNarrationProvider } from "@/lib/audio/elevenlabs";
+import { HAYASHI_VOICE } from "@/lib/system-media/config";
 
 describe("ElevenLabs narration adapter", () => {
   beforeEach(() => {
@@ -38,7 +39,7 @@ describe("ElevenLabs narration adapter", () => {
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = fetcher.mock.calls[0];
-    expect(url).toContain("/v1/text-to-speech/voice-1");
+    expect(url).toContain(`/v1/text-to-speech/${HAYASHI_VOICE.voiceId}`);
     expect(init.headers["xi-api-key"]).toBe("test-key");
     expect(JSON.parse(init.body)).toMatchObject({
       text: "時間は受け継がれる。",

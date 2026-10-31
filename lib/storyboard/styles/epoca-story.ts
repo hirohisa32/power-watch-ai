@@ -41,9 +41,9 @@ export const EPOCA_STORY_STYLE = {
     "CHARACTER",
     "EVENT",
     "WATCH_CONNECTION",
-    "PRODUCT_DETAIL",
+    "ORIGINAL_PRODUCT_EVIDENCE",
+    "DETAIL_OR_EVIDENCE",
     "EMOTIONAL_PAYOFF",
-    "ENDING",
   ],
   cameraRules: [
     "Use one legible camera move per shot: locked portrait, slow push, short lateral track, or precise macro slide.",
@@ -51,7 +51,7 @@ export const EPOCA_STORY_STYLE = {
     "Match movement direction across adjacent shots when using a motion-matched cut.",
   ],
   framingRules: [
-    "Alternate environmental wide, character medium/close portrait, and watch macro or wrist detail.",
+    "Alternate environmental wide, character medium/close portrait, and original-product evidence detail.",
     "Keep faces and the watch inside a 9:16 center-safe composition with clean subtitle space.",
     "Use negative space for year/location or brand overlays; never ask the video model to draw text.",
   ],
@@ -69,10 +69,10 @@ export const EPOCA_STORY_STYLE = {
     "Animate small expressions, cloth, dust, fire, and camera parallax; avoid rubbery body motion.",
   ],
   productShotRules: [
-    "Use image-to-video whenever an uploaded watch reference exists.",
-    "Preserve dial, hands, indices, logo, bezel, case, crown, strap, colors, and proportions exactly.",
-    "Animate only camera, light, reflections, focus, hands, or a simple wrist gesture; never redesign the product.",
-    "Without a real reference, avoid a precise frontal hero: use silhouette, partial detail, reflection, dark reveal, wrist context, or environmental implication.",
+    "Treat uploaded watch photographs as original product evidence and route them through the non-generative editorial-motion pipeline.",
+    "Keep every original watch pixel and identity-critical dial, hands, indices, logo, bezel, case, crown, bracelet, engraving, serial, movement, patina and scratch unchanged.",
+    "Animate only the editorial frame with crop/dolly, mask reveal, focus-style blur, light or reflection overlay, shadow, foreground depth, grain, match cut and text.",
+    "Never redraw, stylize, reconstruct, morph, generatively fill, wear, hold or invent the product; without a real photograph, do not fabricate product evidence.",
   ],
   transitionRules: [
     "Straight and motion-matched cuts are the default.",
@@ -96,8 +96,8 @@ export const EPOCA_STORY_STYLE = {
     "Duck music under speech, use silence as punctuation, and place SE only on visible actions.",
   ],
   endingRules: [
-    "Resolve the story with one emotional sentence, return to an accurate watch hero, then hold a restrained brand end card.",
-    "Avoid a salesy feature list or a long logo animation.",
+    "Resolve the story body with one emotional sentence and an accurate original-photo watch hero.",
+    "The selected ending is an external System Asset; do not generate a brand end card inside the storyboard.",
   ],
   luxuryStyleRules: [
     "Luxury comes from restraint, material accuracy, negative space, deliberate pacing, and controlled highlights.",

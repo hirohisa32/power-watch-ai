@@ -5,7 +5,8 @@ import type { FinalRenderInput } from "./types";
 import { SOUND_EFFECT_BY_PRESET } from "./plan";
 
 export type FfmpegRenderFiles = {
-  opening: string;
+  opening?: string;
+  ending?: string;
   videos: string[];
   narration: string;
   bgm: string;
@@ -131,6 +132,19 @@ export function buildCompatibilityConcatArgs(concatList: string, output: string)
 }
 
 export function buildOpeningCompatibilityArgs(input: string, output: string, fps: number) {
+  return buildSystemMediaCompatibilityArgs(input, output, fps, undefined, true);
+}
+
+export function buildSystemMediaCompatibilityArgs(
+  input: string,
+  output: string,
+  fps: number,
+  duration: number | undefined,
+  hasAudio: boolean,
+) {
+  const audioInput = hasAudio
+    ? []
+    : ["-f", "lavfi", ...(duration ? ["-t", String(duration)] : []), "-i", "anullsrc=r=32000:cl=stereo"];
   return [
     "-y",
     "-hide_banner",
@@ -138,10 +152,16 @@ export function buildOpeningCompatibilityArgs(input: string, output: string, fps
     "warning",
     "-i",
     input,
+    ...audioInput,
+    ...(duration ? ["-t", String(duration)] : []),
     "-vf",
     `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=${fps},format=yuv420p`,
     "-r",
     String(fps),
+    "-map",
+    "0:v:0",
+    "-map",
+    hasAudio ? "0:a:0" : "1:a:0",
     "-c:v",
     "libx264",
     "-preset",
@@ -207,18 +227,49 @@ export async function renderWithFfmpeg(
 ) {
   const executable = resolveFfmpegPath();
   const bodyOutput = path.join(path.dirname(files.output), "body-master-compatible.mp4");
-  const openingCompatible = path.join(path.dirname(files.output), "fixed-opening-compatible.mp4");
-  const concatList = path.join(path.dirname(files.output), "fixed-opening-audio-concat.txt");
+  const openingCompatible = path.join(path.dirname(files.output), "selected-opening-compatible.mp4");
+  const endingCompatible = path.join(path.dirname(files.output), "selected-ending-compatible.mp4");
+  const concatList = path.join(path.dirname(files.output), "system-media-concat.txt");
   try {
     await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput), 270_000);
-    await run(
-      executable,
-      buildOpeningCompatibilityArgs(files.opening, openingCompatible, input.fps),
-      180_000,
-    );
+    const segments: string[] = [];
+    if (files.opening && input.openingAsset) {
+      await run(
+        executable,
+        buildSystemMediaCompatibilityArgs(
+          files.opening,
+          openingCompatible,
+          input.fps,
+          input.openingAsset.duration,
+          input.openingAsset.hasAudio,
+        ),
+        180_000,
+      );
+      segments.push(openingCompatible);
+    }
+    segments.push(bodyOutput);
+    if (files.ending && input.endingAsset) {
+      await run(
+        executable,
+        buildSystemMediaCompatibilityArgs(
+          files.ending,
+          endingCompatible,
+          input.fps,
+          input.endingAsset.duration,
+          input.endingAsset.hasAudio,
+        ),
+        180_000,
+      );
+      segments.push(endingCompatible);
+    }
+    if (segments.length === 1) {
+      const { copyFile } = await import("node:fs/promises");
+      await copyFile(bodyOutput, files.output);
+      return;
+    }
     await writeFile(
       concatList,
-      [openingCompatible, bodyOutput]
+      segments
         .map((file) => `file '${file.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`)
         .join("\n"),
       "utf8",
@@ -228,6 +279,7 @@ export async function renderWithFfmpeg(
     await Promise.all([
       rm(bodyOutput, { force: true }),
       rm(openingCompatible, { force: true }),
+      rm(endingCompatible, { force: true }),
       rm(concatList, { force: true }),
     ]);
   }

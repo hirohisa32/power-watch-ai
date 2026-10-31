@@ -5,14 +5,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { assets, projects, voicePresets } from "@/lib/db/schema";
+import { assets, projects } from "@/lib/db/schema";
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
 import { isAdminEmail } from "@/lib/ui/presentation";
 import { FinalRenderPanel } from "./final-render-panel";
 import { StoryboardEditor } from "./storyboard-editor";
-import { NarratorVoiceSelector } from "./narrator-voice-selector";
+import { HAYASHI_VOICE } from "@/lib/system-media/config";
 
 export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
@@ -34,12 +34,9 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
-  const [generations, renders, approvedVoices] = await Promise.all([
+  const [generations, renders] = await Promise.all([
     listSceneGenerations(id),
     listProjectRenders(id),
-    db.select({ voiceId: voicePresets.voiceId, name: voicePresets.name })
-      .from(voicePresets)
-      .where(eq(voicePresets.approved, true)),
   ]);
   return (
     <main className="content storyboard-page">
@@ -73,11 +70,11 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
         }))}
         showTechnical={isAdmin}
       />
-      <NarratorVoiceSelector
-        projectId={id}
-        voices={approvedVoices}
-        initialVoiceId={project.narratorVoiceId}
-      />
+      <section className="panel fixed-narration-panel">
+        <p className="eyebrow">ナレーション</p>
+        <h2>{HAYASHI_VOICE.name}</h2>
+        <p className="hint">{HAYASHI_VOICE.model}／通常生成ではこの声に固定されます。別の声への自動変更は行いません。</p>
+      </section>
       <FinalRenderPanel
         projectId={id}
         renders={renders.map((render) => ({

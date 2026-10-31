@@ -50,6 +50,7 @@ export const openingStatus = pgEnum("opening_status", [
 ]);
 export const costSettlementStatus = pgEnum("cost_settlement_status", ["pending_rate", "fixed"]);
 export const monthlyBillingStatus = pgEnum("monthly_billing_status", ["open", "closed"]);
+export const systemVideoAssetType = pgEnum("system_video_asset_type", ["opening", "ending"]);
 export const voiceRole = pgEnum("voice_role", ["narration", "dialogue"]);
 export const narrationQualityStatus = pgEnum("narration_quality_status", [
   "pending",
@@ -102,6 +103,30 @@ export const sessions = pgTable(
   ],
 );
 
+export const systemVideoAssets = pgTable(
+  "system_video_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").notNull(),
+    type: systemVideoAssetType("type").notNull(),
+    brand: text("brand").notNull(),
+    displayName: text("display_name").notNull(),
+    storagePath: text("storage_path").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    fps: integer("fps").notNull(),
+    hasAudio: boolean("has_audio").default(true).notNull(),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("system_video_assets_key_unique").on(table.key),
+    index("system_video_assets_type_active_idx").on(table.type, table.active),
+  ],
+);
+
 export const projects = pgTable(
   "projects",
   {
@@ -115,6 +140,12 @@ export const projects = pgTable(
     language: projectLanguage("language").notNull(),
     targetDuration: integer("target_duration").notNull(),
     bgmKey: text("bgm_key").default("default-ambient").notNull(),
+    openingAssetId: uuid("opening_asset_id").references(() => systemVideoAssets.id, {
+      onDelete: "restrict",
+    }),
+    endingAssetId: uuid("ending_asset_id").references(() => systemVideoAssets.id, {
+      onDelete: "restrict",
+    }),
     narratorVoiceId: text("narrator_voice_id"),
     narratorSelectionReason: text("narrator_selection_reason"),
     status: projectStatus("status").default("draft").notNull(),
@@ -777,6 +808,7 @@ export const openingPreviewJobs = pgTable(
 );
 
 export type Project = typeof projects.$inferSelect;
+export type SystemVideoAsset = typeof systemVideoAssets.$inferSelect;
 export type BgmAsset = typeof bgmAssets.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type Storyboard = typeof storyboards.$inferSelect;

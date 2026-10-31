@@ -1,6 +1,9 @@
 node_modules/
 .pnpm-store/
+.pnpm/
 .next/
+.next-locked-*/
+node_modules-junction-backup-*/
 .vercel/
 coverage/
 .env

@@ -41,6 +41,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         language: project.language,
         targetDuration: project.targetDuration,
         assetLabels: watchAssets.map((asset) => asset.label),
+        openingSelected: Boolean(project.openingAssetId),
+        endingSelected: Boolean(project.endingAssetId),
       },
       new OpenAIStoryboardDirector(),
       new DrizzleStoryboardPersistence(),
