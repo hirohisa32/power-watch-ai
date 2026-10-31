@@ -40,7 +40,9 @@ async function main() {
       secretAccessKey: required("R2_SECRET_ACCESS_KEY"),
     },
   });
-  const sql = postgres(required("DATABASE_URL"), { max: 1, prepare: false });
+  const sql = process.env.DATABASE_URL
+    ? postgres(process.env.DATABASE_URL, { max: 1, prepare: false })
+    : null;
   try {
     for (const item of assets) {
       const details = await stat(item.source);
@@ -52,7 +54,7 @@ async function main() {
         ContentType: "video/mp4",
         Metadata: { systemAsset: item.key, brand: item.brand, type: item.type },
       }));
-      await sql`
+      if (sql) await sql`
         INSERT INTO system_video_assets (
           id, key, type, brand, display_name, storage_path, duration_ms,
           width, height, fps, has_audio, active, updated_at
@@ -70,7 +72,7 @@ async function main() {
       console.log(`Synced ${item.key}: ${details.size} bytes -> ${item.storagePath}`);
     }
   } finally {
-    await sql.end();
+    if (sql) await sql.end();
   }
 }
 
