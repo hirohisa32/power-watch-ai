@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GOLD_KHANJAR_ENDING_TRANSITION_SECONDS,
+  GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS,
   GOLD_KHANJAR_FULL_MODEL,
   GOLD_KHANJAR_FULL_VOICE,
   GOLD_KHANJAR_NARRATION_SUBTITLES_ENABLED,
@@ -40,6 +41,7 @@ describe("Gold Khanjar approved full production", () => {
     expect(GOLD_KHANJAR_NARRATION_SUBTITLES_ENABLED).toBe(false);
     expect(GOLD_KHANJAR_ENDING_TRANSITION_SECONDS).toBeGreaterThanOrEqual(0.8);
     expect(GOLD_KHANJAR_ENDING_TRANSITION_SECONDS).toBeLessThanOrEqual(1.5);
+    expect(GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS).toBe(1.5);
   });
 });
 

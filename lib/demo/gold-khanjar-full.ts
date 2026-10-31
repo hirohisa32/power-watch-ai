@@ -17,6 +17,7 @@ export const GOLD_KHANJAR_FULL_BODY_DURATION = 45;
 export const GOLD_KHANJAR_APPROVED_BGM_KEY = "journey-begins-cinematic";
 export const GOLD_KHANJAR_NARRATION_SUBTITLES_ENABLED = false;
 export const GOLD_KHANJAR_ENDING_TRANSITION_SECONDS = 1.2;
+export const GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS = 1.5;
 
 export const GOLD_KHANJAR_STORY_SCENES = {
   "01-oman-entry": {

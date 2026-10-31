@@ -369,6 +369,41 @@ export async function applyDocumentaryEndingTransition(input: {
   await run(resolveFfmpegPath(), buildDocumentaryEndingTransitionArgs(input), 180_000);
 }
 
+export function buildLuxuryEndingTextAnimationArgs(input: {
+  source: string;
+  output: string;
+  duration: number;
+  fadeDuration: number;
+  preset?: string;
+}) {
+  const fadeDuration = Math.min(Math.max(input.fadeDuration, 0.1), input.duration / 2);
+  const fadeOutStart = Math.max(0, input.duration - fadeDuration);
+  const videoFilter = [
+    `fade=t=in:st=0:d=${fadeDuration.toFixed(3)}:color=black`,
+    `fade=t=in:st=0:d=${fadeDuration.toFixed(3)}:color=black`,
+    `fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDuration.toFixed(3)}:color=black`,
+    `fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDuration.toFixed(3)}:color=black`,
+    "format=yuv420p",
+  ].join(",");
+  return [
+    "-y", "-hide_banner", "-loglevel", "warning", "-i", input.source,
+    "-vf", videoFilter,
+    "-t", input.duration.toFixed(3), "-r", "30",
+    "-c:v", "libx264", "-preset", input.preset ?? "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+    "-c:a", "copy", "-movflags", "+faststart", input.output,
+  ];
+}
+
+export async function applyLuxuryEndingTextAnimation(input: {
+  source: string;
+  output: string;
+  duration: number;
+  fadeDuration: number;
+  preset?: string;
+}) {
+  await run(resolveFfmpegPath(), buildLuxuryEndingTextAnimationArgs(input), 180_000);
+}
+
 export async function mixBgmIntoEndingSegment(input: {
   video: string;
   bgm: string;

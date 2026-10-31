@@ -4,6 +4,7 @@ import { buildNarrationScript, buildSubtitleCues, narrationSpeed } from "@/lib/a
 import { createAssSubtitles } from "@/lib/render/ass";
 import {
   buildDocumentaryEndingTransitionArgs,
+  buildLuxuryEndingTextAnimationArgs,
   buildFixedOpeningConcatArgs,
   buildFfmpegArgs,
   buildCompatibilityConcatArgs,
@@ -219,6 +220,20 @@ describe("fixed Opening final render", () => {
     expect(filter).toContain("d=1.200");
     expect(filter).toContain("color=0x120B07");
     expect(args.slice(args.indexOf("-c:a"), args.indexOf("-c:a") + 2)).toEqual(["-c:a", "copy"]);
+  });
+
+  it("uses a quadratic ease envelope for the luxury ending text", () => {
+    const args = buildLuxuryEndingTextAnimationArgs({
+      source: "ending.mp4",
+      output: "ending-eased.mp4",
+      duration: 5,
+      fadeDuration: 1.5,
+    });
+    const filter = args[args.indexOf("-vf") + 1];
+    expect(filter.match(/fade=t=in/g)).toHaveLength(2);
+    expect(filter.match(/fade=t=out/g)).toHaveLength(2);
+    expect(filter).toContain("st=3.500:d=1.500");
+    expect(args).not.toContain("scale");
   });
 
   it("uses valid render status transitions and stable output paths", () => {
