@@ -19,11 +19,23 @@ export function GoldKhanjarFullClient() {
   }
   async function uploadRepairedFinal(file: File) {
     setBusy(true);
-    const form = new FormData(); form.append("file", file);
-    const response = await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST", body: form });
-    const body = await response.json();
-    setState((old) => ({ ...old, ...body }));
-    setBusy(false);
+    let uploadId = "";
+    try {
+      const init = await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST", headers: { "x-upload-action": "init", "x-file-size": String(file.size) } }).then((response) => response.json());
+      if (!init.uploadId) throw new Error(init.error ?? "Upload開始に失敗しました");
+      uploadId = init.uploadId;
+      const parts: Array<{ partNumber: number; eTag: string }> = []; const chunkSize = 3 * 1024 * 1024;
+      for (let offset = 0, partNumber = 1; offset < file.size; offset += chunkSize, partNumber++) {
+        const part = await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST", headers: { "content-type": "application/octet-stream", "x-upload-action": "part", "x-upload-id": uploadId, "x-part-number": String(partNumber) }, body: file.slice(offset, Math.min(file.size, offset + chunkSize)) }).then((response) => response.json());
+        if (!part.eTag) throw new Error(part.error ?? `Part ${partNumber}のUploadに失敗しました`);
+        parts.push({ partNumber, eTag: part.eTag });
+      }
+      const body = await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST", headers: { "content-type": "application/json", "x-upload-action": "complete", "x-upload-id": uploadId }, body: JSON.stringify({ parts }) }).then((response) => response.json());
+      setState((old) => ({ ...old, ...body }));
+    } catch (error) {
+      if (uploadId) await fetch("/api/admin/demo/gold-khanjar/final-cache", { method: "POST", headers: { "x-upload-action": "abort", "x-upload-id": uploadId } }).catch(() => undefined);
+      setState((old) => ({ ...old, error: error instanceof Error ? error.message : "Final MP4を登録できませんでした" }));
+    } finally { setBusy(false); }
   }
   const render = state.render;
   return <>
