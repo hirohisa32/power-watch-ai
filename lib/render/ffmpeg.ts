@@ -19,6 +19,7 @@ export function buildFfmpegArgs(
   files: FfmpegRenderFiles,
   fontDirectory: string,
   bodyOutput = files.output,
+  preset = "medium",
 ) {
   const bodyDuration = input.scenes.reduce((sum, scene) => sum + scene.duration, 0);
   const args = ["-y", "-hide_banner", "-loglevel", "warning"];
@@ -65,7 +66,7 @@ export function buildFfmpegArgs(
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+    preset,
     "-crf",
     "20",
     "-pix_fmt",
@@ -224,6 +225,7 @@ export async function renderWithFfmpeg(
   input: FinalRenderInput,
   files: FfmpegRenderFiles,
   fontDirectory = resolveFontDirectory(),
+  preset = "medium",
 ) {
   const executable = resolveFfmpegPath();
   const bodyOutput = path.join(path.dirname(files.output), "body-master-compatible.mp4");
@@ -231,7 +233,7 @@ export async function renderWithFfmpeg(
   const endingCompatible = path.join(path.dirname(files.output), "selected-ending-compatible.mp4");
   const concatList = path.join(path.dirname(files.output), "system-media-concat.txt");
   try {
-    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput), 270_000);
+    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput, preset), 270_000);
     const segments: string[] = [];
     if (files.opening && input.openingAsset) {
       await run(

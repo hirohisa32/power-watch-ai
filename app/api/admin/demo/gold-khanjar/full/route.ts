@@ -117,12 +117,11 @@ async function renderFull() {
   try {
     const videos: string[] = [];
     for (const [index, id] of (Object.keys(GOLD_KHANJAR_STORY_SCENES) as GoldKhanjarStorySceneId[]).entries()) { const file = path.join(work, `story-${index}.mp4`); await writeFile(file, await readPrivateObject(sceneKey(id))); videos.push(file); }
-    const productVideos = await Promise.all(GOLD_KHANJAR_PRODUCT_SCENES.map(async (product, index) => {
+    for (const [index, product] of GOLD_KHANJAR_PRODUCT_SCENES.entries()) {
       const output = path.join(work, `product-${index}.mp4`);
-      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 3.75);
-      return output;
-    }));
-    videos.push(...productVideos);
+      await renderProductPhotoMotion(path.join(process.cwd(), "public", "production-tests", "gold-khanjar", product.file), output, 3.75, "veryfast");
+      videos.push(output);
+    }
     const narrationFile = path.join(work, "narration.mp3"); await writeFile(narrationFile, await readPrivateObject(narration.objectKey));
     const bgmFile = path.join(work, `bgm${path.extname(bgm.filePath) || ".mp3"}`); await writeFile(bgmFile, await readPrivateObject(bgm.filePath));
     const openingFile = openingAsset ? path.join(work, "opening.mp4") : undefined; if (openingAsset && openingFile) await writeFile(openingFile, await readPrivateObject(openingAsset.storagePath));
@@ -130,7 +129,7 @@ async function renderFull() {
     const rows = renderRows();
     const input: FinalRenderInput = { width: 1080, height: 1920, fps: 30, language: "ja", bgmKey: bgm.key, totalDuration, missingSceneCount: 0, scenes: rows, subtitles: subtitles(), overlays: [], voiceAssignments: [], openingAsset, endingAsset };
     const subtitleFile = path.join(work, "subtitles.ass"); await writeFile(subtitleFile, createAssSubtitles(input), "utf8");
-    const output = path.join(work, "gold-khanjar-full.mp4"); await renderWithFfmpeg(input, { opening: openingFile, ending: endingFile, videos, narration: narrationFile, bgm: bgmFile, subtitles: subtitleFile, output });
+    const output = path.join(work, "gold-khanjar-full.mp4"); await renderWithFfmpeg(input, { opening: openingFile, ending: endingFile, videos, narration: narrationFile, bgm: bgmFile, subtitles: subtitleFile, output }, undefined, "veryfast");
     const objectKey = `projects/${context.project.id}/renders/${render.id}.mp4`; await uploadPrivateObject(objectKey, new Uint8Array(await readFile(output)), "video/mp4");
     await getDb().transaction(async (tx) => { await tx.update(finalRenders).set({ status: "completed", outputObjectKey: objectKey, completedAt: new Date(), updatedAt: new Date() }).where(eq(finalRenders.id, render.id)); await tx.insert(apiUsage).values({ projectId: context.project.id, provider: "internal-render", operation: "gold_khanjar_full_render", model: "ffmpeg-h264-aac-v1", durationMs: 0, estimatedCost: 0 }); });
     return NextResponse.json({ ...renderResult(render.id, false), duration: totalDuration, opening: openingAsset?.key ?? null, ending: endingAsset?.key ?? null });

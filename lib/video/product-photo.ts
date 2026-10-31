@@ -4,7 +4,7 @@ import path from "node:path";
 export const PRODUCT_EVIDENCE_PROVIDER = "internal-product-evidence";
 export const PRODUCT_EVIDENCE_MODEL = "original-product-photo-motion-v1";
 
-export function buildProductPhotoMotionArgs(input: string, output: string, duration: number) {
+export function buildProductPhotoMotionArgs(input: string, output: string, duration: number, preset = "medium") {
   return [
     "-y",
     "-hide_banner",
@@ -34,7 +34,7 @@ export function buildProductPhotoMotionArgs(input: string, output: string, durat
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+      preset,
     "-crf",
     "18",
     "-pix_fmt",
@@ -45,9 +45,9 @@ export function buildProductPhotoMotionArgs(input: string, output: string, durat
   ];
 }
 
-export async function renderProductPhotoMotion(input: string, output: string, duration: number) {
+export async function renderProductPhotoMotion(input: string, output: string, duration: number, preset = "medium") {
   const executable = process.env.FFMPEG_PATH || path.join(process.cwd(), ".vercel-build-assets", "ffmpeg");
-  const args = buildProductPhotoMotionArgs(input, output, duration);
+  const args = buildProductPhotoMotionArgs(input, output, duration, preset);
   await new Promise<void>((resolve, reject) => {
     const child = spawn(executable, args, { windowsHide: true });
     let errorOutput = "";
