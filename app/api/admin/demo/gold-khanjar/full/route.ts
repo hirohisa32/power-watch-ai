@@ -28,7 +28,7 @@ import {
   type GoldKhanjarStorySceneId,
 } from "@/lib/demo/gold-khanjar-full";
 import { createAssSubtitles } from "@/lib/render/ass";
-import { applyDocumentaryEndingTransition, applyLuxuryEndingTextAnimation, assemblePreparedRender, mixBgmIntoEndingSegment, normalizeSystemMedia, renderWithFfmpeg } from "@/lib/render/ffmpeg";
+import { applyDocumentaryEndingTransition, applyLuxuryEndingTextAnimation, assemblePreparedRender, normalizeSystemMedia, renderWithFfmpeg } from "@/lib/render/ffmpeg";
 import type { FinalRenderInput, RenderScene, RenderSystemAsset } from "@/lib/render/types";
 import { assertSameOrigin } from "@/lib/security";
 import { createReadUrl, privateObjectExists, readPrivateObject, uploadPrivateObject } from "@/lib/storage";
@@ -188,9 +188,8 @@ async function prepareSystemAsset(kind: "opening" | "ending") {
   const work = await mkdtemp(path.join(tmpdir(), `gold-khanjar-${kind}-`));
   try {
     const compatible = path.join(work, `${kind}-compatible.mp4`);
-    const animated = path.join(work, `${kind}-animated.mp4`);
     const output = path.join(work, `${kind}-final.mp4`);
-    const reusableKey = legacySystemMediaKey(kind, asset.id);
+    const reusableKey = kind === "ending" ? previousEndingSystemMediaKey(asset.id) : legacySystemMediaKey(kind, asset.id);
     if (kind === "ending" && await privateObjectExists(reusableKey)) {
       await writeFile(compatible, await readPrivateObject(reusableKey));
     } else {
@@ -198,10 +197,7 @@ async function prepareSystemAsset(kind: "opening" | "ending") {
       await normalizeSystemMedia({ source, output: compatible, fps: 30, duration: asset.duration, hasAudio: asset.hasAudio, preset: "veryfast" });
     }
     if (kind === "ending") {
-      const bgm = await approvedBgm();
-      const bgmFile = path.join(work, `bgm${path.extname(bgm.filePath) || ".mp3"}`); await writeFile(bgmFile, await readPrivateObject(bgm.filePath));
-      await applyLuxuryEndingTextAnimation({ source: compatible, output: animated, duration: asset.duration, fadeDuration: GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS, preset: "ultrafast" });
-      await mixBgmIntoEndingSegment({ video: animated, bgm: bgmFile, output, bgmOffset: GOLD_KHANJAR_FULL_BODY_DURATION, duration: asset.duration });
+      await applyLuxuryEndingTextAnimation({ source: compatible, output, duration: asset.duration, fadeDuration: GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS, preset: "ultrafast" });
     } else await copyFile(compatible, output);
     await uploadPrivateObject(objectKey, new Uint8Array(await readFile(output)), "video/mp4");
     return NextResponse.json(kind === "opening" ? { openingReady: true } : { endingReady: true });
@@ -296,6 +292,7 @@ function productMotionKey(id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refi
 async function productMotionsReady() { return (await Promise.all(GOLD_KHANJAR_PRODUCT_SCENES.map((item) => privateObjectExists(productMotionKey(item.id))))).every(Boolean); }
 function bodySegmentKey(kind: "story" | "product") { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-body/v3/${kind}.mp4`; }
 function systemMediaKey(kind: "opening" | "ending", id: string) { const version = kind === "ending" ? "v5" : "v3"; return `${GOLD_KHANJAR_FULL_PREFIX}/refined-system/${version}/${kind}-${id}.mp4`; }
+function previousEndingSystemMediaKey(id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-system/v4/ending-${id}.mp4`; }
 function legacySystemMediaKey(kind: "opening" | "ending", id: string) { return `${GOLD_KHANJAR_FULL_PREFIX}/refined-system/v2/${kind}-${id}.mp4`; }
 async function systemMediaReady() { const context = await productionContext(); const opening = await selectedSystemAsset(context.project.openingAssetId, "opening"); const ending = await selectedSystemAsset(context.project.endingAssetId, "ending"); return { openingReady: !opening || await privateObjectExists(systemMediaKey("opening", opening.id)), endingReady: !ending || await privateObjectExists(systemMediaKey("ending", ending.id)) }; }
 async function cleanupStaleRenders() {
