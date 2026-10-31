@@ -389,7 +389,7 @@ export function buildLuxuryEndingTextAnimationArgs(input: {
     "-y", "-hide_banner", "-loglevel", "warning", "-i", input.source,
     "-vf", videoFilter,
     "-t", input.duration.toFixed(3), "-r", "30",
-    "-c:v", "libx264", "-preset", input.preset ?? "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+    "-c:v", "libx264", "-preset", input.preset ?? "ultrafast", "-crf", "20", "-pix_fmt", "yuv420p",
     "-c:a", "copy", "-movflags", "+faststart", input.output,
   ];
 }

@@ -200,7 +200,7 @@ async function prepareSystemAsset(kind: "opening" | "ending") {
     if (kind === "ending") {
       const bgm = await approvedBgm();
       const bgmFile = path.join(work, `bgm${path.extname(bgm.filePath) || ".mp3"}`); await writeFile(bgmFile, await readPrivateObject(bgm.filePath));
-      await applyLuxuryEndingTextAnimation({ source: compatible, output: animated, duration: asset.duration, fadeDuration: GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS, preset: "veryfast" });
+      await applyLuxuryEndingTextAnimation({ source: compatible, output: animated, duration: asset.duration, fadeDuration: GOLD_KHANJAR_ENDING_TEXT_FADE_SECONDS, preset: "ultrafast" });
       await mixBgmIntoEndingSegment({ video: animated, bgm: bgmFile, output, bgmOffset: GOLD_KHANJAR_FULL_BODY_DURATION, duration: asset.duration });
     } else await copyFile(compatible, output);
     await uploadPrivateObject(objectKey, new Uint8Array(await readFile(output)), "video/mp4");
