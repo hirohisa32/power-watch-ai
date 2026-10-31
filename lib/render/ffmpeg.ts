@@ -21,6 +21,7 @@ export function buildFfmpegArgs(
   bodyOutput = files.output,
   preset = "medium",
   fadeBgmAtBodyEnd = true,
+  audioOffsetSeconds = 0,
 ) {
   const bodyDuration = input.scenes.reduce((sum, scene) => sum + scene.duration, 0);
   const args = ["-y", "-hide_banner", "-loglevel", "warning"];
@@ -51,9 +52,10 @@ export function buildFfmpegArgs(
   });
   const concat = `${input.scenes.map((_, index) => `[v${index}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[base]`;
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
+  const audioEnd = audioOffsetSeconds + bodyDuration;
   const audio = [
-    `[${narrationIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo,asplit=2[narrmix][side]`,
-    `[${bgmIndex}:a]atrim=0:${bodyDuration},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11${fadeBgmAtBodyEnd ? `,afade=t=out:st=${Math.max(0, bodyDuration - 1.5).toFixed(3)}:d=1.5` : ""},aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
+    `[${narrationIndex}:a]atrim=start=${audioOffsetSeconds}:end=${audioEnd},asetpts=PTS-STARTPTS,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo,asplit=2[narrmix][side]`,
+    `[${bgmIndex}:a]atrim=start=${audioOffsetSeconds}:end=${audioEnd},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11${fadeBgmAtBodyEnd ? `,afade=t=out:st=${Math.max(0, bodyDuration - 1.5).toFixed(3)}:d=1.5` : ""},aformat=sample_fmts=fltp:sample_rates=32000:channel_layouts=stereo[bgm]`,
     `[bgm][side]sidechaincompress=threshold=0.02:ratio=5:attack=35:release=650:makeup=1[ducked]`,
     `[${seIndex}:a]highpass=f=40,lowpass=f=7000,volume=0.11[se]`,
     `[narrmix][ducked][se]amix=inputs=3:duration=longest,alimiter=limit=0.92,loudnorm=I=-14:TP=-1.0:LRA=10[aout]`,
@@ -232,6 +234,7 @@ export async function renderWithFfmpeg(
   fontDirectory = resolveFontDirectory(),
   preset = "medium",
   fadeBgmAtBodyEnd = true,
+  audioOffsetSeconds = 0,
 ) {
   const executable = resolveFfmpegPath();
   const bodyOutput = path.join(path.dirname(files.output), "body-master-compatible.mp4");
@@ -239,7 +242,7 @@ export async function renderWithFfmpeg(
   const endingCompatible = path.join(path.dirname(files.output), "selected-ending-compatible.mp4");
   const concatList = path.join(path.dirname(files.output), "system-media-concat.txt");
   try {
-    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput, preset, fadeBgmAtBodyEnd), 270_000);
+    await run(executable, buildFfmpegArgs(input, files, fontDirectory, bodyOutput, preset, fadeBgmAtBodyEnd, audioOffsetSeconds), 270_000);
     const segments: string[] = [];
     if (files.opening && input.openingAsset) {
       await run(
@@ -290,6 +293,40 @@ export async function renderWithFfmpeg(
       rm(endingCompatible, { force: true }),
       rm(concatList, { force: true }),
     ]);
+  }
+}
+
+export async function assemblePreparedRender(input: {
+  bodySegments: string[];
+  opening?: string;
+  openingDuration?: number;
+  openingHasAudio?: boolean;
+  ending?: string;
+  endingDuration?: number;
+  endingHasAudio?: boolean;
+  fps: number;
+  output: string;
+}) {
+  const executable = resolveFfmpegPath();
+  const directory = path.dirname(input.output);
+  const openingCompatible = path.join(directory, "prepared-opening-compatible.mp4");
+  const endingCompatible = path.join(directory, "prepared-ending-compatible.mp4");
+  const concatList = path.join(directory, "prepared-render-concat.txt");
+  try {
+    const segments: string[] = [];
+    if (input.opening && input.openingDuration) {
+      await run(executable, buildSystemMediaCompatibilityArgs(input.opening, openingCompatible, input.fps, input.openingDuration, input.openingHasAudio ?? true), 180_000);
+      segments.push(openingCompatible);
+    }
+    segments.push(...input.bodySegments);
+    if (input.ending && input.endingDuration) {
+      await run(executable, buildSystemMediaCompatibilityArgs(input.ending, endingCompatible, input.fps, input.endingDuration, input.endingHasAudio ?? true), 180_000);
+      segments.push(endingCompatible);
+    }
+    await writeFile(concatList, segments.map((file) => `file '${file.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
+    await run(executable, buildCompatibilityConcatArgs(concatList, input.output), 90_000);
+  } finally {
+    await Promise.all([rm(openingCompatible, { force: true }), rm(endingCompatible, { force: true }), rm(concatList, { force: true })]);
   }
 }
 
