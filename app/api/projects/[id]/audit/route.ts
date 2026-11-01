@@ -124,6 +124,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           status: renderJobs.status,
           attempts: renderJobs.attempts,
           errorCode: renderJobs.errorCode,
+          errorMessage: renderJobs.errorMessage,
         })
         .from(renderJobs)
         .where(eq(renderJobs.projectId, id))
