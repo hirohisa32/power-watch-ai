@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { SCENE_PRESETS, type ScenePresetName } from "@/lib/storyboard/presets";
 import { friendlyError, GENERATION_STATUS_LABELS } from "@/lib/ui/presentation";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
@@ -172,6 +181,12 @@ export function StoryboardEditor({
     ? initialScenes.find((scene) => scene.id === activeGeneration.sceneId)
     : null;
   const progressStartedAt = activeGeneration ? Date.parse(activeGeneration.createdAt) : null;
+  const progressPercent = bodySceneIds.size
+    ? Math.min(
+        100,
+        Math.round(((completedSceneCount + activeSceneCount * 0.45) / bodySceneIds.size) * 100),
+      )
+    : 0;
   useEffect(() => {
     if (!hasActiveGeneration) return;
     const timer = window.setTimeout(() => router.refresh(), 7_000);
@@ -185,6 +200,22 @@ export function StoryboardEditor({
     );
     return () => window.clearInterval(timer);
   }, [hasActiveGeneration, pending, progressStartedAt]);
+  useEffect(() => {
+    if (!editing && !adding) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !pending) {
+        setEditing(null);
+        setAdding(false);
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [adding, editing, pending]);
   async function request(
     url: string,
     options: RequestInit,
@@ -226,14 +257,18 @@ export function StoryboardEditor({
       ? requestedInstruction?.trim() ||
         "前回の構図を改善し、主題を安定させ、自然で控えめなカメラ移動にしてください"
       : undefined;
-    await request(`/api/projects/${projectId}/scenes/${scene.id}/generate`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(instruction ? { instruction } : {}),
-    }, {
-      started: `映像生成を開始しました。現在、シーン${scene.order}を生成しています。`,
-      completed: () => `映像生成を受け付けました。シーン${scene.order}を生成しています。`,
-    });
+    await request(
+      `/api/projects/${projectId}/scenes/${scene.id}/generate`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(instruction ? { instruction } : {}),
+      },
+      {
+        started: `映像生成を開始しました。現在、シーン${scene.order}を生成しています。`,
+        completed: () => `映像生成を受け付けました。シーン${scene.order}を生成しています。`,
+      },
+    );
   }
   return (
     <>
@@ -302,27 +337,33 @@ export function StoryboardEditor({
             </div>
           </div>
           <dl>
-            <div><dt>現在</dt><dd>{activeGeneration ? (PIPELINE_STAGE_LABELS[activeGeneration.pipelineStage] ?? "生成中") : "受付中"}</dd></div>
-            <div><dt>シーン</dt><dd>{activeScene ? `${activeScene.order} / ${bodySceneIds.size} · ${activeScene.title}` : "準備中"}</dd></div>
-            <div><dt>経過時間</dt><dd>{Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, "0")}</dd></div>
+            <div>
+              <dt>現在</dt>
+              <dd>
+                {activeGeneration
+                  ? (PIPELINE_STAGE_LABELS[activeGeneration.pipelineStage] ?? "生成中")
+                  : "受付中"}
+              </dd>
+            </div>
+            <div>
+              <dt>シーン</dt>
+              <dd>
+                {activeScene
+                  ? `${activeScene.order} / ${bodySceneIds.size} · ${activeScene.title}`
+                  : "準備中"}
+              </dd>
+            </div>
+            <div>
+              <dt>経過時間</dt>
+              <dd>
+                {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, "0")}
+              </dd>
+            </div>
           </dl>
+          <div className="generation-progress-track" aria-label={`全体進捗 ${progressPercent}%`}>
+            <span style={{ width: `${progressPercent}%` }} />
+          </div>
         </section>
-      )}
-      {adding && (
-        <SceneForm
-          value={draft}
-          assetLabels={assetLabels}
-          pending={pending}
-          onChange={setDraft}
-          onCancel={() => setAdding(false)}
-          onSave={() =>
-            request(`/api/projects/${projectId}/scenes`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(draft),
-            })
-          }
-        />
       )}
       <div className="scene-list" id="scene-list">
         {initialScenes.map((scene, index) => {
@@ -339,23 +380,7 @@ export function StoryboardEditor({
           const activeGeneration = generations.find((generation) =>
             ["queued", "generating"].includes(generation.status),
           );
-          return editing?.id === scene.id ? (
-            <SceneForm
-              key={scene.id}
-              value={editing}
-              assetLabels={assetLabels}
-              pending={pending}
-              onChange={(value) => setEditing({ ...editing, ...value })}
-              onCancel={() => setEditing(null)}
-              onSave={() =>
-                request(`/api/projects/${projectId}/scenes/${scene.id}`, {
-                  method: "PATCH",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify(editing),
-                })
-              }
-            />
-          ) : (
+          return (
             <article className="scene-card" key={scene.id}>
               <div className="scene-number">
                 <span>シーン</span>
@@ -480,53 +505,10 @@ export function StoryboardEditor({
                       </button>
                     )}
                     {!fixedOpening && completedGeneration && !activeGeneration && (
-                      <>
-                        <div className="quick-options" aria-label="修正候補">
-                          {QUICK_OPTIONS.map((option) => (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() =>
-                                setRegenerationInstructions((current) => ({
-                                  ...current,
-                                  [scene.id]: option,
-                                }))
-                              }
-                            >
-                              {option}
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          aria-label={`シーン ${scene.order} の修正内容`}
-                          className="regeneration-instruction"
-                          placeholder="修正したい内容（例：もっと暗く、高級感のある雰囲気にしてください）"
-                          value={regenerationInstructions[scene.id] ?? ""}
-                          onChange={(event) =>
-                            setRegenerationInstructions((current) => ({
-                              ...current,
-                              [scene.id]: event.target.value,
-                            }))
-                          }
-                        />
-                        <button
-                          className="btn"
-                          disabled={pending}
-                          onClick={() =>
-                            generateScene(scene, true, regenerationInstructions[scene.id])
-                          }
-                        >
-                          このシーンだけ作り直す
-                        </button>
-                      </>
+                      <button className="btn btn-secondary" onClick={() => setEditing(scene)}>
+                        <WandSparkles size={14} /> 修正・再生成
+                      </button>
                     )}
-                    <button
-                      className="btn"
-                      disabled={pending || Boolean(activeGeneration)}
-                      onClick={() => setEditing(scene)}
-                    >
-                      画像を変更
-                    </button>
                   </div>
                 </div>
                 <div className="card-actions">
@@ -577,6 +559,124 @@ export function StoryboardEditor({
           );
         })}
       </div>
+      {(adding || editing) && (
+        <div
+          className="scene-drawer-backdrop"
+          onMouseDown={() => !pending && (setAdding(false), setEditing(null))}
+        >
+          <aside
+            className="scene-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scene-drawer-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="scene-drawer-head">
+              <div>
+                <p className="eyebrow">Scene editor</p>
+                <h2 id="scene-drawer-title">
+                  {adding ? "シーンを追加" : `シーン ${editing?.order} を編集`}
+                </h2>
+              </div>
+              <button
+                className="icon-button"
+                aria-label="編集画面を閉じる"
+                disabled={pending}
+                onClick={() => {
+                  setAdding(false);
+                  setEditing(null);
+                }}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="scene-drawer-body">
+              <SceneForm
+                value={adding ? draft : editing!}
+                assetLabels={assetLabels}
+                pending={pending}
+                onChange={(value) =>
+                  adding ? setDraft(value) : setEditing({ ...editing!, ...value })
+                }
+                onCancel={() => {
+                  setAdding(false);
+                  setEditing(null);
+                }}
+                onSave={() =>
+                  adding
+                    ? request(`/api/projects/${projectId}/scenes`, {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(draft),
+                      })
+                    : request(`/api/projects/${projectId}/scenes/${editing!.id}`, {
+                        method: "PATCH",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(editing),
+                      })
+                }
+              />
+              {editing &&
+                initialGenerations.some(
+                  (generation) =>
+                    generation.sceneId === editing.id && generation.status === "completed",
+                ) && (
+                  <section className="drawer-regenerate">
+                    <div>
+                      <p className="eyebrow">Quick actions</p>
+                      <h3>映像の仕上がりを調整</h3>
+                      <p className="hint">
+                        選択した内容は修正指示へ反映されます。必要に応じて文章を追加してください。
+                      </p>
+                    </div>
+                    <div className="quick-options" aria-label="修正候補">
+                      {QUICK_OPTIONS.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className={
+                            regenerationInstructions[editing.id] === option ? "selected" : ""
+                          }
+                          onClick={() =>
+                            setRegenerationInstructions((current) => ({
+                              ...current,
+                              [editing.id]: option,
+                            }))
+                          }
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="field">
+                      <span>修正したい内容</span>
+                      <textarea
+                        className="drawer-instruction"
+                        placeholder="例：照明を少し暗くし、カメラの動きをゆっくりにしてください"
+                        value={regenerationInstructions[editing.id] ?? ""}
+                        onChange={(event) =>
+                          setRegenerationInstructions((current) => ({
+                            ...current,
+                            [editing.id]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <button
+                      className="btn btn-primary"
+                      disabled={pending}
+                      onClick={() =>
+                        generateScene(editing, true, regenerationInstructions[editing.id])
+                      }
+                    >
+                      <RefreshCw size={14} /> このシーンだけ作り直す
+                    </button>
+                  </section>
+                )}
+            </div>
+          </aside>
+        </div>
+      )}
     </>
   );
 }

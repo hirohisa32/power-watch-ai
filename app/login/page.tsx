@@ -25,7 +25,7 @@ export default async function LoginPage() {
       <section className="login-panel">
         <div className="login-box">
           <div className="brand">
-            <span>POWER</span> WATCH
+            WATCH STORY <span>STUDIO</span>
           </div>
           <h2>ログイン</h2>
           <p className="lead">アカウント情報を入力してください。</p>

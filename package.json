@@ -15,6 +15,7 @@
     "test:openai": "tsx scripts/test-openai-storyboard.ts",
     "test:runway": "tsx scripts/test-runway-video.ts",
     "test:elevenlabs": "tsx scripts/test-elevenlabs-narration.ts",
+    "test:ui-responsive": "node scripts/audit-responsive-ui.mjs",
     "opening:preview": "tsx scripts/render-opening-preview.ts",
     "opening:preview:v3": "tsx scripts/render-opening-preview-v3.ts",
     "demo:gold-khanjar:narration": "powershell -ExecutionPolicy Bypass -File scripts/generate-gold-khanjar-narration.ps1",

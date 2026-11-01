@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "POWER WATCH Studio", template: "%s | POWER WATCH" },
-  description: "時計ストーリー動画制作スタジオ",
+  title: { default: "WATCH STORY STUDIO", template: "%s | WATCH STORY STUDIO" },
+  description: "時計が持つ物語を映像にするクリエイティブスタジオ",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
