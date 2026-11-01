@@ -19,6 +19,13 @@ export type NarrationAlignmentData = {
   characterStartTimesSeconds: number[];
   characterEndTimesSeconds: number[];
   source: "provider" | "duration_fallback";
+  averageConfidence?: number;
+  wordTimings?: Array<{
+    text: string;
+    startSeconds: number;
+    endSeconds: number;
+    confidence: number;
+  }>;
 };
 
 export type SceneSpeechWindow = {
@@ -181,6 +188,13 @@ export function buildAlignedSubtitleCues(
         speechStartMs / 1000) * 1000,
     );
     const text = scene.subtitle.trim() || narration;
+    const matchingWords = alignment.wordTimings?.filter(
+      (word) => word.endSeconds * 1000 >= speechStartMs && word.startSeconds * 1000 <= speechEndMs,
+    );
+    if (matchingWords?.length && matchingWords.some((word) => word.confidence < 0.45)) {
+      searchFrom = endIndex + 1;
+      continue;
+    }
     const chunks = splitSentences(text).flatMap((sentence) => splitReadableChunks(sentence, 24));
     const weights = chunks.map((chunk) => Math.max(1, [...chunk.replace(/\s/g, "")].length));
     const totalWeight = Math.max(

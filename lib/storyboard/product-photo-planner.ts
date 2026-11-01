@@ -6,7 +6,13 @@ export const PRODUCT_PHOTO_ROLES = [
   "crown",
   "caseback",
   "movement",
+  "movement_wide",
+  "movement_detail",
+  "regulator",
   "engraving",
+  "hallmark",
+  "fab_suisse",
+  "clous_de_paris",
   "bracelet",
   "hero",
 ] as const;
@@ -14,6 +20,15 @@ export const PRODUCT_PHOTO_ROLES = [
 export type ProductPhotoRole = (typeof PRODUCT_PHOTO_ROLES)[number];
 
 const ROLE_PATTERNS: Array<[ProductPhotoRole, RegExp]> = [
+  ["regulator", /swan.?neck|regulator|緩急針|スワンネック/iu],
+  [
+    "movement_detail",
+    /gold setting|bridge detail|シャトン|受け|ブリッジ|movement detail|機械造形/iu,
+  ],
+  ["movement_wide", /movement wide|movement全体|ムーブメント全体|calibre全体|caliber wide/iu],
+  ["fab_suisse", /fab\s*suisse/iu],
+  ["hallmark", /eagle|hallmark|イーグル|鷲|メーカーズマーク/iu],
+  ["clous_de_paris", /clous\s*de\s*paris|クルー?ド・パリ/iu],
   ["movement", /movement|calibre|caliber|ムーブメント|機械|機構/iu],
   ["caseback", /caseback|case back|裏蓋|裏ぶた/iu],
   ["engraving", /engraving|mark|serial|hallmark|刻印|銘|シリアル|品位/iu],
@@ -42,7 +57,13 @@ const ROLE_FALLBACKS: Record<ProductPhotoRole, ProductPhotoRole[]> = {
   crown: ["crown", "side", "case", "hero"],
   caseback: ["caseback", "engraving", "case", "side"],
   movement: ["movement", "caseback"],
+  movement_wide: ["movement_wide", "movement", "caseback"],
+  movement_detail: ["movement_detail", "movement", "regulator", "caseback"],
+  regulator: ["regulator", "movement_detail", "movement", "caseback"],
   engraving: ["engraving", "caseback", "side", "case", "front"],
+  hallmark: ["hallmark", "engraving", "caseback", "side"],
+  fab_suisse: ["fab_suisse", "engraving", "dial", "movement", "caseback"],
+  clous_de_paris: ["clous_de_paris", "dial", "front", "hero"],
   bracelet: ["bracelet", "side", "hero"],
   hero: ["hero", "front", "dial", "side"],
 };

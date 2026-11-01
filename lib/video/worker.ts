@@ -4,11 +4,24 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { apiUsage, assets, imageGenerationAudits, projects, scenes, videoGenerations, videoJobs } from "@/lib/db/schema";
+import {
+  apiUsage,
+  assets,
+  imageGenerationAudits,
+  projects,
+  scenes,
+  videoGenerations,
+  videoJobs,
+} from "@/lib/db/schema";
 import { createReadUrl, readPrivateObject, uploadPrivateObject } from "@/lib/storage";
 import { estimateOpenAiImageCost } from "@/lib/image/cost";
 import { OpenAIImageGenerationProvider } from "@/lib/image/openai";
-import { buildAnimationKeyframePrompt, buildCharacterReferencePrompt, characterKeyForScene, type CHARACTER_BIBLES } from "@/lib/image/prompt";
+import {
+  buildAnimationKeyframePrompt,
+  buildCharacterReferencePrompt,
+  characterKeyForScene,
+  type CharacterKey,
+} from "@/lib/image/prompt";
 import { inspectKeyframe } from "@/lib/image/quality";
 import type { ImageGenerationProvider, ImagePurpose, ImageReference } from "@/lib/image/types";
 import { creditsToUsd } from "./cost";
@@ -18,10 +31,7 @@ import { generationObjectKey } from "./orchestration";
 import { VercelVideoJobQueue, type VideoJobQueue } from "./queue";
 import { RunwayVideoProvider } from "./runway";
 import { VideoProviderError, type VideoProvider } from "./types";
-import {
-  PRODUCT_EVIDENCE_PROVIDER,
-  renderProductPhotoMotion,
-} from "./product-photo";
+import { PRODUCT_EVIDENCE_PROVIDER, renderProductPhotoMotion } from "./product-photo";
 
 type WorkerDependencies = {
   provider: VideoProvider;
@@ -75,18 +85,19 @@ export async function processVideoJob(
     }
     try {
       const keyframeObjectKey = await ensureAnimationKeyframe(row, dependencies);
-      const reference = !keyframeObjectKey && row.generation.referenceAssetIds[0]
-        ? await db
-            .select({ objectKey: assets.objectKey })
-            .from(assets)
-            .where(eq(assets.id, row.generation.referenceAssetIds[0]))
-            .limit(1)
-        : [];
+      const reference =
+        !keyframeObjectKey && row.generation.referenceAssetIds[0]
+          ? await db
+              .select({ objectKey: assets.objectKey })
+              .from(assets)
+              .where(eq(assets.id, row.generation.referenceAssetIds[0]))
+              .limit(1)
+          : [];
       const referenceImageUrl = keyframeObjectKey
         ? await dependencies.signAsset(keyframeObjectKey, 60 * 60)
         : reference[0]
-        ? await dependencies.signAsset(reference[0].objectKey, 60 * 60)
-        : undefined;
+          ? await dependencies.signAsset(reference[0].objectKey, 60 * 60)
+          : undefined;
       const started = Date.now();
       const task = await dependencies.provider.generate({
         model: row.generation.model,
@@ -176,7 +187,10 @@ export async function processVideoJob(
     return;
   }
 
-  await db.update(videoGenerations).set({ pipelineStage: "saving", updatedAt: new Date() }).where(eq(videoGenerations.id, row.generation.id));
+  await db
+    .update(videoGenerations)
+    .set({ pipelineStage: "saving", updatedAt: new Date() })
+    .where(eq(videoGenerations.id, row.generation.id));
   const bytes = await dependencies.download(status.outputUrl, {
     timeoutMs: config.downloadTimeoutMs,
     maxBytes: config.downloadMaxBytes,
@@ -255,7 +269,12 @@ async function processProductEvidence(
       const now = new Date();
       await transaction
         .update(videoJobs)
-        .set({ status: "processing", attempts: row.job.attempts + 1, startedAt: row.job.startedAt ?? now, updatedAt: now })
+        .set({
+          status: "processing",
+          attempts: row.job.attempts + 1,
+          startedAt: row.job.startedAt ?? now,
+          updatedAt: now,
+        })
         .where(eq(videoJobs.id, jobId));
       await transaction
         .update(videoGenerations)
@@ -265,7 +284,8 @@ async function processProductEvidence(
     const signed = await dependencies.signAsset(asset.objectKey, 15 * 60);
     const response = await fetch(signed, { signal: AbortSignal.timeout(60_000) });
     if (!response.ok) throw new Error(`PRODUCT_PHOTO_HTTP_${response.status}`);
-    const extension = asset.mimeType === "image/png" ? ".png" : asset.mimeType === "image/webp" ? ".webp" : ".jpg";
+    const extension =
+      asset.mimeType === "image/png" ? ".png" : asset.mimeType === "image/webp" ? ".webp" : ".jpg";
     const inputPath = path.join(workDir, `original-product${extension}`);
     const outputPath = path.join(workDir, "product-evidence.mp4");
     await writeFile(inputPath, new Uint8Array(await response.arrayBuffer()));
@@ -281,11 +301,27 @@ async function processProductEvidence(
     await db.transaction(async (transaction) => {
       await transaction
         .update(videoGenerations)
-        .set({ status: "completed", pipelineStage: "completed", outputObjectKey: outputKey, actualCostCredits: 0, actualCostUsd: 0, errorCode: null, errorMessage: null, updatedAt: now, completedAt: now })
+        .set({
+          status: "completed",
+          pipelineStage: "completed",
+          outputObjectKey: outputKey,
+          actualCostCredits: 0,
+          actualCostUsd: 0,
+          errorCode: null,
+          errorMessage: null,
+          updatedAt: now,
+          completedAt: now,
+        })
         .where(eq(videoGenerations.id, generationId));
       await transaction
         .update(videoJobs)
-        .set({ status: "completed", errorCode: null, errorMessage: null, updatedAt: now, completedAt: now })
+        .set({
+          status: "completed",
+          errorCode: null,
+          errorMessage: null,
+          updatedAt: now,
+          completedAt: now,
+        })
         .where(eq(videoJobs.id, jobId));
       await transaction
         .update(scenes)
@@ -439,11 +475,23 @@ async function ensureAnimationKeyframe(
   // product-evidence scenes remain non-generative.
   if (!context || context.scene.watchReference) return null;
   if (row.generation.keyframeImageId) {
-    const [existing] = await db.select().from(imageGenerationAudits).where(and(eq(imageGenerationAudits.id, row.generation.keyframeImageId), eq(imageGenerationAudits.status, "completed"))).limit(1);
+    const [existing] = await db
+      .select()
+      .from(imageGenerationAudits)
+      .where(
+        and(
+          eq(imageGenerationAudits.id, row.generation.keyframeImageId),
+          eq(imageGenerationAudits.status, "completed"),
+        ),
+      )
+      .limit(1);
     if (existing?.outputObjectKey) return existing.outputObjectKey;
   }
   const provider = dependencies.imageProvider ?? new OpenAIImageGenerationProvider();
-  await db.update(videoGenerations).set({ pipelineStage: "image_creating", updatedAt: new Date() }).where(eq(videoGenerations.id, row.generation.id));
+  await db
+    .update(videoGenerations)
+    .set({ pipelineStage: "image_creating", updatedAt: new Date() })
+    .where(eq(videoGenerations.id, row.generation.id));
   const characterKey = characterKeyForScene(context.scene);
   const references: ImageReference[] = [];
   const referenceObjectKeys: string[] = [];
@@ -451,7 +499,14 @@ async function ensureAnimationKeyframe(
     let [character] = await db
       .select()
       .from(imageGenerationAudits)
-      .where(and(eq(imageGenerationAudits.projectId, row.job.projectId), eq(imageGenerationAudits.purpose, "character_reference"), eq(imageGenerationAudits.characterKey, characterKey), eq(imageGenerationAudits.status, "completed")))
+      .where(
+        and(
+          eq(imageGenerationAudits.projectId, row.job.projectId),
+          eq(imageGenerationAudits.purpose, "character_reference"),
+          eq(imageGenerationAudits.characterKey, characterKey),
+          eq(imageGenerationAudits.status, "completed"),
+        ),
+      )
       .orderBy(desc(imageGenerationAudits.generatedAt))
       .limit(1);
     if (!character?.outputObjectKey) {
@@ -459,7 +514,12 @@ async function ensureAnimationKeyframe(
         row,
         provider,
         purpose: "character_reference",
-        prompt: buildCharacterReferencePrompt(characterKey, context.project.style),
+        prompt: buildCharacterReferencePrompt(
+          characterKey,
+          { title: context.project.title, script: context.project.script },
+          context.scene,
+          context.project.style,
+        ),
         characterKey,
         references: [],
       });
@@ -475,13 +535,21 @@ async function ensureAnimationKeyframe(
     row,
     provider,
     purpose,
-    prompt: buildAnimationKeyframePrompt(context.scene, characterKey, context.project.style),
+    prompt: buildAnimationKeyframePrompt(
+      context.scene,
+      characterKey,
+      { title: context.project.title, script: context.project.script },
+      context.project.style,
+    ),
     characterKey,
     references,
     referenceObjectKeys,
   });
   if (!keyframe.outputObjectKey) throw new Error("Scene Keyframeが保存されませんでした");
-  await db.update(videoGenerations).set({ keyframeImageId: keyframe.id, pipelineStage: "video_preparing", updatedAt: new Date() }).where(eq(videoGenerations.id, row.generation.id));
+  await db
+    .update(videoGenerations)
+    .set({ keyframeImageId: keyframe.id, pipelineStage: "video_preparing", updatedAt: new Date() })
+    .where(eq(videoGenerations.id, row.generation.id));
   return keyframe.outputObjectKey;
 }
 
@@ -490,45 +558,115 @@ async function generateAuditedImage(input: {
   provider: ImageGenerationProvider;
   purpose: ImagePurpose;
   prompt: string;
-  characterKey: keyof typeof CHARACTER_BIBLES | null;
+  characterKey: CharacterKey | null;
   references: ImageReference[];
   referenceObjectKeys?: string[];
 }) {
   const db = getDb();
-  const [audit] = await db.insert(imageGenerationAudits).values({
-    projectId: input.row.job.projectId,
-    videoId: input.row.generation.id,
-    sceneId: input.row.job.sceneId,
-    provider: input.provider.name,
-    model: input.provider.model,
-    purpose: input.purpose,
-    prompt: input.prompt,
-    characterKey: input.characterKey,
-    referenceObjectKeys: input.referenceObjectKeys ?? [],
-  }).returning();
+  const [audit] = await db
+    .insert(imageGenerationAudits)
+    .values({
+      projectId: input.row.job.projectId,
+      videoId: input.row.generation.id,
+      sceneId: input.row.job.sceneId,
+      provider: input.provider.name,
+      model: input.provider.model,
+      purpose: input.purpose,
+      prompt: input.prompt,
+      storyBeatId: input.row.generation.storyBeatId,
+      historicalPeriod: input.row.generation.historicalPeriod,
+      location: input.row.generation.location,
+      characterId: input.row.generation.characterId,
+      visualIntent: input.row.generation.visualIntent,
+      characterKey: input.characterKey,
+      referenceObjectKeys: input.referenceObjectKeys ?? [],
+    })
+    .returning();
   try {
     const startedAt = Date.now();
-    const result = await input.provider.generate({ prompt: input.prompt, purpose: input.purpose, references: input.references });
+    const result = await input.provider.generate({
+      prompt: input.prompt,
+      purpose: input.purpose,
+      references: input.references,
+    });
     const costUsd = estimateOpenAiImageCost(result);
     await db.transaction(async (transaction) => {
-      await transaction.update(imageGenerationAudits).set({ status: "quality_gate", imageInputTokens: result.imageInputTokens, imageOutputTokens: result.imageOutputTokens, textInputTokens: result.textInputTokens, costUsd, requestId: result.requestId, generatedAt: new Date(), updatedAt: new Date() }).where(eq(imageGenerationAudits.id, audit.id));
-      await transaction.insert(apiUsage).values({ projectId: input.row.job.projectId, provider: "openai-image", operation: `image_generation:${input.purpose}`, model: result.model, inputTokens: result.textInputTokens + result.imageInputTokens, outputTokens: result.imageOutputTokens, units: result.imageOutputTokens, requestId: result.requestId, durationMs: Date.now() - startedAt, estimatedCost: costUsd });
+      await transaction
+        .update(imageGenerationAudits)
+        .set({
+          status: "quality_gate",
+          imageInputTokens: result.imageInputTokens,
+          imageOutputTokens: result.imageOutputTokens,
+          textInputTokens: result.textInputTokens,
+          costUsd,
+          requestId: result.requestId,
+          generatedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(imageGenerationAudits.id, audit.id));
+      await transaction
+        .insert(apiUsage)
+        .values({
+          projectId: input.row.job.projectId,
+          provider: "openai-image",
+          operation: `image_generation:${input.purpose}`,
+          model: result.model,
+          inputTokens: result.textInputTokens + result.imageInputTokens,
+          outputTokens: result.imageOutputTokens,
+          units: result.imageOutputTokens,
+          requestId: result.requestId,
+          durationMs: Date.now() - startedAt,
+          estimatedCost: costUsd,
+        });
     });
-    await db.update(videoGenerations).set({ pipelineStage: "image_quality_gate", updatedAt: new Date() }).where(eq(videoGenerations.id, input.row.generation.id));
+    await db
+      .update(videoGenerations)
+      .set({ pipelineStage: "image_quality_gate", updatedAt: new Date() })
+      .where(eq(videoGenerations.id, input.row.generation.id));
     const qualityGate = await inspectKeyframe(result.bytes);
     if (!qualityGate.pass) {
-      await db.update(imageGenerationAudits).set({ status: "failed", qualityGate, errorCode: "QUALITY_GATE_FAILED", errorMessage: qualityGate.reasons.join(" / "), updatedAt: new Date() }).where(eq(imageGenerationAudits.id, audit.id));
+      await db
+        .update(imageGenerationAudits)
+        .set({
+          status: "failed",
+          qualityGate,
+          errorCode: "QUALITY_GATE_FAILED",
+          errorMessage: qualityGate.reasons.join(" / "),
+          updatedAt: new Date(),
+        })
+        .where(eq(imageGenerationAudits.id, audit.id));
       throw new Error(`画像Quality Gate不合格: ${qualityGate.reasons.join(" / ")}`);
     }
     const outputObjectKey = `projects/${input.row.job.projectId}/keyframes/${audit.id}.jpg`;
     await uploadPrivateObject(outputObjectKey, result.bytes, result.mimeType);
     const [completed] = await db.transaction(async (transaction) => {
-      const [saved] = await transaction.update(imageGenerationAudits).set({ status: "completed", outputObjectKey, qualityGate, updatedAt: new Date() }).where(eq(imageGenerationAudits.id, audit.id)).returning();
+      const [saved] = await transaction
+        .update(imageGenerationAudits)
+        .set({ status: "completed", outputObjectKey, qualityGate, updatedAt: new Date() })
+        .where(eq(imageGenerationAudits.id, audit.id))
+        .returning();
       return [saved];
     });
     return completed;
   } catch (error) {
-    await db.update(imageGenerationAudits).set({ status: "failed", errorCode: error instanceof Error && "code" in error ? String(error.code) : "IMAGE_GENERATION_FAILED", errorMessage: error instanceof Error ? error.message : "画像生成に失敗しました", updatedAt: new Date() }).where(and(eq(imageGenerationAudits.id, audit.id), ne(imageGenerationAudits.status, "completed"), ne(imageGenerationAudits.status, "failed")));
+    await db
+      .update(imageGenerationAudits)
+      .set({
+        status: "failed",
+        errorCode:
+          error instanceof Error && "code" in error
+            ? String(error.code)
+            : "IMAGE_GENERATION_FAILED",
+        errorMessage: error instanceof Error ? error.message : "画像生成に失敗しました",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(imageGenerationAudits.id, audit.id),
+          ne(imageGenerationAudits.status, "completed"),
+          ne(imageGenerationAudits.status, "failed"),
+        ),
+      );
     throw error;
   }
 }

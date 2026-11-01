@@ -64,4 +64,12 @@ export type FinalRenderInput = {
   openingAsset: RenderSystemAsset | null;
   endingAsset: RenderSystemAsset | null;
   alignment?: import("@/lib/audio/timing").NarrationAlignmentData | null;
+  assetReview?: Array<{
+    sceneId: string;
+    storyBeatId: string | null;
+    narration: string;
+    visualIntent: string;
+    finalAsset: string;
+    status: "pass" | "review" | "ng";
+  }>;
 };

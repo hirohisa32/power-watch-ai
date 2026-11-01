@@ -68,17 +68,51 @@ describe("Production画像生成Pipeline", () => {
       year: "1945",
       location: "Switzerland",
     };
-    const prompt = buildAnimationKeyframePrompt(scene, null, "cinematic_real");
+    const prompt = buildAnimationKeyframePrompt(
+      scene,
+      null,
+      { title: "Jaeger-LeCoultre", script: "1945 Swiss watchmaking France" },
+      "cinematic_real",
+    );
     expect(prompt).toContain("premium cinematic documentary still");
     expect(prompt).toContain("photorealistic people and environments");
     expect(prompt).not.toContain("editorial animation by a senior luxury illustrator");
   });
 
+  it("Jaeger ProjectへGold Khanjar人物Bibleを混入させない", () => {
+    const project = {
+      title: "Jaeger-LeCoultre Calibre 478",
+      script: "フランスとスイスを結ぶ時計製造史",
+    };
+    const scene = {
+      order: 9,
+      preset: "HistoricalCharacter",
+      title: "国境を越えた職人の歴史",
+      visualDescription: "旅する職人を匿名の後ろ姿で捉える",
+      visualPrompt: "16th century France to Geneva",
+      camera: "slow dolly",
+      shotType: "wide",
+      lighting: "overcast natural light",
+      colorMood: "muted archival",
+      year: "16th century",
+      location: "France to Geneva",
+    };
+    expect(characterKeyForScene(scene)).toBeNull();
+    const prompt = buildAnimationKeyframePrompt(scene, null, project, "animation");
+    expect(prompt).not.toMatch(/Omani|disha?dasha|bisht|turban|desert/i);
+    expect(prompt).toContain("Project story boundary: Jaeger-LeCoultre");
+    expect(prompt).toContain("hand-crafted editorial drawing");
+  });
+
   it("9:16 Production解像度のKeyframeのみ構造Quality Gateを通す", async () => {
-    const good = await sharp({ create: { width: 1024, height: 1536, channels: 3, background: "#222" } })
+    const good = await sharp({
+      create: { width: 1024, height: 1536, channels: 3, background: "#222" },
+    })
       .jpeg()
       .toBuffer();
-    const bad = await sharp({ create: { width: 640, height: 640, channels: 3, background: "#222" } })
+    const bad = await sharp({
+      create: { width: 640, height: 640, channels: 3, background: "#222" },
+    })
       .jpeg()
       .toBuffer();
     expect((await inspectKeyframe(good)).pass).toBe(true);

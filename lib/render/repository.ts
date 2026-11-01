@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   finalRenders,
+  imageGenerationAudits,
   projects,
   renderJobs,
   sceneVoiceAssignments,
@@ -15,6 +16,7 @@ import type { VoiceAssignment } from "@/lib/audio/voices";
 import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { buildFinalRenderInput } from "./plan";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { assertProjectAssetIsolation } from "./asset-isolation";
 
 export class RenderRequestError extends Error {
   name = "RenderRequestError";
@@ -51,14 +53,62 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       .select({
         scene: scenes,
         generationId: videoGenerations.id,
+        generationProjectId: videoGenerations.projectId,
+        generationSceneId: videoGenerations.sceneId,
         generationStatus: videoGenerations.status,
         outputObjectKey: videoGenerations.outputObjectKey,
+        generationPrompt: videoGenerations.prompt,
+        generationStoryBeatId: videoGenerations.storyBeatId,
+        generationHistoricalPeriod: videoGenerations.historicalPeriod,
+        generationLocation: videoGenerations.location,
+        generationCharacterId: videoGenerations.characterId,
+        generationVisualIntent: videoGenerations.visualIntent,
+        keyframePrompt: imageGenerationAudits.prompt,
       })
       .from(scenes)
       .leftJoin(videoGenerations, eq(videoGenerations.id, scenes.selectedGenerationId))
+      .leftJoin(
+        imageGenerationAudits,
+        eq(imageGenerationAudits.id, videoGenerations.keyframeImageId),
+      )
       .where(eq(scenes.storyboardId, storyboard.id))
       .orderBy(scenes.order);
     const bodyRows = rows.filter((row) => !isFixedOpeningPreset(row.scene.preset));
+    const assetReview = bodyRows.map((row) => {
+      if (!row.generationId || !row.generationProjectId || !row.generationSceneId)
+        throw new RenderRequestError(`Scene ${row.scene.order}の選択済み映像がありません`);
+      const review = assertProjectAssetIsolation(
+        { id: project.id, title: project.title, script: project.script },
+        {
+          projectId: row.scene.projectId,
+          sceneId: row.scene.id,
+          narrationSegmentId: row.scene.narrationSegmentId,
+          historicalPeriod: row.scene.historicalPeriod,
+          location: row.scene.location,
+          characterId: row.scene.characterId,
+          visualIntent: row.scene.visualIntent,
+        },
+        {
+          projectId: row.generationProjectId,
+          sceneId: row.generationSceneId,
+          storyBeatId: row.generationStoryBeatId,
+          historicalPeriod: row.generationHistoricalPeriod,
+          location: row.generationLocation,
+          characterId: row.generationCharacterId,
+          visualIntent: row.generationVisualIntent,
+          generationPrompt: row.generationPrompt,
+          keyframePrompt: row.keyframePrompt,
+        },
+      );
+      return {
+        sceneId: row.scene.id,
+        storyBeatId: review.storyBeatId,
+        narration: row.scene.narration,
+        visualIntent: row.scene.visualIntent ?? row.scene.visualDescription,
+        finalAsset: row.outputObjectKey ?? "",
+        status: review.status,
+      };
+    });
     const renderable = bodyRows
       .filter(
         (row) => row.generationId && row.generationStatus === "completed" && row.outputObjectKey,
@@ -202,6 +252,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         openingAsset: openingAsset ? toRenderSystemAsset(openingAsset) : null,
         endingAsset: endingAsset ? toRenderSystemAsset(endingAsset) : null,
       });
+      renderInput.assetReview = assetReview;
     } catch (error) {
       if (error instanceof Error && error.message === "MISSING_SCENE_VIDEO")
         throw new RenderRequestError("選択済みのScene動画がありません");

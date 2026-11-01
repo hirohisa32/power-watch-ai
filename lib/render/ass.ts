@@ -10,7 +10,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Subtitle,Noto Sans JP,52,&H00FFFFFF,&H00FFFFFF,&HCC000000,&H9A000000,-1,0,0,0,100,100,1,0,3,2,0,2,112,112,330,1
+Style: Subtitle,Noto Sans JP,54,&H00FFFFFF,&H00FFFFFF,&HCC000000,&H9F000000,-1,0,0,0,100,100,1,0,3,2.4,0,2,112,112,370,1
 Style: Meta,Noto Sans JP,60,&H007A9CBF,&H007A9CBF,&HAA000000,&H66000000,-1,0,0,0,100,100,3,0,1,3,0,7,96,96,220,1
 Style: Brand,Noto Sans JP,82,&H00F2E8D6,&H00F2E8D6,&HAA000000,&H22000000,-1,0,0,0,100,100,10,0,1,2,0,5,96,96,0,1
 
