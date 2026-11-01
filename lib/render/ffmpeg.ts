@@ -550,7 +550,7 @@ export async function mixBgmIntoEndingSegment(input: {
   const fadeStart = Math.max(0, input.duration - fadeDuration);
   const filter = [
     `[1:a]atrim=duration=${input.duration.toFixed(3)},asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,volume=0.18,afade=t=out:st=${fadeStart.toFixed(3)}:d=${fadeDuration.toFixed(3)}[bgm]`,
-    `[0:a][bgm]amix=inputs=2:duration=first:normalize=0,atrim=duration=${input.duration.toFixed(3)},alimiter=limit=0.92[aout]`,
+    `[0:a][bgm]amix=inputs=2:duration=first,volume=2,atrim=duration=${input.duration.toFixed(3)},alimiter=limit=0.92[aout]`,
   ].join(";");
   await run(
     resolveFfmpegPath(),
@@ -609,7 +609,7 @@ export async function continueBgmThroughEnding(input: {
   const totalDuration = endingStart + input.endingDuration;
   const filter = [
     `[1:a]asetpts=PTS-STARTPTS,highpass=f=35,lowpass=f=12000,loudnorm=I=-23:TP=-2:LRA=11,afade=t=out:st=${fadeStart.toFixed(3)}:d=${fadeDuration.toFixed(3)},adelay=${delayMs}|${delayMs}[bgmtail]`,
-    `[0:a][bgmtail]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.92[aout]`,
+    `[0:a][bgmtail]amix=inputs=2:duration=first,volume=2,alimiter=limit=0.92[aout]`,
   ].join(";");
   await run(
     resolveFfmpegPath(),
