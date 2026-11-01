@@ -1658,11 +1658,9 @@ textarea {
 @keyframes page-reveal {
   from {
     opacity: 0;
-    transform: translateY(3px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 .topbar {
@@ -1727,6 +1725,12 @@ h3 {
   -webkit-line-clamp: 2;
   font-size: clamp(20px, 1.7vw, 26px);
   line-height: 1.25;
+}
+.storyboard-page .page-head h1 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .lead {
   font-size: 15px;
