@@ -19,6 +19,13 @@ export const ANIMATION_STYLE_BIBLE = [
   "consistent anatomy and era-authentic production design, never cartoonish or game-like",
 ].join(", ");
 
+export const CINEMATIC_REAL_STYLE_BIBLE = [
+  "premium cinematic documentary still photographed for a luxury watch film",
+  "photorealistic people and environments, natural skin and hands, restrained period-authentic production design",
+  "motivated practical light, subtle film grain, elegant depth, sophisticated archival color, vertical 9:16 composition",
+  "mature and understated, never glossy stock photography, cheap AI imagery, fantasy, cartoon, game CG, or excessive 3D",
+].join(", ");
+
 export const CHARACTER_BIBLES = {
   CHAR_01: "same Omani man, age 52, calm authoritative expression, neatly trimmed dark beard with subtle grey, cream dishdasha, dark gold-trimmed bisht, ivory-and-sand Omani turban, medium build, closed mouth",
   CHAR_02: "same British luxury jeweller, age 54, composed expression, swept dark-grey hair, clean-shaven, charcoal three-piece 1970s suit, white shirt, muted burgundy tie, medium build, closed mouth",
@@ -30,17 +37,24 @@ export function characterKeyForScene(scene: Pick<KeyframeScene, "preset" | "titl
   return /(asprey|london|英国|ロンドン|jeweller|workshop|工房)/i.test(value) ? "CHAR_02" : "CHAR_01";
 }
 
-export function buildCharacterReferencePrompt(characterKey: keyof typeof CHARACTER_BIBLES) {
+export function buildCharacterReferencePrompt(
+  characterKey: keyof typeof CHARACTER_BIBLES,
+  style: "animation" | "cinematic_real" = "animation",
+) {
   return [
-    ANIMATION_STYLE_BIBLE,
+    style === "animation" ? ANIMATION_STYLE_BIBLE : CINEMATIC_REAL_STYLE_BIBLE,
     CHARACTER_BIBLES[characterKey],
     "waist-up neutral character reference in the established story world, three-quarter view, hands relaxed and mostly out of frame, no speaking, no readable text, no logo, no watch, no jewellery product, vertical 9:16",
   ].join(". ");
 }
 
-export function buildAnimationKeyframePrompt(scene: KeyframeScene, characterKey: keyof typeof CHARACTER_BIBLES | null) {
+export function buildAnimationKeyframePrompt(
+  scene: KeyframeScene,
+  characterKey: keyof typeof CHARACTER_BIBLES | null,
+  style: "animation" | "cinematic_real" = "animation",
+) {
   return [
-    ANIMATION_STYLE_BIBLE,
+    style === "animation" ? ANIMATION_STYLE_BIBLE : CINEMATIC_REAL_STYLE_BIBLE,
     characterKey ? `Preserve the supplied ${characterKey} reference exactly: ${CHARACTER_BIBLES[characterKey]}` : "No new identifiable lead character unless the story explicitly requires one",
     `Story scene ${scene.order}: ${scene.title}`,
     scene.visualDescription,

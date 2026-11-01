@@ -434,7 +434,10 @@ async function ensureAnimationKeyframe(
     .innerJoin(projects, eq(projects.id, scenes.projectId))
     .where(eq(scenes.id, row.job.sceneId))
     .limit(1);
-  if (!context || context.project.style !== "animation" || context.scene.watchReference) return null;
+  // Historical/story scenes always start from a reviewed OpenAI keyframe.
+  // The Project style selects editorial animation or cinematic photorealism;
+  // product-evidence scenes remain non-generative.
+  if (!context || context.scene.watchReference) return null;
   if (row.generation.keyframeImageId) {
     const [existing] = await db.select().from(imageGenerationAudits).where(and(eq(imageGenerationAudits.id, row.generation.keyframeImageId), eq(imageGenerationAudits.status, "completed"))).limit(1);
     if (existing?.outputObjectKey) return existing.outputObjectKey;
@@ -456,7 +459,7 @@ async function ensureAnimationKeyframe(
         row,
         provider,
         purpose: "character_reference",
-        prompt: buildCharacterReferencePrompt(characterKey),
+        prompt: buildCharacterReferencePrompt(characterKey, context.project.style),
         characterKey,
         references: [],
       });
@@ -472,7 +475,7 @@ async function ensureAnimationKeyframe(
     row,
     provider,
     purpose,
-    prompt: buildAnimationKeyframePrompt(context.scene, characterKey),
+    prompt: buildAnimationKeyframePrompt(context.scene, characterKey, context.project.style),
     characterKey,
     references,
     referenceObjectKeys,

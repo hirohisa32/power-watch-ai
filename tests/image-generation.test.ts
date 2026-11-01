@@ -47,6 +47,26 @@ describe("Production画像生成Pipeline", () => {
     expect(prompt).toContain("Product imagery is composited separately");
   });
 
+  it("実写調Story Sceneは高級ドキュメンタリー用Keyframeを生成する", () => {
+    const scene = {
+      order: 1,
+      preset: "HistoricalCharacter",
+      title: "時計工房",
+      visualDescription: "職人が測定器へ静かに視線を落とす",
+      visualPrompt: "Silent historical acting",
+      camera: "slow dolly",
+      shotType: "medium close-up",
+      lighting: "warm window light",
+      colorMood: "muted archival",
+      year: "1945",
+      location: "Switzerland",
+    };
+    const prompt = buildAnimationKeyframePrompt(scene, null, "cinematic_real");
+    expect(prompt).toContain("premium cinematic documentary still");
+    expect(prompt).toContain("photorealistic people and environments");
+    expect(prompt).not.toContain("editorial animation by a senior luxury illustrator");
+  });
+
   it("9:16 Production解像度のKeyframeのみ構造Quality Gateを通す", async () => {
     const good = await sharp({ create: { width: 1024, height: 1536, channels: 3, background: "#222" } })
       .jpeg()
