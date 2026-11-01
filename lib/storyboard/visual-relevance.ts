@@ -52,7 +52,7 @@ function explicitMatch(value: string | null | undefined, context: string, fullSc
 const SEMANTIC_CONCEPTS: Array<[RegExp, RegExp]> = [
   [/生み出|誕生|製作|開発/iu, /工房|作業台|職人|製作|開発/iu],
   [/精度|精密/iu, /測定|計測|精度|調整|検査/iu],
-  [/系譜|受け継|つなが|歴史/iu, /系譜|受け継|資料|記録|歴史|ムーブメント/iu],
+  [/系譜|受け継|つなが|歴史|時計史/iu, /系譜|受け継|資料|記録|歴史|時計史|ムーブメント/iu],
   [/表示義務|原産国|産業を守/iu, /資料|文書|産業史|法令|記録/iu],
   [/逃れ|国境|移住|職人たち/iu, /移動|旅|国境|後ろ姿|職人/iu],
 ];

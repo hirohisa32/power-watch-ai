@@ -65,6 +65,21 @@ describe("Story Beat production standard", () => {
     expect(ng.score).toBeLessThan(70);
   });
 
+  it("時計史とムーブメントを技術系譜の同一Story Beatとして評価する", () => {
+    const result = evaluateVisualRelevance({
+      narration: "名機478とフレンチケースには、フランスとスイスを結ぶ時計史が息づきます。",
+      visualIntent: "実物のムーブメント写真を静かに見せ、技術の系譜へ視線を戻す。",
+      visualSubject: "機械に刻まれた系譜",
+      historicalPeriod: null,
+      location: null,
+      characterId: null,
+      watchReference: true,
+      productPhotoRole: "movement",
+      visualType: "product_photo",
+    });
+    expect(result.status).toBe("pass");
+  });
+
   it("商品写真をNarrationの意味で選び同じ写真を連続させない", () => {
     const planned = planProductPhotoUsage(
       [
