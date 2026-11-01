@@ -46,6 +46,17 @@ export async function createGenerationJob(input: {
     if (!owned) throw new GenerationRequestError("Sceneが見つかりません");
     if (isFixedOpeningPreset(owned.scene.preset))
       throw new GenerationRequestError("Openingは固定System Assetのため生成できません");
+    if (
+      owned.scene.visualRelevanceStatus === "ng" ||
+      (owned.scene.visualRelevanceScore != null && owned.scene.visualRelevanceScore < 70)
+    )
+      throw new GenerationRequestError(
+        "Narrationと映像内容の一致度が不足しています。Visual Intentを修正してください",
+      );
+    if (owned.scene.visualRelevanceStatus === "review")
+      throw new GenerationRequestError(
+        "Narrationと映像内容の一致をHuman Reviewしてから生成してください",
+      );
     const active = await transaction
       .select({ id: videoGenerations.id })
       .from(videoGenerations)
@@ -87,7 +98,11 @@ export async function createGenerationJob(input: {
     const model = productEvidence ? PRODUCT_EVIDENCE_MODEL : modelForStyle(owned.project.style);
     const providerDuration = providerDurationForScene(owned.scene.duration);
     const prompt = buildVideoPrompt(
-      { ...owned.scene, duration: providerDuration, referenceAvailable: referenceAssetIds.length > 0 },
+      {
+        ...owned.scene,
+        duration: providerDuration,
+        referenceAvailable: referenceAssetIds.length > 0,
+      },
       owned.project.style,
       input.regenerationInstruction,
     );

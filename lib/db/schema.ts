@@ -123,6 +123,9 @@ export const systemVideoAssets = pgTable(
     height: integer("height").notNull(),
     fps: integer("fps").notNull(),
     hasAudio: boolean("has_audio").default(true).notNull(),
+    recommendedStartMs: integer("recommended_start_ms").default(0).notNull(),
+    recommendedEndMs: integer("recommended_end_ms"),
+    recommendedDurationMs: integer("recommended_duration_ms"),
     active: boolean("active").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -206,6 +209,8 @@ export const assets = pgTable(
     objectKey: text("object_key").notNull(),
     mimeType: text("mime_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
+    role: text("role"),
+    analysis: jsonb("analysis").$type<Record<string, unknown>>().default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("assets_project_idx").on(table.projectId)],
@@ -247,6 +252,7 @@ export const scenes = pgTable(
     title: text("title").notNull(),
     duration: integer("duration").notNull(),
     narration: text("narration").notNull(),
+    narrationSegmentId: text("narration_segment_id"),
     narrationTone: text("narration_tone").default("documentary").notNull(),
     dialogue: jsonb("dialogue")
       .$type<Array<{ speaker: string; text: string; tone: string }>>()
@@ -259,6 +265,17 @@ export const scenes = pgTable(
       .default({})
       .notNull(),
     subtitle: text("subtitle").notNull(),
+    visualIntent: text("visual_intent"),
+    visualSubject: text("visual_subject"),
+    historicalPeriod: text("historical_period"),
+    characterId: text("character_id"),
+    productPhotoId: uuid("product_photo_id").references(() => assets.id, {
+      onDelete: "set null",
+    }),
+    productPhotoRole: text("product_photo_role"),
+    visualType: text("visual_type"),
+    visualRelevanceScore: integer("visual_relevance_score"),
+    visualRelevanceStatus: text("visual_relevance_status"),
     visualDescription: text("visual_description").notNull(),
     visualPrompt: text("visual_prompt").notNull(),
     camera: text("camera").notNull(),
@@ -428,6 +445,12 @@ export const audioRecords = pgTable(
     script: text("script").notNull(),
     characterCount: integer("character_count").notNull(),
     durationMs: integer("duration_ms"),
+    alignment: jsonb("alignment").$type<{
+      characters: string[];
+      characterStartTimesSeconds: number[];
+      characterEndTimesSeconds: number[];
+      source: "provider" | "duration_fallback";
+    }>(),
     objectKey: text("object_key"),
     mimeType: text("mime_type"),
     estimatedCost: real("estimated_cost"),
@@ -520,7 +543,11 @@ export const contextPronunciationRules = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("context_pronunciation_rules_scope_unique").on(table.projectId, table.displayPattern, table.ttsTemplate),
+    uniqueIndex("context_pronunciation_rules_scope_unique").on(
+      table.projectId,
+      table.displayPattern,
+      table.ttsTemplate,
+    ),
     index("context_pronunciation_rules_lookup_idx").on(table.status, table.targetTerm),
   ],
 );
@@ -539,7 +566,11 @@ export const pronunciationCalibrationResults = pgTable(
     calibratedAt: timestamp("calibrated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("pronunciation_calibration_result_unique").on(table.targetTerm, table.voiceId, table.testId),
+    uniqueIndex("pronunciation_calibration_result_unique").on(
+      table.targetTerm,
+      table.voiceId,
+      table.testId,
+    ),
     index("pronunciation_calibration_target_idx").on(table.targetTerm, table.calibratedAt),
   ],
 );
@@ -550,7 +581,9 @@ export const narrationQualityRuns = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
     storyboardId: uuid("storyboard_id").references(() => storyboards.id, { onDelete: "cascade" }),
-    audioRecordId: uuid("audio_record_id").references(() => audioRecords.id, { onDelete: "set null" }),
+    audioRecordId: uuid("audio_record_id").references(() => audioRecords.id, {
+      onDelete: "set null",
+    }),
     status: narrationQualityStatus("status").default("pending").notNull(),
     displayScript: text("display_script").notNull(),
     voiceId: text("voice_id").notNull(),
@@ -569,7 +602,9 @@ export const narrationQualitySegments = pgTable(
   "narration_quality_segments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    runId: uuid("run_id").notNull().references(() => narrationQualityRuns.id, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => narrationQualityRuns.id, { onDelete: "cascade" }),
     segmentIndex: integer("segment_index").notNull(),
     displayScript: text("display_script").notNull(),
     ttsInputText: text("tts_input_text").notNull(),

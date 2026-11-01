@@ -26,11 +26,18 @@ export function buildFinalRenderInput(input: {
     .filter((scene) => !isFixedOpeningPreset(scene.preset))
     .sort((a, b) => a.order - b.order);
   if (!scenes.length) throw new Error("MISSING_SCENE_VIDEO");
+  const blockedScene = scenes.find(
+    (scene) =>
+      scene.visualRelevanceStatus === "ng" ||
+      (scene.visualRelevanceScore != null && scene.visualRelevanceScore < 70),
+  );
+  if (blockedScene) throw new Error(`VISUAL_RELEVANCE_NG:${blockedScene.sceneId}`);
   const subtitles = buildSubtitleCues(
     scenes.map((scene) => ({
       id: scene.sceneId,
       duration: scene.duration,
       narration: scene.narration,
+      narrationSegmentId: scene.narrationSegmentId,
       subtitle: scene.subtitle,
     })),
   );
@@ -72,7 +79,7 @@ export function buildFinalRenderInput(input: {
     totalDuration:
       (input.openingAsset?.duration ?? 0) +
       scenes.reduce((sum, scene) => sum + scene.duration, 0) +
-      (input.endingAsset?.duration ?? 0),
+      (input.endingAsset?.recommendedDuration ?? input.endingAsset?.duration ?? 0),
     missingSceneCount: Math.max(0, input.totalSceneCount - scenes.length),
     scenes,
     subtitles,
@@ -80,7 +87,15 @@ export function buildFinalRenderInput(input: {
     voiceAssignments: input.voiceAssignments ?? [],
     openingAsset: input.openingAsset ?? null,
     endingAsset: input.endingAsset ?? null,
+    alignment: null,
   };
+}
+
+export function effectiveSystemAssetDuration(asset: RenderSystemAsset | null) {
+  if (!asset) return 0;
+  const start = Math.max(0, asset.recommendedStart ?? 0);
+  const end = Math.min(asset.duration, asset.recommendedEnd ?? asset.duration);
+  return Math.max(0, Math.min(asset.recommendedDuration ?? end - start, end - start));
 }
 
 export function narrationObjectKey(projectId: string, audioId: string) {

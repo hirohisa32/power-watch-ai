@@ -3,25 +3,27 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { assertNarrationFits, buildNarrationScript, narrationSpeed } from "@/lib/audio/timing";
+import {
+  buildAlignedSubtitleCues,
+  buildDurationFallbackAlignment,
+  buildNarrationScript,
+  normalizeProviderAlignment,
+  sceneSpeechWindows,
+  type NarrationAlignmentData,
+} from "@/lib/audio/timing";
 import { saveElevenLabsGenerationAudit } from "@/lib/audio/audit";
 import {
   ElevenLabsError,
   ElevenLabsNarrationProvider,
   type NarrationProvider,
   type NarrationResult,
+  type NarrationTimestampResult,
 } from "@/lib/audio/elevenlabs";
 import { narrationConfig } from "@/lib/audio/config";
 import { buildAudioRecord } from "@/lib/audio/record";
 import { buildSpeechSegments } from "@/lib/audio/voices";
 import { getDb } from "@/lib/db";
-import {
-  apiUsage,
-  audioRecords,
-  bgmAssets,
-  finalRenders,
-  renderJobs,
-} from "@/lib/db/schema";
+import { apiUsage, audioRecords, bgmAssets, finalRenders, renderJobs } from "@/lib/db/schema";
 import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
 import { createAssSubtitles } from "./ass";
 import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
@@ -79,11 +81,16 @@ export async function processFinalRenderJob(
       .where(eq(finalRenders.id, row.render.id));
   });
 
-  const renderInput = row.render.renderInput as FinalRenderInput;
+  let renderInput = row.render.renderInput as FinalRenderInput;
   let audioId: string | undefined;
   let stage:
-    "narration" | "audio-upload" | "scene-download" | "system-media-download" | "bgm-download" | "ffmpeg" | "render-upload" =
-    "narration";
+    | "narration"
+    | "audio-upload"
+    | "scene-download"
+    | "system-media-download"
+    | "bgm-download"
+    | "ffmpeg"
+    | "render-upload" = "narration";
   const workDir = await mkdtemp(path.join(tmpdir(), "power-watch-render-"));
   try {
     const bodyDuration = renderInput.scenes.reduce((sum, scene) => sum + scene.duration, 0);
@@ -106,13 +113,16 @@ export async function processFinalRenderJob(
           .filter(Boolean)
           .join("\n\n")
       : narrationScript;
-    const overallSpeed = narrationSpeed(script, bodyDuration, renderInput.language);
-    assertNarrationFits(script, bodyDuration, overallSpeed, renderInput.language);
     const config = narrationConfig();
     const narratorVoiceId = HAYASHI_VOICE.voiceId;
     if (config.model !== HAYASHI_VOICE.model)
-      throw new ElevenLabsError("INVALID_REQUEST", "Narration ModelがProduction固定設定と一致しません");
+      throw new ElevenLabsError(
+        "INVALID_REQUEST",
+        "Narration ModelがProduction固定設定と一致しません",
+      );
     const narrationPath = path.join(workDir, "narration.mp3");
+    let narrationAlignment: NarrationAlignmentData | null = null;
+    let narrationDurationMs = 0;
     const [cachedAudio] = await db
       .select()
       .from(audioRecords)
@@ -135,6 +145,11 @@ export async function processFinalRenderJob(
       const audioUrl = await dependencies.sign(cachedAudio.objectKey, 15 * 60);
       const narrationBytes = await dependencies.download(audioUrl, 25 * 1024 * 1024);
       await writeFile(narrationPath, narrationBytes);
+      narrationDurationMs =
+        cachedAudio.durationMs ?? (await dependencies.probe(narrationPath)) ?? 0;
+      narrationAlignment =
+        (cachedAudio.alignment as NarrationAlignmentData | null) ??
+        buildDurationFallbackAlignment(script, narrationDurationMs);
       await db
         .update(finalRenders)
         .set({ audioRecordId: cachedAudio.id, estimatedCost: 0, updatedAt: new Date() })
@@ -169,19 +184,24 @@ export async function processFinalRenderJob(
         narrationScript,
         narratorVoiceId,
       });
-      const generatedSegments: Array<{ generated: NarrationResult; path: string }> = [];
-      const segmentDurations = allocateSpeechSegmentDurations(renderInput, speechSegments);
+      const generatedSegments: Array<{
+        generated: NarrationResult | NarrationTimestampResult;
+        path: string;
+        durationMs: number;
+        alignment: NarrationAlignmentData;
+      }> = [];
       for (const [index, segment] of speechSegments.entries()) {
-        const segmentDuration = segmentDurations[index];
-        const speed = narrationSpeed(segment.text, segmentDuration, renderInput.language);
-        assertNarrationFits(segment.text, segmentDuration, speed, renderInput.language);
-        const generated: NarrationResult = await dependencies.narration.generate({
+        const generationInput = {
           originalScript: segment.text,
           text: segment.text,
-          speed,
+          speed: 1,
           voiceId: narratorVoiceId,
           language: renderInput.language,
-        });
+        } as const;
+        const generated: NarrationResult | NarrationTimestampResult = dependencies.narration
+          .generateWithTimestamps
+          ? await dependencies.narration.generateWithTimestamps(generationInput)
+          : await dependencies.narration.generate(generationInput);
         if (generated.audit)
           await saveElevenLabsGenerationAudit({
             audit: generated.audit,
@@ -195,14 +215,30 @@ export async function processFinalRenderJob(
           });
         const segmentPath = path.join(workDir, `speech-${index}.mp3`);
         await writeFile(segmentPath, generated.bytes);
-        generatedSegments.push({ generated, path: segmentPath });
+        const durationMs = (await dependencies.probe(segmentPath)) ?? 0;
+        const timestamped =
+          "normalizedAlignment" in generated
+            ? (generated as NarrationTimestampResult)
+            : null;
+        const providerAlignment = timestamped
+          ? (timestamped.normalizedAlignment ?? timestamped.alignment)
+          : null;
+        generatedSegments.push({
+          generated,
+          path: segmentPath,
+          durationMs,
+          alignment: providerAlignment
+            ? normalizeProviderAlignment(providerAlignment)
+            : buildDurationFallbackAlignment(segment.text, durationMs),
+        });
       }
       await dependencies.composeSpeech(
         generatedSegments.map((segment) => segment.path),
         narrationPath,
-        segmentDurations,
       );
-      const audioDurationMs = await dependencies.probe(narrationPath);
+      const audioDurationMs = (await dependencies.probe(narrationPath)) ?? 0;
+      narrationDurationMs = audioDurationMs;
+      narrationAlignment = mergeSegmentAlignments(generatedSegments);
       stage = "audio-upload";
       const audioKey = narrationObjectKey(row.render.projectId, audio.id);
       const narrationBytes = new Uint8Array(await readFile(narrationPath));
@@ -219,6 +255,7 @@ export async function processFinalRenderJob(
             status: "completed",
             voiceId: narratorVoiceId,
             durationMs: audioDurationMs,
+            alignment: narrationAlignment,
             objectKey: audioKey,
             mimeType: "audio/mpeg",
             estimatedCost: narrationCost,
@@ -247,6 +284,20 @@ export async function processFinalRenderJob(
       });
     }
 
+    if (!narrationDurationMs)
+      narrationDurationMs =
+        (await dependencies.probe(narrationPath)) ?? Math.round(bodyDuration * 1000);
+    narrationAlignment ??= buildDurationFallbackAlignment(script, narrationDurationMs);
+    renderInput = synchronizeRenderInput(renderInput, narrationAlignment, narrationDurationMs);
+    await db
+      .update(finalRenders)
+      .set({
+        renderInput,
+        durationMs: Math.round(renderInput.totalDuration * 1000),
+        updatedAt: new Date(),
+      })
+      .where(eq(finalRenders.id, row.render.id));
+
     stage = "scene-download";
     const videoPaths: string[] = [];
     for (const [index, scene] of renderInput.scenes.entries()) {
@@ -260,7 +311,9 @@ export async function processFinalRenderJob(
     const openingPath = renderInput.openingAsset
       ? path.join(workDir, "selected-opening.mp4")
       : undefined;
-    const endingPath = renderInput.endingAsset ? path.join(workDir, "selected-ending.mp4") : undefined;
+    const endingPath = renderInput.endingAsset
+      ? path.join(workDir, "selected-ending.mp4")
+      : undefined;
     if (renderInput.openingAsset && openingPath) {
       const url = await dependencies.sign(renderInput.openingAsset.storagePath, 15 * 60);
       await writeFile(openingPath, await dependencies.download(url, 250 * 1024 * 1024));
@@ -378,6 +431,62 @@ export function allocateSpeechSegmentDurations(
   return result;
 }
 
+function mergeSegmentAlignments(
+  segments: Array<{ durationMs: number; alignment: NarrationAlignmentData }>,
+): NarrationAlignmentData {
+  const characters: string[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let offsetSeconds = 0;
+  let providerOnly = true;
+  segments.forEach((segment) => {
+    characters.push(...segment.alignment.characters);
+    starts.push(
+      ...segment.alignment.characterStartTimesSeconds.map((value) => value + offsetSeconds),
+    );
+    ends.push(...segment.alignment.characterEndTimesSeconds.map((value) => value + offsetSeconds));
+    providerOnly &&= segment.alignment.source === "provider";
+    offsetSeconds += segment.durationMs / 1000;
+  });
+  return {
+    characters,
+    characterStartTimesSeconds: starts,
+    characterEndTimesSeconds: ends,
+    source: providerOnly ? "provider" : "duration_fallback",
+  };
+}
+
+export function synchronizeRenderInput(
+  input: FinalRenderInput,
+  alignment: NarrationAlignmentData,
+  narrationDurationMs: number,
+): FinalRenderInput {
+  const narrationScenes = input.scenes.map((scene) => ({
+    id: scene.sceneId,
+    narrationSegmentId: scene.narrationSegmentId,
+    duration: scene.duration,
+    narration: scene.narration,
+    subtitle: scene.subtitle,
+  }));
+  const windows = sceneSpeechWindows(narrationScenes, alignment, input.language);
+  const scenes = input.scenes.map((scene, index) => {
+    const startMs = index === 0 ? 0 : (windows[index]?.speechStartMs ?? 0);
+    const nextStartMs = windows[index + 1]?.speechStartMs ?? narrationDurationMs;
+    return { ...scene, duration: Math.max(0.3, (nextStartMs - startMs) / 1000) };
+  });
+  const endingDuration = input.endingAsset
+    ? (input.endingAsset.recommendedDuration ?? input.endingAsset.duration)
+    : 0;
+  return {
+    ...input,
+    scenes,
+    subtitles: buildAlignedSubtitleCues(narrationScenes, alignment, 75, input.language),
+    alignment,
+    totalDuration:
+      (input.openingAsset?.duration ?? 0) + narrationDurationMs / 1000 + endingDuration,
+  };
+}
+
 async function failFinalRender(
   jobId: string,
   renderId: string,
@@ -435,7 +544,10 @@ function renderError(stage: string, error: unknown) {
   const map: Record<string, { code: string; message: string }> = {
     "audio-upload": { code: "R2_AUDIO_UPLOAD_FAILED", message: "NarrationのR2保存に失敗しました" },
     "scene-download": { code: "MISSING_SCENE_VIDEO", message: "Scene動画を取得できませんでした" },
-    "system-media-download": { code: "SYSTEM_MEDIA_NOT_AVAILABLE", message: "選択したオープニングまたは締め動画を取得できませんでした" },
+    "system-media-download": {
+      code: "SYSTEM_MEDIA_NOT_AVAILABLE",
+      message: "選択したオープニングまたは締め動画を取得できませんでした",
+    },
     "bgm-download": { code: "BGM_NOT_AVAILABLE", message: "承認済みBGMを取得できませんでした" },
     ffmpeg: { code: "FFMPEG_FAILED", message: "完成動画の結合処理に失敗しました" },
     "render-upload": { code: "R2_RENDER_UPLOAD_FAILED", message: "完成動画のR2保存に失敗しました" },

@@ -9,9 +9,19 @@ export type RenderScene = {
   transition?: string;
   duration: number;
   narration: string;
+  narrationSegmentId?: string | null;
   narrationTone?: string;
   dialogue?: DialogueLine[];
   subtitle: string;
+  visualIntent?: string | null;
+  visualSubject?: string | null;
+  historicalPeriod?: string | null;
+  characterId?: string | null;
+  productPhotoId?: string | null;
+  productPhotoRole?: string | null;
+  visualType?: string | null;
+  visualRelevanceScore?: number | null;
+  visualRelevanceStatus?: string | null;
   year: string | null;
   location: string | null;
   objectKey: string;
@@ -34,6 +44,9 @@ export type RenderSystemAsset = {
   height: number;
   fps: number;
   hasAudio: boolean;
+  recommendedStart?: number;
+  recommendedEnd?: number;
+  recommendedDuration?: number;
 };
 
 export type FinalRenderInput = {
@@ -50,4 +63,5 @@ export type FinalRenderInput = {
   voiceAssignments: VoiceAssignment[];
   openingAsset: RenderSystemAsset | null;
   endingAsset: RenderSystemAsset | null;
+  alignment?: import("@/lib/audio/timing").NarrationAlignmentData | null;
 };

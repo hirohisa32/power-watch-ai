@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { PRESET_NAMES } from "@/lib/storyboard/presets";
 import { sceneDurationRule } from "@/lib/storyboard/styles/epoca-story";
+import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
+import { planProductPhotoUsage, PRODUCT_PHOTO_ROLES } from "@/lib/storyboard/product-photo-planner";
 
 export const storyboardSceneSchema = z
   .object({
@@ -9,6 +11,7 @@ export const storyboardSceneSchema = z
     title: z.string().trim().min(1).max(120),
     duration: z.number().int().min(3).max(8),
     narration: z.string().trim().min(1).max(1200),
+    narrationSegmentId: z.string().trim().min(1).max(80),
     narrationTone: z.string().trim().min(1).max(40),
     dialogue: z
       .array(
@@ -20,6 +23,12 @@ export const storyboardSceneSchema = z
       )
       .max(12),
     subtitle: z.string().trim().min(1).max(500),
+    visualIntent: z.string().trim().min(5).max(1000),
+    visualSubject: z.string().trim().min(2).max(300),
+    historicalPeriod: z.string().trim().min(1).max(100).nullable(),
+    characterId: z.string().trim().min(1).max(100).nullable(),
+    productPhotoRole: z.enum(PRODUCT_PHOTO_ROLES).nullable(),
+    visualType: z.enum(["story", "product_photo", "technical", "environment"]),
     visualDescription: z.string().trim().min(10).max(1000),
     visualPrompt: z.string().trim().min(30).max(1600),
     camera: z.string().trim().min(2).max(300),
@@ -39,7 +48,18 @@ export const storyboardOutputSchema = z
   .object({ scenes: z.array(storyboardSceneSchema).min(8).max(30) })
   .strict();
 
-export const editableSceneSchema = storyboardSceneSchema.omit({ sceneNumber: true }).strip();
+export const editableSceneSchema = storyboardSceneSchema
+  .omit({ sceneNumber: true })
+  .partial({
+    narrationSegmentId: true,
+    visualIntent: true,
+    visualSubject: true,
+    historicalPeriod: true,
+    characterId: true,
+    productPhotoRole: true,
+    visualType: true,
+  })
+  .strip();
 
 export type StoryboardSceneInput = z.infer<typeof storyboardSceneSchema>;
 export type StoryboardOutput = z.infer<typeof storyboardOutputSchema>;
@@ -71,7 +91,7 @@ export function rebalanceStoryboardDuration(
     return {
       ...scene,
       sceneNumber: index + 1,
-      duration: Math.min(rule.max, Math.max(rule.min, scene.duration)),
+      duration: Math.min(scene.watchReference ? 6 : rule.max, Math.max(rule.min, scene.duration)),
     };
   });
   let remaining = targetDuration - scenes.reduce((sum, scene) => sum + scene.duration, 0);
@@ -82,7 +102,7 @@ export function rebalanceStoryboardDuration(
       for (let index = scenes.length - 1; index >= 0 && remaining !== 0; index -= 1) {
         const rule = sceneDurationRule(scenes[index].preset);
         const min = useStyleLimits ? rule.min : 3;
-        const max = useStyleLimits ? rule.max : 8;
+        const max = scenes[index].watchReference ? 6 : useStyleLimits ? rule.max : 8;
         const next = scenes[index].duration + direction;
         if (next >= min && next <= max) {
           scenes[index] = { ...scenes[index], duration: next };
@@ -127,18 +147,18 @@ export function normalizeStoryboardReferences(
   availableAssetLabels: string[],
 ): StoryboardOutput {
   const labels = new Set(availableAssetLabels);
-  return {
-    scenes: storyboard.scenes.map((scene) => {
-      const watchReference =
-        scene.watchReference || REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset);
-      if (!watchReference) return { ...scene, watchReference: false, preferredAssetLabels: [] };
+  const normalized = storyboard.scenes.map((scene) => {
+    const watchReference =
+      scene.watchReference || REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset);
+    if (!watchReference)
+      return { ...scene, watchReference: false, preferredAssetLabels: [], productPhotoRole: null };
 
-      const preferredAssetLabels = scene.preferredAssetLabels.filter((label) => labels.has(label));
-      if (labels.size > 0 && preferredAssetLabels.length === 0)
-        preferredAssetLabels.push(availableAssetLabels[0]);
-      return { ...scene, watchReference: true, preferredAssetLabels };
-    }),
-  };
+    const preferredAssetLabels = scene.preferredAssetLabels.filter((label) => labels.has(label));
+    if (labels.size > 0 && preferredAssetLabels.length === 0)
+      preferredAssetLabels.push(availableAssetLabels[0]);
+    return { ...scene, watchReference: true, preferredAssetLabels };
+  });
+  return { scenes: planProductPhotoUsage(normalized, availableAssetLabels) };
 }
 
 export function validateStoryboard(
@@ -172,10 +192,17 @@ export function validateStoryboard(
       throw new StoryboardValidationError("Reference不要Sceneに時計画像が指定されています");
     if (scene.watchReference && labels.size > 0 && scene.preferredAssetLabels.length === 0)
       throw new StoryboardValidationError("時計SceneのReference画像が指定されていません");
+    if (scene.watchReference && scene.duration > 6)
+      throw new StoryboardValidationError("同一商品写真を6秒を超えて連続表示できません");
     if (REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset) && !scene.watchReference)
       throw new StoryboardValidationError("時計を表示するPresetにはReference指定が必要です");
     if (/power\s*watch/i.test(scene.visualPrompt))
       throw new StoryboardValidationError("POWER WATCH文字は映像Promptへ含められません");
+    const relevance = evaluateVisualRelevance(scene);
+    if (relevance.status === "ng")
+      throw new StoryboardValidationError(
+        `Scene ${scene.sceneNumber}はNarrationとVisualの関連性が不足しています (${relevance.score}/100)`,
+      );
   }
   validateNarrationContinuity(storyboard);
   if (totalStoryboardDuration(storyboard) !== targetDuration)

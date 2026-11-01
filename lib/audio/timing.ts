@@ -1,5 +1,6 @@
 export type NarrationScene = {
   id: string;
+  narrationSegmentId?: string | null;
   duration: number;
   narration: string;
   subtitle: string;
@@ -7,9 +8,24 @@ export type NarrationScene = {
 
 export type SubtitleCue = {
   sceneId: string;
+  narrationSegmentId?: string;
   startMs: number;
   endMs: number;
   text: string;
+};
+
+export type NarrationAlignmentData = {
+  characters: string[];
+  characterStartTimesSeconds: number[];
+  characterEndTimesSeconds: number[];
+  source: "provider" | "duration_fallback";
+};
+
+export type SceneSpeechWindow = {
+  sceneId: string;
+  narrationSegmentId?: string;
+  speechStartMs: number;
+  speechEndMs: number;
 };
 
 export function normalizeNarration(text: string, language: "ja" | "en" | "zh") {
@@ -80,6 +96,170 @@ export function buildSubtitleCues(scenes: NarrationScene[]): SubtitleCue[] {
     sceneStartMs += scene.duration * 1000;
   }
   return cues;
+}
+
+export function buildDurationFallbackAlignment(
+  script: string,
+  durationMs: number,
+): NarrationAlignmentData {
+  const characters = [...script];
+  const weights = characters.map((character) =>
+    /[。！？.!?]/u.test(character)
+      ? 4.5
+      : /[、，,\n]/u.test(character)
+        ? 2.4
+        : /\s/u.test(character)
+          ? 0.55
+          : 1,
+  );
+  const total = Math.max(
+    1,
+    weights.reduce((sum, weight) => sum + weight, 0),
+  );
+  let cursor = 0;
+  const starts: number[] = [];
+  const ends: number[] = [];
+  for (const weight of weights) {
+    starts.push((cursor / total) * (durationMs / 1000));
+    cursor += weight;
+    ends.push((cursor / total) * (durationMs / 1000));
+  }
+  return {
+    characters,
+    characterStartTimesSeconds: starts,
+    characterEndTimesSeconds: ends,
+    source: "duration_fallback",
+  };
+}
+
+export function normalizeProviderAlignment(input: {
+  characters: string[];
+  character_start_times_seconds: number[];
+  character_end_times_seconds: number[];
+}): NarrationAlignmentData {
+  return {
+    characters: input.characters,
+    characterStartTimesSeconds: input.character_start_times_seconds,
+    characterEndTimesSeconds: input.character_end_times_seconds,
+    source: "provider",
+  };
+}
+
+export function buildAlignedSubtitleCues(
+  scenes: NarrationScene[],
+  alignment: NarrationAlignmentData,
+  leadMs = 75,
+  language: "ja" | "en" | "zh" = "ja",
+): SubtitleCue[] {
+  const alignedText = alignment.characters.join("");
+  const cues: SubtitleCue[] = [];
+  let searchFrom = 0;
+  for (const scene of scenes) {
+    const narration = normalizeNarration(scene.narration, language);
+    const compactNarration = narration.replace(/\s+/g, " ");
+    let startIndex = alignedText.indexOf(compactNarration, searchFrom);
+    if (startIndex < 0) {
+      const firstMeaningful = [...compactNarration].findIndex(
+        (character) => !/\s/u.test(character),
+      );
+      const token = [...compactNarration]
+        .slice(Math.max(0, firstMeaningful), Math.max(0, firstMeaningful) + 8)
+        .join("");
+      startIndex = token ? alignedText.indexOf(token, searchFrom) : -1;
+    }
+    if (startIndex < 0) startIndex = searchFrom;
+    const endIndex = Math.min(
+      alignment.characters.length - 1,
+      startIndex + Math.max(1, [...compactNarration].length) - 1,
+    );
+    const speechStartMs = Math.round(
+      (alignment.characterStartTimesSeconds[startIndex] ?? 0) * 1000,
+    );
+    const speechEndMs = Math.round(
+      (alignment.characterEndTimesSeconds[endIndex] ??
+        alignment.characterStartTimesSeconds[endIndex] ??
+        speechStartMs / 1000) * 1000,
+    );
+    const text = scene.subtitle.trim() || narration;
+    const chunks = splitSentences(text).flatMap((sentence) => splitReadableChunks(sentence, 24));
+    const weights = chunks.map((chunk) => Math.max(1, [...chunk.replace(/\s/g, "")].length));
+    const totalWeight = Math.max(
+      1,
+      weights.reduce((sum, weight) => sum + weight, 0),
+    );
+    const totalMs = Math.max(300, speechEndMs - speechStartMs);
+    let cursor = Math.max(0, speechStartMs - leadMs);
+    chunks.forEach((chunk, index) => {
+      const endMs =
+        index === chunks.length - 1
+          ? speechEndMs
+          : Math.min(speechEndMs, cursor + Math.round((totalMs * weights[index]) / totalWeight));
+      cues.push({
+        sceneId: scene.id,
+        narrationSegmentId: scene.narrationSegmentId ?? undefined,
+        startMs: cursor,
+        endMs: Math.max(cursor + 200, endMs),
+        text: chunk,
+      });
+      cursor = endMs;
+    });
+    searchFrom = endIndex + 1;
+  }
+  return cues;
+}
+
+export function sceneSpeechWindows(
+  scenes: NarrationScene[],
+  alignment: NarrationAlignmentData,
+  language: "ja" | "en" | "zh" = "ja",
+): SceneSpeechWindow[] {
+  const alignedText = alignment.characters.join("");
+  let searchFrom = 0;
+  return scenes.map((scene) => {
+    const narration = normalizeNarration(scene.narration, language);
+    let startIndex = alignedText.indexOf(narration, searchFrom);
+    if (startIndex < 0) {
+      const token = [...narration.replace(/\s/g, "")].slice(0, 8).join("");
+      startIndex = token ? alignedText.indexOf(token, searchFrom) : -1;
+    }
+    if (startIndex < 0) startIndex = searchFrom;
+    const endIndex = Math.min(
+      alignment.characters.length - 1,
+      startIndex + Math.max(1, [...narration].length) - 1,
+    );
+    searchFrom = endIndex + 1;
+    return {
+      sceneId: scene.id,
+      narrationSegmentId: scene.narrationSegmentId ?? undefined,
+      speechStartMs: Math.round((alignment.characterStartTimesSeconds[startIndex] ?? 0) * 1000),
+      speechEndMs: Math.round(
+        (alignment.characterEndTimesSeconds[endIndex] ??
+          alignment.characterStartTimesSeconds[endIndex] ??
+          0) * 1000,
+      ),
+    };
+  });
+}
+
+export function averageSubtitleLeadMs(
+  cues: SubtitleCue[],
+  scenes: NarrationScene[],
+  alignment: NarrationAlignmentData,
+) {
+  const firstCue = new Map<string, SubtitleCue>();
+  cues.forEach((cue) => firstCue.has(cue.sceneId) || firstCue.set(cue.sceneId, cue));
+  const alignedText = alignment.characters.join("");
+  let searchFrom = 0;
+  const offsets: number[] = [];
+  for (const scene of scenes) {
+    const index = alignedText.indexOf(normalizeNarration(scene.narration, "ja"), searchFrom);
+    if (index < 0) continue;
+    const speechStart = (alignment.characterStartTimesSeconds[index] ?? 0) * 1000;
+    const cue = firstCue.get(scene.id);
+    if (cue) offsets.push(cue.startMs - speechStart);
+    searchFrom = index + scene.narration.length;
+  }
+  return offsets.length ? offsets.reduce((sum, value) => sum + value, 0) / offsets.length : 0;
 }
 
 function ensureSentenceEnding(text: string, language: "ja" | "en" | "zh") {

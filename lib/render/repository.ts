@@ -71,9 +71,19 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         transition: row.scene.transition,
         duration: row.scene.duration,
         narration: row.scene.narration,
+        narrationSegmentId: row.scene.narrationSegmentId,
         narrationTone: row.scene.narrationTone,
         dialogue: row.scene.dialogue,
         subtitle: row.scene.subtitle,
+        visualIntent: row.scene.visualIntent,
+        visualSubject: row.scene.visualSubject,
+        historicalPeriod: row.scene.historicalPeriod,
+        characterId: row.scene.characterId,
+        productPhotoId: row.scene.productPhotoId,
+        productPhotoRole: row.scene.productPhotoRole,
+        visualType: row.scene.visualType,
+        visualRelevanceScore: row.scene.visualRelevanceScore,
+        visualRelevanceStatus: row.scene.visualRelevanceStatus,
         year: row.scene.year,
         location: row.scene.location,
         objectKey: row.outputObjectKey!,
@@ -152,13 +162,35 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
           .where(eq(scenes.id, assignment.sceneId));
     }
     const [openingAsset] = project.openingAssetId
-      ? await transaction.select().from(systemVideoAssets).where(and(eq(systemVideoAssets.id, project.openingAssetId), eq(systemVideoAssets.type, "opening"), eq(systemVideoAssets.active, true))).limit(1)
+      ? await transaction
+          .select()
+          .from(systemVideoAssets)
+          .where(
+            and(
+              eq(systemVideoAssets.id, project.openingAssetId),
+              eq(systemVideoAssets.type, "opening"),
+              eq(systemVideoAssets.active, true),
+            ),
+          )
+          .limit(1)
       : [];
     const [endingAsset] = project.endingAssetId
-      ? await transaction.select().from(systemVideoAssets).where(and(eq(systemVideoAssets.id, project.endingAssetId), eq(systemVideoAssets.type, "ending"), eq(systemVideoAssets.active, true))).limit(1)
+      ? await transaction
+          .select()
+          .from(systemVideoAssets)
+          .where(
+            and(
+              eq(systemVideoAssets.id, project.endingAssetId),
+              eq(systemVideoAssets.type, "ending"),
+              eq(systemVideoAssets.active, true),
+            ),
+          )
+          .limit(1)
       : [];
-    if (project.openingAssetId && !openingAsset) throw new RenderRequestError("選択したオープニン素材を利用できません");
-    if (project.endingAssetId && !endingAsset) throw new RenderRequestError("選択した締め動画素材を利用できません");
+    if (project.openingAssetId && !openingAsset)
+      throw new RenderRequestError("選択したオープニン素材を利用できません");
+    if (project.endingAssetId && !endingAsset)
+      throw new RenderRequestError("選択した締め動画素材を利用できません");
     let renderInput;
     try {
       renderInput = buildFinalRenderInput({
@@ -207,6 +239,10 @@ function toRenderSystemAsset(asset: typeof systemVideoAssets.$inferSelect) {
     height: asset.height,
     fps: asset.fps,
     hasAudio: asset.hasAudio,
+    recommendedStart: asset.recommendedStartMs / 1000,
+    recommendedEnd: asset.recommendedEndMs == null ? undefined : asset.recommendedEndMs / 1000,
+    recommendedDuration:
+      asset.recommendedDurationMs == null ? undefined : asset.recommendedDurationMs / 1000,
   };
 }
 

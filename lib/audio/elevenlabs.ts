@@ -68,6 +68,7 @@ export type ElevenLabsGenerationInput = {
 export interface NarrationProvider {
   readonly name: string;
   generate(input: ElevenLabsGenerationInput): Promise<NarrationResult>;
+  generateWithTimestamps?(input: ElevenLabsGenerationInput): Promise<NarrationTimestampResult>;
   listLibraryVoices(input?: VoiceLibraryQuery): Promise<VoiceLibraryResult>;
 }
 
@@ -163,7 +164,9 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
     };
   }
 
-  async generateWithTimestamps(input: ElevenLabsGenerationInput): Promise<NarrationTimestampResult> {
+  async generateWithTimestamps(
+    input: ElevenLabsGenerationInput,
+  ): Promise<NarrationTimestampResult> {
     const config = narrationConfig();
     const voiceId = input.voiceId || config.defaultVoiceId;
     if (!config.apiKey || !voiceId)
@@ -171,14 +174,21 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
     const request = buildElevenLabsRequest(input, voiceId, input.model ?? config.model);
     let response: Response;
     try {
-      response = await this.fetcher(request.url.replace("?output_format=", "/with-timestamps?output_format="), {
-        method: "POST",
-        headers: { "content-type": "application/json", "xi-api-key": config.apiKey },
-        body: JSON.stringify(request.body),
-        signal: AbortSignal.timeout(config.timeoutMs),
-      });
+      response = await this.fetcher(
+        request.url.replace("?output_format=", "/with-timestamps?output_format="),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "xi-api-key": config.apiKey },
+          body: JSON.stringify(request.body),
+          signal: AbortSignal.timeout(config.timeoutMs),
+        },
+      );
     } catch (error) {
-      throw new ElevenLabsError("NETWORK", error instanceof Error ? error.message : "ElevenLabsへの接続に失敗しました", true);
+      throw new ElevenLabsError(
+        "NETWORK",
+        error instanceof Error ? error.message : "ElevenLabsへの接続に失敗しました",
+        true,
+      );
     }
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
@@ -186,9 +196,12 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
         throw new ElevenLabsError("AUTH", "ElevenLabsの認証を確認してください");
       if (response.status === 402 || response.status === 429)
         throw new ElevenLabsError("CREDITS", "ElevenLabsのクレジット残高を確認してください");
-      throw new ElevenLabsError("INVALID_REQUEST", `ElevenLabsが生成要求を拒否しました (${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""})`);
+      throw new ElevenLabsError(
+        "INVALID_REQUEST",
+        `ElevenLabsが生成要求を拒否しました (${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""})`,
+      );
     }
-    const body = await response.json() as {
+    const body = (await response.json()) as {
       audio_base64?: string;
       alignment?: NarrationAlignment | null;
       normalized_alignment?: NarrationAlignment | null;
@@ -199,7 +212,8 @@ export class ElevenLabsNarrationProvider implements NarrationProvider {
     return {
       bytes,
       contentType: "audio/mpeg",
-      characterCost: Number.isFinite(headerCost) && headerCost > 0 ? headerCost : [...input.text].length,
+      characterCost:
+        Number.isFinite(headerCost) && headerCost > 0 ? headerCost : [...input.text].length,
       requestId: response.headers.get("request-id") || undefined,
       audit: request.audit,
       alignment: body.alignment ?? null,

@@ -1,10 +1,11 @@
 import "server-only";
 import { and, desc, eq, max, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { apiUsage, projects, scenes, storyboards } from "@/lib/db/schema";
+import { apiUsage, assets, projects, scenes, storyboards } from "@/lib/db/schema";
 import { estimateOpenAiCost } from "@/lib/storyboard/cost";
 import type { StoryboardDirectorResult } from "@/lib/storyboard/director";
 import type { StoryboardOutput } from "@/lib/storyboard/schema";
+import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
 export type PersistStoryboardInput = {
   projectId: string;
@@ -63,13 +64,26 @@ export class DrizzleStoryboardPersistence implements StoryboardPersistence {
           totalDuration: input.storyboard.scenes.reduce((sum, scene) => sum + scene.duration, 0),
         })
         .returning({ id: storyboards.id });
+      const productAssets = await transaction
+        .select({ id: assets.id, label: assets.label })
+        .from(assets)
+        .where(eq(assets.projectId, input.projectId));
+      const assetByLabel = new Map(productAssets.map((asset) => [asset.label, asset.id]));
       await transaction.insert(scenes).values(
-        input.storyboard.scenes.map(({ sceneNumber, ...scene }) => ({
-          ...scene,
-          order: sceneNumber,
-          projectId: input.projectId,
-          storyboardId: storyboard.id,
-        })),
+        input.storyboard.scenes.map(({ sceneNumber, ...scene }) => {
+          const relevance = evaluateVisualRelevance(scene);
+          return {
+            ...scene,
+            order: sceneNumber,
+            projectId: input.projectId,
+            storyboardId: storyboard.id,
+            productPhotoId: scene.preferredAssetLabels[0]
+              ? (assetByLabel.get(scene.preferredAssetLabels[0]) ?? null)
+              : null,
+            visualRelevanceScore: relevance.score,
+            visualRelevanceStatus: relevance.status,
+          };
+        }),
       );
       await transaction.insert(apiUsage).values({
         projectId: input.projectId,
