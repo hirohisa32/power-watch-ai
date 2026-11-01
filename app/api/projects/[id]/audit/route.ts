@@ -94,6 +94,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           provider: audioRecords.provider,
           model: audioRecords.model,
           language: audioRecords.language,
+          script: audioRecords.script,
           characterCount: audioRecords.characterCount,
           durationMs: audioRecords.durationMs,
           estimatedCost: audioRecords.estimatedCost,
