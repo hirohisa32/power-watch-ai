@@ -15,6 +15,8 @@ import {
 } from "@/lib/db/schema";
 import { isAdminEmail } from "@/lib/ui/presentation";
 import { BillingActions } from "./billing-actions";
+import { runwayBalanceWarning } from "@/lib/video/balance";
+import { getRunwayAccountStatus } from "@/lib/video/runway";
 
 export const metadata: Metadata = { title: "管理" };
 export const dynamic = "force-dynamic";
@@ -41,8 +43,11 @@ export default async function AdminPage({
   const user = await requireUser();
   if (!isAdminEmail(user.email)) notFound();
   const db = getDb();
-  const [usage, generations, jobs, [projectCount], costs, monthly] = await Promise.all([
-    db.select().from(apiUsage).orderBy(desc(apiUsage.createdAt)).limit(100),
+  const [providerCosts, generations, jobs, [projectCount], costs, monthly, runwayAccount] = await Promise.all([
+    db
+      .select({ provider: apiUsage.provider, total: sql<number>`coalesce(sum(${apiUsage.estimatedCost}), 0)::double precision` })
+      .from(apiUsage)
+      .groupBy(apiUsage.provider),
     db.select().from(videoGenerations).orderBy(desc(videoGenerations.createdAt)).limit(50),
     db.select().from(renderJobs).orderBy(desc(renderJobs.createdAt)).limit(50),
     db.select({ value: sql<number>`count(*)` }).from(projects),
@@ -69,14 +74,11 @@ export default async function AdminPage({
       .select()
       .from(monthlyBillingSettlements)
       .orderBy(desc(monthlyBillingSettlements.billingMonth)),
+    getRunwayAccountStatus().catch(() => null),
   ]);
-  const providerTotals = usage.reduce<Record<string, number>>((all, row) => {
-    all[row.provider] = (all[row.provider] ?? 0) + (row.estimatedCost ?? 0);
-    return all;
-  }, {});
-  const total =
-    Object.values(providerTotals).reduce((sum, value) => sum + value, 0) +
-    generations.reduce((sum, row) => sum + (row.actualCostUsd ?? row.estimatedCostUsd ?? 0), 0);
+  const providerTotals = Object.fromEntries(providerCosts.map((row) => [row.provider, row.total]));
+  const total = Object.values(providerTotals).reduce((sum, value) => sum + value, 0);
+  const runwayStatus = runwayAccount ? runwayBalanceWarning(runwayAccount.creditBalance) : null;
   const currentMonth = jstBillingMonth(new Date());
   const requested = (await searchParams).month;
   const selectedMonth =
@@ -149,6 +151,17 @@ export default async function AdminPage({
           <strong className="billing-status">{currentClosed ? "締め済み" : "未締め"}</strong>
         </div>
       </section>
+      {runwayAccount && (
+        <section className={`panel admin-section ${runwayStatus?.low ? "warning-panel" : ""}`}>
+          <h2>Runway残高</h2>
+          <div className="admin-table">
+            <div><span>現在の残高</span><span>{runwayAccount.creditBalance.toLocaleString()} credits</span></div>
+            <div><span>5秒Scene換算</span><span>約{Math.floor(runwayAccount.creditBalance / 60)} Scene</span></div>
+            <div><span>状態</span><span>{runwayStatus?.low ? "残高が少なくなっています" : "十分な残高があります"}</span></div>
+          </div>
+          {runwayStatus?.low && <p className="hint">Runway管理画面で自動補充設定と請求方法を確認してください。</p>}
+        </section>
+      )}
       {pendingRates.length > 0 && (
         <section className="panel admin-section billing-warning">
           <h2>為替レート未確定</h2>

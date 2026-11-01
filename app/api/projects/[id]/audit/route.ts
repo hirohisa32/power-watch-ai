@@ -7,6 +7,7 @@ import {
   audioRecords,
   assets,
   finalRenders,
+  imageGenerationAudits,
   projects,
   renderJobs,
   sceneVoiceAssignments,
@@ -46,6 +47,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       renderRows,
       renderJobRows,
       voiceAssignmentRows,
+      imageGenerationRows,
       usageRows,
     ] = await Promise.all([
       db.select({ count: count() }).from(assets).where(eq(assets.projectId, id)),
@@ -143,6 +145,27 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         .orderBy(desc(sceneVoiceAssignments.updatedAt)),
       db
         .select({
+          id: imageGenerationAudits.id,
+          projectId: imageGenerationAudits.projectId,
+          videoId: imageGenerationAudits.videoId,
+          sceneId: imageGenerationAudits.sceneId,
+          provider: imageGenerationAudits.provider,
+          model: imageGenerationAudits.model,
+          purpose: imageGenerationAudits.purpose,
+          status: imageGenerationAudits.status,
+          imageInputTokens: imageGenerationAudits.imageInputTokens,
+          imageOutputTokens: imageGenerationAudits.imageOutputTokens,
+          textInputTokens: imageGenerationAudits.textInputTokens,
+          costUsd: imageGenerationAudits.costUsd,
+          outputObjectKey: imageGenerationAudits.outputObjectKey,
+          qualityGate: imageGenerationAudits.qualityGate,
+          generatedAt: imageGenerationAudits.generatedAt,
+        })
+        .from(imageGenerationAudits)
+        .where(eq(imageGenerationAudits.projectId, id))
+        .orderBy(desc(imageGenerationAudits.generatedAt)),
+      db
+        .select({
           provider: apiUsage.provider,
           operation: apiUsage.operation,
           model: apiUsage.model,
@@ -190,6 +213,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       })),
       renderJobs: renderJobRows,
       voiceAssignments: voiceAssignmentRows,
+      imageGenerations: imageGenerationRows.map(({ outputObjectKey, ...generation }) => ({
+        ...generation,
+        outputStored: Boolean(outputObjectKey),
+      })),
       usage: usageRows.map(({ requestId, ...usage }) => ({
         ...usage,
         requestIdRecorded: Boolean(requestId),

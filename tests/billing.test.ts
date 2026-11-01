@@ -65,4 +65,15 @@ describe("請求用コスト確定", () => {
     expect(September).toEqual({ totalJpy: 723, projectCount: 1 });
     expect(summarizeBillingMonth(laterEntries).totalJpy).toBe(100);
   });
+
+  it("画像生成・Runway・ElevenLabs・その他APIを動画原価へ合算できる", () => {
+    const apiUsage = [
+      { provider: "openai-image", costUsd: 0.42 },
+      { provider: "runway", costUsd: 3 },
+      { provider: "elevenlabs", costUsd: 0.027 },
+      { provider: "internal-render", costUsd: 0 },
+    ];
+    expect(apiUsage.reduce((sum, item) => sum + item.costUsd, 0)).toBeCloseTo(3.447);
+    expect(roundJpy(3.447, 150)).toBe(517);
+  });
 });

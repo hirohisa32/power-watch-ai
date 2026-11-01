@@ -1,5 +1,5 @@
 export const HAYASHI_VOICE = {
-  name: "林さん",
+  name: "Mr Kenji Hayashi",
   voiceId: "CeKhvpl894bEZDsRgdlL",
   model: "eleven_v4",
 } as const;

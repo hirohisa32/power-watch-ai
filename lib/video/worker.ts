@@ -2,10 +2,15 @@ import "server-only";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { apiUsage, assets, projects, scenes, videoGenerations, videoJobs } from "@/lib/db/schema";
-import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
+import { apiUsage, assets, imageGenerationAudits, projects, scenes, videoGenerations, videoJobs } from "@/lib/db/schema";
+import { createReadUrl, readPrivateObject, uploadPrivateObject } from "@/lib/storage";
+import { estimateOpenAiImageCost } from "@/lib/image/cost";
+import { OpenAIImageGenerationProvider } from "@/lib/image/openai";
+import { buildAnimationKeyframePrompt, buildCharacterReferencePrompt, characterKeyForScene, type CHARACTER_BIBLES } from "@/lib/image/prompt";
+import { inspectKeyframe } from "@/lib/image/quality";
+import type { ImageGenerationProvider, ImagePurpose, ImageReference } from "@/lib/image/types";
 import { creditsToUsd } from "./cost";
 import { videoConfig } from "./config";
 import { downloadValidatedMp4 } from "./download";
@@ -25,6 +30,7 @@ type WorkerDependencies = {
   upload: typeof uploadPrivateObject;
   signAsset: typeof createReadUrl;
   renderProductPhoto?: typeof renderProductPhotoMotion;
+  imageProvider?: ImageGenerationProvider;
 };
 
 const defaults = (): WorkerDependencies => ({
@@ -34,6 +40,7 @@ const defaults = (): WorkerDependencies => ({
   upload: uploadPrivateObject,
   signAsset: createReadUrl,
   renderProductPhoto: renderProductPhotoMotion,
+  imageProvider: new OpenAIImageGenerationProvider(),
 });
 
 export async function processVideoJob(
@@ -67,14 +74,17 @@ export async function processVideoJob(
       return;
     }
     try {
-      const reference = row.generation.referenceAssetIds[0]
+      const keyframeObjectKey = await ensureAnimationKeyframe(row, dependencies);
+      const reference = !keyframeObjectKey && row.generation.referenceAssetIds[0]
         ? await db
             .select({ objectKey: assets.objectKey })
             .from(assets)
             .where(eq(assets.id, row.generation.referenceAssetIds[0]))
             .limit(1)
         : [];
-      const referenceImageUrl = reference[0]
+      const referenceImageUrl = keyframeObjectKey
+        ? await dependencies.signAsset(keyframeObjectKey, 60 * 60)
+        : reference[0]
         ? await dependencies.signAsset(reference[0].objectKey, 60 * 60)
         : undefined;
       const started = Date.now();
@@ -94,6 +104,7 @@ export async function processVideoJob(
           .update(videoGenerations)
           .set({
             status: "generating",
+            pipelineStage: "video_generating",
             estimatedCostCredits: task.estimatedCostCredits ?? row.generation.estimatedCostCredits,
             estimatedCostUsd:
               creditsToUsd(task.estimatedCostCredits, config.creditCostUsd) ??
@@ -165,6 +176,7 @@ export async function processVideoJob(
     return;
   }
 
+  await db.update(videoGenerations).set({ pipelineStage: "saving", updatedAt: new Date() }).where(eq(videoGenerations.id, row.generation.id));
   const bytes = await dependencies.download(status.outputUrl, {
     timeoutMs: config.downloadTimeoutMs,
     maxBytes: config.downloadMaxBytes,
@@ -178,6 +190,7 @@ export async function processVideoJob(
       .update(videoGenerations)
       .set({
         status: "completed",
+        pipelineStage: "completed",
         outputObjectKey: outputKey,
         actualCostCredits: status.actualCostCredits,
         actualCostUsd: actualUsd,
@@ -246,7 +259,7 @@ async function processProductEvidence(
         .where(eq(videoJobs.id, jobId));
       await transaction
         .update(videoGenerations)
-        .set({ status: "generating", updatedAt: now })
+        .set({ status: "generating", pipelineStage: "video_preparing", updatedAt: now })
         .where(eq(videoGenerations.id, generationId));
     });
     const signed = await dependencies.signAsset(asset.objectKey, 15 * 60);
@@ -268,7 +281,7 @@ async function processProductEvidence(
     await db.transaction(async (transaction) => {
       await transaction
         .update(videoGenerations)
-        .set({ status: "completed", outputObjectKey: outputKey, actualCostCredits: 0, actualCostUsd: 0, errorCode: null, errorMessage: null, updatedAt: now, completedAt: now })
+        .set({ status: "completed", pipelineStage: "completed", outputObjectKey: outputKey, actualCostCredits: 0, actualCostUsd: 0, errorCode: null, errorMessage: null, updatedAt: now, completedAt: now })
         .where(eq(videoGenerations.id, generationId));
       await transaction
         .update(videoJobs)
@@ -400,6 +413,7 @@ export async function failJob(jobId: string, generationId: string, code: string,
       .update(videoGenerations)
       .set({
         status: "failed",
+        pipelineStage: "error",
         errorCode: code,
         errorMessage: message,
         updatedAt: now,
@@ -407,6 +421,119 @@ export async function failJob(jobId: string, generationId: string, code: string,
       })
       .where(eq(videoGenerations.id, generationId));
   });
+}
+
+async function ensureAnimationKeyframe(
+  row: NonNullable<Awaited<ReturnType<typeof loadJob>>>,
+  dependencies: WorkerDependencies,
+) {
+  const db = getDb();
+  const [context] = await db
+    .select({ project: projects, scene: scenes })
+    .from(scenes)
+    .innerJoin(projects, eq(projects.id, scenes.projectId))
+    .where(eq(scenes.id, row.job.sceneId))
+    .limit(1);
+  if (!context || context.project.style !== "animation" || context.scene.watchReference) return null;
+  if (row.generation.keyframeImageId) {
+    const [existing] = await db.select().from(imageGenerationAudits).where(and(eq(imageGenerationAudits.id, row.generation.keyframeImageId), eq(imageGenerationAudits.status, "completed"))).limit(1);
+    if (existing?.outputObjectKey) return existing.outputObjectKey;
+  }
+  const provider = dependencies.imageProvider ?? new OpenAIImageGenerationProvider();
+  await db.update(videoGenerations).set({ pipelineStage: "image_creating", updatedAt: new Date() }).where(eq(videoGenerations.id, row.generation.id));
+  const characterKey = characterKeyForScene(context.scene);
+  const references: ImageReference[] = [];
+  const referenceObjectKeys: string[] = [];
+  if (characterKey) {
+    let [character] = await db
+      .select()
+      .from(imageGenerationAudits)
+      .where(and(eq(imageGenerationAudits.projectId, row.job.projectId), eq(imageGenerationAudits.purpose, "character_reference"), eq(imageGenerationAudits.characterKey, characterKey), eq(imageGenerationAudits.status, "completed")))
+      .orderBy(desc(imageGenerationAudits.generatedAt))
+      .limit(1);
+    if (!character?.outputObjectKey) {
+      character = await generateAuditedImage({
+        row,
+        provider,
+        purpose: "character_reference",
+        prompt: buildCharacterReferencePrompt(characterKey),
+        characterKey,
+        references: [],
+      });
+    }
+    if (character.outputObjectKey) {
+      const bytes = await readPrivateObject(character.outputObjectKey);
+      references.push({ bytes, mimeType: "image/jpeg", name: `${characterKey}.jpg` });
+      referenceObjectKeys.push(character.outputObjectKey);
+    }
+  }
+  const purpose = keyframePurpose(context.scene.preset);
+  const keyframe = await generateAuditedImage({
+    row,
+    provider,
+    purpose,
+    prompt: buildAnimationKeyframePrompt(context.scene, characterKey),
+    characterKey,
+    references,
+    referenceObjectKeys,
+  });
+  if (!keyframe.outputObjectKey) throw new Error("Scene Keyframeが保存されませんでした");
+  await db.update(videoGenerations).set({ keyframeImageId: keyframe.id, pipelineStage: "video_preparing", updatedAt: new Date() }).where(eq(videoGenerations.id, row.generation.id));
+  return keyframe.outputObjectKey;
+}
+
+async function generateAuditedImage(input: {
+  row: NonNullable<Awaited<ReturnType<typeof loadJob>>>;
+  provider: ImageGenerationProvider;
+  purpose: ImagePurpose;
+  prompt: string;
+  characterKey: keyof typeof CHARACTER_BIBLES | null;
+  references: ImageReference[];
+  referenceObjectKeys?: string[];
+}) {
+  const db = getDb();
+  const [audit] = await db.insert(imageGenerationAudits).values({
+    projectId: input.row.job.projectId,
+    videoId: input.row.generation.id,
+    sceneId: input.row.job.sceneId,
+    provider: input.provider.name,
+    model: input.provider.model,
+    purpose: input.purpose,
+    prompt: input.prompt,
+    characterKey: input.characterKey,
+    referenceObjectKeys: input.referenceObjectKeys ?? [],
+  }).returning();
+  try {
+    const startedAt = Date.now();
+    const result = await input.provider.generate({ prompt: input.prompt, purpose: input.purpose, references: input.references });
+    const costUsd = estimateOpenAiImageCost(result);
+    await db.transaction(async (transaction) => {
+      await transaction.update(imageGenerationAudits).set({ status: "quality_gate", imageInputTokens: result.imageInputTokens, imageOutputTokens: result.imageOutputTokens, textInputTokens: result.textInputTokens, costUsd, requestId: result.requestId, generatedAt: new Date(), updatedAt: new Date() }).where(eq(imageGenerationAudits.id, audit.id));
+      await transaction.insert(apiUsage).values({ projectId: input.row.job.projectId, provider: "openai-image", operation: `image_generation:${input.purpose}`, model: result.model, inputTokens: result.textInputTokens + result.imageInputTokens, outputTokens: result.imageOutputTokens, units: result.imageOutputTokens, requestId: result.requestId, durationMs: Date.now() - startedAt, estimatedCost: costUsd });
+    });
+    await db.update(videoGenerations).set({ pipelineStage: "image_quality_gate", updatedAt: new Date() }).where(eq(videoGenerations.id, input.row.generation.id));
+    const qualityGate = await inspectKeyframe(result.bytes);
+    if (!qualityGate.pass) {
+      await db.update(imageGenerationAudits).set({ status: "failed", qualityGate, errorCode: "QUALITY_GATE_FAILED", errorMessage: qualityGate.reasons.join(" / "), updatedAt: new Date() }).where(eq(imageGenerationAudits.id, audit.id));
+      throw new Error(`画像Quality Gate不合格: ${qualityGate.reasons.join(" / ")}`);
+    }
+    const outputObjectKey = `projects/${input.row.job.projectId}/keyframes/${audit.id}.jpg`;
+    await uploadPrivateObject(outputObjectKey, result.bytes, result.mimeType);
+    const [completed] = await db.transaction(async (transaction) => {
+      const [saved] = await transaction.update(imageGenerationAudits).set({ status: "completed", outputObjectKey, qualityGate, updatedAt: new Date() }).where(eq(imageGenerationAudits.id, audit.id)).returning();
+      return [saved];
+    });
+    return completed;
+  } catch (error) {
+    await db.update(imageGenerationAudits).set({ status: "failed", errorCode: error instanceof Error && "code" in error ? String(error.code) : "IMAGE_GENERATION_FAILED", errorMessage: error instanceof Error ? error.message : "画像生成に失敗しました", updatedAt: new Date() }).where(and(eq(imageGenerationAudits.id, audit.id), ne(imageGenerationAudits.status, "completed"), ne(imageGenerationAudits.status, "failed")));
+    throw error;
+  }
+}
+
+function keyframePurpose(preset: string): ImagePurpose {
+  if (/Historical|Vintage|OldBook/.test(preset)) return "historical_scene";
+  if (/City|YearLocation/.test(preset)) return "environment";
+  return "scene_keyframe";
 }
 
 async function refreshProjectStatus(projectId: string) {

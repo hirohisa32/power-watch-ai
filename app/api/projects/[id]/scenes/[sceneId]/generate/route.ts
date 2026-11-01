@@ -5,6 +5,7 @@ import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { VercelVideoJobQueue } from "@/lib/video/queue";
 import { createGenerationJob, markEnqueueFailed } from "@/lib/video/repository";
+import { ensureRunwayCredits } from "@/lib/video/balance";
 
 const bodySchema = z.object({ instruction: z.string().trim().min(1).max(500).optional() });
 
@@ -26,6 +27,7 @@ export async function POST(
       regenerationInstruction: instruction,
     });
     try {
+      await ensureRunwayCredits(created.generation.estimatedCostCredits ?? 0);
       await new VercelVideoJobQueue().enqueue({ jobId: created.job.id, cycle: 0 });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Queue send failed";

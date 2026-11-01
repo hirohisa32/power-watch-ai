@@ -91,6 +91,19 @@ export class RunwayVideoProvider implements VideoProvider {
   }
 }
 
+export async function getRunwayAccountStatus() {
+  const client = createClient();
+  try {
+    const organization = await client.organization.retrieve({ signal: AbortSignal.timeout(15_000) });
+    return {
+      creditBalance: organization.creditBalance,
+      maxMonthlyCreditSpend: organization.tier.maxMonthlyCreditSpend,
+    };
+  } catch (error) {
+    throw normalizeRunwayError(error);
+  }
+}
+
 function createClient() {
   const apiKey = process.env.RUNWAY_API_KEY;
   if (!apiKey)

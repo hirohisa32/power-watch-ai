@@ -32,6 +32,12 @@ export const videoGenerationStatus = pgEnum("video_generation_status", [
   "failed",
   "canceled",
 ]);
+export const imageGenerationStatus = pgEnum("image_generation_status", [
+  "generating",
+  "quality_gate",
+  "completed",
+  "failed",
+]);
 export const videoJobStatus = pgEnum("video_job_status", [
   "queued",
   "processing",
@@ -299,6 +305,8 @@ export const videoGenerations = pgTable(
     estimatedCostUsd: real("estimated_cost_usd"),
     actualCostCredits: real("actual_cost_credits"),
     actualCostUsd: real("actual_cost_usd"),
+    keyframeImageId: uuid("keyframe_image_id"),
+    pipelineStage: text("pipeline_stage").default("preparing").notNull(),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -308,6 +316,46 @@ export const videoGenerations = pgTable(
   (table) => [
     uniqueIndex("video_generations_scene_version_unique").on(table.sceneId, table.version),
     index("video_generations_project_status_idx").on(table.projectId, table.status),
+  ],
+);
+
+export const imageGenerationAudits = pgTable(
+  "image_generation_audits",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    videoId: uuid("video_id")
+      .notNull()
+      .references(() => videoGenerations.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    purpose: text("purpose").notNull(),
+    status: imageGenerationStatus("status").default("generating").notNull(),
+    prompt: text("prompt").notNull(),
+    characterKey: text("character_key"),
+    referenceObjectKeys: jsonb("reference_object_keys").$type<string[]>().default([]).notNull(),
+    outputObjectKey: text("output_object_key"),
+    imageInputTokens: integer("image_input_tokens").default(0).notNull(),
+    imageOutputTokens: integer("image_output_tokens").default(0).notNull(),
+    textInputTokens: integer("text_input_tokens").default(0).notNull(),
+    costUsd: real("cost_usd").default(0).notNull(),
+    qualityGate: jsonb("quality_gate").$type<Record<string, unknown>>().default({}).notNull(),
+    requestId: text("request_id"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("image_generation_audits_project_idx").on(table.projectId, table.generatedAt),
+    index("image_generation_audits_video_idx").on(table.videoId, table.generatedAt),
+    index("image_generation_audits_scene_idx").on(table.sceneId, table.generatedAt),
   ],
 );
 

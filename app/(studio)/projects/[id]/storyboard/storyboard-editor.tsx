@@ -44,6 +44,7 @@ type EditorGeneration = {
   provider: string;
   model: string;
   status: "queued" | "generating" | "completed" | "failed" | "canceled";
+  pipelineStage: string;
   prompt: string;
   regenerationInstruction: string | null;
   referenceAssetIds: string[];
@@ -97,6 +98,17 @@ const QUICK_OPTIONS = [
   "動きを抑える",
 ];
 
+const PIPELINE_STAGE_LABELS: Record<string, string> = {
+  preparing: "準備中",
+  image_creating: "画像を作成中",
+  image_quality_gate: "画像を確認中",
+  video_preparing: "映像を準備中",
+  video_generating: "動画を生成中",
+  saving: "保存中",
+  completed: "完了",
+  error: "エラー",
+};
+
 export function StoryboardEditor({
   projectId,
   targetDuration,
@@ -120,6 +132,8 @@ export function StoryboardEditor({
   const [draft, setDraft] = useState(blankScene());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [regenerationInstructions, setRegenerationInstructions] = useState<Record<string, string>>(
     {},
   );
@@ -150,18 +164,42 @@ export function StoryboardEditor({
       )
       .map((generation) => generation.sceneId),
   ).size;
+  const activeGeneration = initialGenerations.find(
+    (generation) =>
+      bodySceneIds.has(generation.sceneId) && ["queued", "generating"].includes(generation.status),
+  );
+  const activeScene = activeGeneration
+    ? initialScenes.find((scene) => scene.id === activeGeneration.sceneId)
+    : null;
+  const progressStartedAt = activeGeneration ? Date.parse(activeGeneration.createdAt) : null;
   useEffect(() => {
     if (!hasActiveGeneration) return;
     const timer = window.setTimeout(() => router.refresh(), 7_000);
     return () => window.clearTimeout(timer);
   }, [hasActiveGeneration, initialGenerations, router]);
-  async function request(url: string, options: RequestInit) {
+  useEffect(() => {
+    if (!progressStartedAt || !hasActiveGeneration) return;
+    const timer = window.setInterval(
+      () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - progressStartedAt) / 1_000))),
+      1_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [hasActiveGeneration, pending, progressStartedAt]);
+  async function request(
+    url: string,
+    options: RequestInit,
+    feedback?: { started: string; completed?: (body: Record<string, unknown>) => string },
+  ) {
     setPending(true);
     setError("");
+    if (feedback) {
+      setNotice(feedback.started);
+    }
     try {
       const response = await fetch(url, options);
       const body = await response.json();
       if (!response.ok) throw new Error(body.error);
+      if (feedback?.completed) setNotice(feedback.completed(body));
       setEditing(null);
       setAdding(false);
       router.refresh();
@@ -192,6 +230,9 @@ export function StoryboardEditor({
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(instruction ? { instruction } : {}),
+    }, {
+      started: `映像生成を開始しました。現在、シーン${scene.order}を生成しています。`,
+      completed: () => `映像生成を受け付けました。シーン${scene.order}を生成しています。`,
     });
   }
   return (
@@ -226,10 +267,18 @@ export function StoryboardEditor({
             className="btn btn-primary"
             disabled={pending || total !== targetDuration}
             onClick={() =>
-              request(`/api/projects/${projectId}/generate-missing`, { method: "POST" })
+              request(
+                `/api/projects/${projectId}/generate-missing`,
+                { method: "POST" },
+                {
+                  started: "映像生成を開始しています。対象シーンを確認中です。",
+                  completed: (body) =>
+                    `映像生成を開始しました。現在、${Number(body.queued ?? 0)}シーンを生成しています。`,
+                },
+              )
             }
           >
-            未生成シーンの映像を作る
+            {pending ? "生成中..." : "未生成シーンの映像を作る"}
           </button>
         </div>
       </div>
@@ -242,6 +291,22 @@ export function StoryboardEditor({
         <p className="error" role="alert">
           {error}
         </p>
+      )}
+      {(pending || hasActiveGeneration) && (
+        <section className="generation-progress" role="status" aria-live="polite">
+          <div>
+            <span className="generation-progress-pulse" aria-hidden="true" />
+            <div>
+              <strong>映像を生成しています</strong>
+              <p>{notice || `${activeSceneCount}シーンを生成しています。`}</p>
+            </div>
+          </div>
+          <dl>
+            <div><dt>現在</dt><dd>{activeGeneration ? (PIPELINE_STAGE_LABELS[activeGeneration.pipelineStage] ?? "生成中") : "受付中"}</dd></div>
+            <div><dt>シーン</dt><dd>{activeScene ? `${activeScene.order} / ${bodySceneIds.size} · ${activeScene.title}` : "準備中"}</dd></div>
+            <div><dt>経過時間</dt><dd>{Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, "0")}</dd></div>
+          </dl>
+        </section>
       )}
       {adding && (
         <SceneForm

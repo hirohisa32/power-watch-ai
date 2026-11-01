@@ -36,10 +36,11 @@ function media(brand: "power_watch" | "cool_vintage_watch" | "trust_watch", type
 }
 
 describe("Production標準仕様", () => {
-  it("林さん / eleven_v4を環境変数に関係なく固定する", () => {
+  it("Mr Kenji Hayashi / eleven_v4を環境変数に関係なく固定する", () => {
     process.env.ELEVENLABS_DEFAULT_VOICE_ID = "should-not-be-used";
     process.env.ELEVENLABS_MODEL = "eleven_multilingual_v2";
     expect(narrationConfig()).toMatchObject({ defaultVoiceId: HAYASHI_VOICE.voiceId, model: "eleven_v4" });
+    expect(HAYASHI_VOICE.name).toBe("Mr Kenji Hayashi");
   });
 
   it("Opening / 本編 / Endingの尺を動的に計算し、noneで余分な尺を足さない", () => {
