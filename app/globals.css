@@ -1653,15 +1653,6 @@ textarea {
 .content {
   width: min(var(--container), calc(100% - (var(--page-gutter) * 2)));
   padding: clamp(36px, 4vw, 58px) 0 88px;
-  animation: page-reveal 180ms var(--ease-luxury) both;
-}
-@keyframes page-reveal {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 .topbar {
   display: grid;

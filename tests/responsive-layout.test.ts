@@ -42,8 +42,7 @@ describe("WATCH STORY STUDIO responsive layout", () => {
   });
 
   it("keeps fixed drawers viewport-bound and long storyboard titles compact", () => {
-    const revealKeyframes = css.match(/@keyframes page-reveal\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
-    expect(revealKeyframes).not.toContain("transform:");
+    expect(css).not.toContain("animation: page-reveal");
     expect(css).toContain(".storyboard-page .page-head h1");
     expect(css).toContain("-webkit-line-clamp: 2");
   });
