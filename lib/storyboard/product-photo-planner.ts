@@ -20,7 +20,7 @@ const ROLE_PATTERNS: Array<[ProductPhotoRole, RegExp]> = [
   ["crown", /crown|竜頭|リューズ/iu],
   ["side", /side|profile|側面/iu],
   ["bracelet", /bracelet|clasp|strap|ブレスレット|クラスプ|ベルト/iu],
-  ["dial", /dial|hands|index|文字盤|針|インデックス|クルー・ド・パリ/iu],
+  ["dial", /dial|hands|index|bezel|文字盤|針|インデックス|ベゼル|クルー?ド・パリ/iu],
   ["case", /case|ケース/iu],
   ["front", /front|正面/iu],
   ["hero", /hero|全体|全景|メイン/iu],

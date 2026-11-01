@@ -248,6 +248,17 @@ export function StoryboardEditor({
     if (!window.confirm("現在の動画構成を残したまま、新しい構成を作成します。続けますか？")) return;
     await request(`/api/projects/${projectId}/storyboard`, { method: "POST" });
   }
+  async function reconcileStoryBeats() {
+    await request(
+      `/api/projects/${projectId}/story-beats/reconcile`,
+      { method: "POST" },
+      {
+        started: "ナレーション・映像・商品写真の一致を確認しています。",
+        completed: (body) =>
+          `Story Beat確認完了：PASS ${Number(body.pass ?? 0)}、要確認 ${Number(body.review ?? 0)}、NG ${Number(body.ng ?? 0)}`,
+      },
+    );
+  }
   async function generateScene(
     scene: EditorScene,
     regenerateVideo = false,
@@ -297,6 +308,9 @@ export function StoryboardEditor({
           </button>
           <button className="btn" disabled={pending} onClick={regenerate}>
             <RefreshCw size={14} /> 動画構成を作り直す
+          </button>
+          <button className="btn" disabled={pending} onClick={reconcileStoryBeats}>
+            Story Beatを再評価
           </button>
           <button
             className="btn btn-primary"
