@@ -34,6 +34,25 @@ export function desiredProductPhotoRole(context: string): ProductPhotoRole {
   return ROLE_PATTERNS.find(([, pattern]) => pattern.test(context))?.[0] ?? "hero";
 }
 
+const ROLE_FALLBACKS: Record<ProductPhotoRole, ProductPhotoRole[]> = {
+  front: ["front", "hero", "dial", "case"],
+  dial: ["dial", "front", "hero"],
+  case: ["case", "side", "caseback", "front", "hero"],
+  side: ["side", "crown", "case", "hero"],
+  crown: ["crown", "side", "case", "hero"],
+  caseback: ["caseback", "engraving", "case", "side"],
+  movement: ["movement", "caseback"],
+  engraving: ["engraving", "caseback", "side", "case", "front"],
+  bracelet: ["bracelet", "side", "hero"],
+  hero: ["hero", "front", "dial", "side"],
+};
+
+export function shouldUseProductEvidence(context: string) {
+  return /スワンネック|シャトン|ムーブメント|ベゼル|クルー?ド・パリ|ケース|刻印|文字盤|裏蓋|リューズ|ブレスレット|caseback|movement|bezel|engraving/iu.test(
+    context,
+  );
+}
+
 export function planProductPhotoUsage<
   T extends {
     watchReference: boolean;
@@ -64,7 +83,9 @@ export function planProductPhotoUsage<
       ? permitted
       : candidates.filter((candidate) => candidate.label !== previousLabel);
     const selected =
-      pool.find((candidate) => candidate.role === requested) ??
+      ROLE_FALLBACKS[requested]
+        .map((role) => pool.find((candidate) => candidate.role === role))
+        .find(Boolean) ??
       pool.find((candidate) => scene.preferredAssetLabels.includes(candidate.label)) ??
       pool[0] ??
       candidates[0];

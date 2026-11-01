@@ -15,8 +15,10 @@ import {
 import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import {
+  desiredProductPhotoRole,
   inferProductPhotoRole,
   planProductPhotoUsage,
+  shouldUseProductEvidence,
 } from "@/lib/storyboard/product-photo-planner";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
@@ -151,8 +153,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       db.select().from(assets).where(eq(assets.projectId, id)).orderBy(assets.createdAt),
     ]);
     const assetByLabel = new Map(productAssets.map((asset) => [asset.label, asset]));
+    const evidenceScenes = storyScenes.map((scene) => ({
+      ...scene,
+      watchReference:
+        scene.watchReference ||
+        shouldUseProductEvidence(
+          `${scene.narration} ${scene.visualIntent ?? scene.visualDescription} ${scene.visualSubject ?? scene.title}`,
+        ),
+    }));
     const plans = planProductPhotoUsage(
-      storyScenes.map((scene) => ({
+      evidenceScenes.map((scene) => ({
         ...scene,
         visualIntent: scene.visualIntent ?? scene.visualDescription,
         visualSubject: scene.visualSubject ?? scene.title,
@@ -182,12 +192,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           .where(eq(assets.id, asset.id));
       }
       for (const [index, scene] of storyScenes.entries()) {
+        const useProductEvidence = evidenceScenes[index].watchReference;
         const plan = plans[index];
         const selectedLabel = plan.preferredAssetLabels[0] ?? null;
         const productAsset = selectedLabel ? assetByLabel.get(selectedLabel) : null;
-        const visualIntent = scene.visualIntent ?? scene.visualDescription;
+        const desiredRole = desiredProductPhotoRole(
+          `${scene.narration} ${scene.visualIntent ?? scene.visualDescription} ${scene.visualSubject ?? scene.title}`,
+        );
+        const promotedVisualIntent = useProductEvidence && !scene.watchReference
+          ? `実物の商品写真だけを使用し、${desiredRole}の識別情報を保持したまま、ナレーションが述べる細部を静かなカメラモーションで提示する。`
+          : null;
+        const visualIntent = promotedVisualIntent ?? scene.visualIntent ?? scene.visualDescription;
         const visualSubject = scene.visualSubject ?? scene.title;
-        const visualType = scene.visualType ?? (scene.watchReference ? "product_photo" : "story");
+        const visualType = useProductEvidence
+          ? "product_photo"
+          : scene.visualType ?? "story";
         const relevance = evaluateVisualRelevance({
           narration: scene.narration,
           visualIntent,
@@ -196,7 +215,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           year: scene.year,
           location: scene.location,
           characterId: scene.characterId,
-          watchReference: scene.watchReference,
+          watchReference: useProductEvidence,
           productPhotoRole: plan.productPhotoRole,
           visualType,
         });
@@ -204,7 +223,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           ? generationById.get(scene.selectedGenerationId)
           : null;
         const staleProductGeneration = Boolean(
-          scene.watchReference &&
+          useProductEvidence &&
           productAsset &&
           selectedGeneration &&
           !selectedGeneration.referenceAssetIds.includes(productAsset.id),
@@ -215,9 +234,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             narrationSegmentId:
               scene.narrationSegmentId ?? `segment-${String(scene.order).padStart(2, "0")}`,
             visualIntent,
+            visualDescription: promotedVisualIntent ?? scene.visualDescription,
             visualSubject,
             historicalPeriod: scene.historicalPeriod ?? scene.year,
             visualType,
+            watchReference: useProductEvidence,
             productPhotoRole: plan.productPhotoRole,
             productPhotoId: productAsset?.id ?? null,
             preferredAssetLabels: plan.preferredAssetLabels,

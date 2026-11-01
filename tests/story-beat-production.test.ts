@@ -101,6 +101,30 @@ describe("Story Beat production standard", () => {
     expect(new Set(planned.map((scene) => scene.preferredAssetLabels[0])).size).toBe(3);
   });
 
+  it("刻印には裏蓋、ケースには側面を代替候補として優先する", () => {
+    const planned = planProductPhotoUsage(
+      [
+        {
+          watchReference: true,
+          preferredAssetLabels: [],
+          narration: "ケースにはメーカーズマークの刻印が残ります。",
+          visualIntent: "刻印を見せる",
+          visualSubject: "ケース刻印",
+        },
+        {
+          watchReference: true,
+          preferredAssetLabels: [],
+          narration: "18金無垢のケースです。",
+          visualIntent: "ケースを見せる",
+          visualSubject: "ケース",
+        },
+      ],
+      ["正面", "側面", "裏蓋"],
+    );
+    expect(planned[0].preferredAssetLabels[0]).toBe("裏蓋");
+    expect(planned[1].preferredAssetLabels[0]).toBe("側面");
+  });
+
   it("Endingの推奨区間だけをFinal尺へ算入する", () => {
     const plan = buildFinalRenderInput({
       language: "ja",
