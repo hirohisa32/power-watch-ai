@@ -19,7 +19,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const db = getDb();
     const candidates = await db
-      .select({ id: scenes.id, preset: scenes.preset, duration: scenes.duration, watchReference: scenes.watchReference })
+      .select({
+        id: scenes.id,
+        preset: scenes.preset,
+        duration: scenes.duration,
+        watchReference: scenes.watchReference,
+        selectedGenerationId: scenes.selectedGenerationId,
+      })
       .from(scenes)
       .innerJoin(projects, eq(projects.id, scenes.projectId))
       .innerJoin(storyboards, eq(storyboards.id, scenes.storyboardId))
@@ -29,18 +35,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!candidates.length)
       return NextResponse.json({ error: "Storyboardが見つかりません" }, { status: 404 });
     const existing = await db
-      .select({ sceneId: videoGenerations.sceneId, status: videoGenerations.status })
+      .select({
+        id: videoGenerations.id,
+        sceneId: videoGenerations.sceneId,
+        status: videoGenerations.status,
+      })
       .from(videoGenerations)
       .where(eq(videoGenerations.projectId, id));
-    const blocked = new Set(
+    const activeSceneIds = new Set(
       existing
-        .filter((item) => ["queued", "generating", "completed"].includes(item.status))
+        .filter((item) => ["queued", "generating"].includes(item.status))
         .map((item) => item.sceneId),
+    );
+    const completedGenerationIds = new Set(
+      existing.filter((item) => item.status === "completed").map((item) => item.id),
     );
     const queue = new VercelVideoJobQueue();
     const queued: string[] = [];
     const targets = candidates.filter(
-      (item) => !isFixedOpeningPreset(item.preset) && !blocked.has(item.id),
+      (item) =>
+        !isFixedOpeningPreset(item.preset) &&
+        !activeSceneIds.has(item.id) &&
+        (!item.selectedGenerationId || !completedGenerationIds.has(item.selectedGenerationId)),
     );
     const requiredCredits = targets.reduce((sum, scene) => sum + (scene.watchReference ? 0 : (estimateVideoCost("gen4.5", providerDurationForScene(scene.duration)).credits ?? 0)), 0);
     await ensureRunwayCredits(requiredCredits);

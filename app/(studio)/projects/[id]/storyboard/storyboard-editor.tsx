@@ -157,13 +157,18 @@ export function StoryboardEditor({
     (generation) =>
       bodySceneIds.has(generation.sceneId) && ["queued", "generating"].includes(generation.status),
   );
-  const completedSceneCount = new Set(
+  const completedGenerationIds = new Set(
     initialGenerations
-      .filter(
-        (generation) => bodySceneIds.has(generation.sceneId) && generation.status === "completed",
-      )
-      .map((generation) => generation.sceneId),
-  ).size;
+      .filter((generation) => generation.status === "completed")
+      .map((generation) => generation.id),
+  );
+  const completedSceneCount = initialScenes.filter(
+    (scene) =>
+      bodySceneIds.has(scene.id) &&
+      Boolean(
+        scene.selectedGenerationId && completedGenerationIds.has(scene.selectedGenerationId),
+      ),
+  ).length;
   const activeSceneCount = new Set(
     initialGenerations
       .filter(
@@ -385,9 +390,11 @@ export function StoryboardEditor({
           const allGenerations = initialGenerations.filter(
             (generation) => generation.sceneId === scene.id,
           );
+          const selectedGeneration = allGenerations.find(
+            (generation) => generation.id === scene.selectedGenerationId,
+          );
           const completedGeneration =
-            allGenerations.find((generation) => generation.id === scene.selectedGenerationId) ??
-            allGenerations.find((generation) => generation.status === "completed");
+            selectedGeneration?.status === "completed" ? selectedGeneration : undefined;
           const generations = completedGeneration
             ? allGenerations.filter((generation) => generation.status !== "failed")
             : allGenerations;
