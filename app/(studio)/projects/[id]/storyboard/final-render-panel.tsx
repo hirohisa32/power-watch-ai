@@ -52,7 +52,6 @@ export function FinalRenderPanel({
   }, [active, renders, router]);
 
   async function startRender() {
-    if (!window.confirm("現在選択されているシーンから、最終動画を作成します。よろしいですか？")) return;
     setPending(true);
     setError("");
     try {
