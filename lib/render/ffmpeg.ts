@@ -280,7 +280,7 @@ export async function renderWithFfmpeg(
         fadeBgmAtBodyEnd && !input.endingAsset,
         audioOffsetSeconds,
       ),
-      270_000,
+      600_000,
     );
     const segments: string[] = [];
     if (files.opening && input.openingAsset) {

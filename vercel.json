@@ -10,7 +10,7 @@
       ]
     },
     "app/api/queues/final-render/route.ts": {
-      "maxDuration": 300,
+      "maxDuration": 800,
       "experimentalTriggers": [
         {
           "type": "queue/v2beta",
