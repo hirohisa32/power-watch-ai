@@ -42,4 +42,16 @@ describe("Project Asset Isolation", () => {
       }),
     ).toThrow(/PROJECT_ASSET_ISOLATION.*Middle East/);
   });
+
+  it("禁止事項として列挙した別Story要素は混入と誤判定しない", () => {
+    expect(
+      assertProjectAssetIsolation(project, scene, {
+        projectId: project.id,
+        sceneId: scene.sceneId,
+        storyBeatId: scene.narrationSegmentId,
+        keyframePrompt:
+          "16世紀末のフランスからジュネーブへ向かう欧州の職人。Oman・中東・砂漠・ターバンは禁止。",
+      }).status,
+    ).toBe("pass");
+  });
 });

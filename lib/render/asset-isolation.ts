@@ -23,6 +23,16 @@ export type SceneScope = {
 const MIDDLE_EAST_MARKERS =
   /\boman(?:i)?\b|オマーン|カンジャル|khanjar|arab(?:ic|ian)?\s+(?:dress|clothing|man)|disha?dasha|bisht|turban|desert|砂漠/iu;
 
+const NEGATIVE_INSTRUCTION_MARKERS =
+  /\b(?:do not|don't|never|without|exclude|excluded|prohibit(?:ed)?)\b|禁止|含めない|一切含めない|除外/iu;
+
+function positivePromptClauses(prompt: string) {
+  return prompt
+    .split(/[。.!\n]+/u)
+    .filter((clause) => !NEGATIVE_INSTRUCTION_MARKERS.test(clause))
+    .join(" ");
+}
+
 export function assertProjectAssetIsolation(
   project: { id: string; title: string; script: string },
   scene: SceneScope,
@@ -45,7 +55,7 @@ export function assertProjectAssetIsolation(
   }
   const story = `${project.title} ${project.script}`;
   const prompt = `${asset.generationPrompt ?? ""} ${asset.keyframePrompt ?? ""}`;
-  if (!MIDDLE_EAST_MARKERS.test(story) && MIDDLE_EAST_MARKERS.test(prompt))
+  if (!MIDDLE_EAST_MARKERS.test(story) && MIDDLE_EAST_MARKERS.test(positivePromptClauses(prompt)))
     failures.push("Story外のMiddle East / Oman系Visual指定を検出しました");
   if (failures.length) throw new Error(`PROJECT_ASSET_ISOLATION: ${failures.join(" / ")}`);
   return {
