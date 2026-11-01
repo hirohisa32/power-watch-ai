@@ -9,6 +9,10 @@ export function imageGenerationConfig() {
   };
 }
 
+export function supportsInputFidelity(model: string) {
+  return model.startsWith("gpt-image-1");
+}
+
 function positiveNumber(raw: string | undefined, fallback: number) {
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;

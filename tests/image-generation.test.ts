@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 import { estimateOpenAiImageCost } from "@/lib/image/cost";
+import { supportsInputFidelity } from "@/lib/image/config";
 import {
   buildAnimationKeyframePrompt,
   buildCharacterReferencePrompt,
@@ -15,6 +16,12 @@ afterEach(() => {
 });
 
 describe("Production画像生成Pipeline", () => {
+  it("モデル非対応Parameterを画像編集Requestへ送らない", () => {
+    expect(supportsInputFidelity("gpt-image-1")).toBe(true);
+    expect(supportsInputFidelity("gpt-image-1.5")).toBe(true);
+    expect(supportsInputFidelity("gpt-image-2.5-sunburst")).toBe(false);
+  });
+
   it("Text / Image Input / Image Output tokenをOpenAI API原価へ合算する", () => {
     expect(
       estimateOpenAiImageCost({

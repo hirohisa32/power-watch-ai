@@ -1,6 +1,6 @@
 import "server-only";
 import OpenAI, { toFile } from "openai";
-import { imageGenerationConfig } from "./config";
+import { imageGenerationConfig, supportsInputFidelity } from "./config";
 import {
   ImageGenerationProviderError,
   type ImageGenerationInput,
@@ -30,7 +30,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
       const promise = input.references?.length
         ? client.images.edit({
             ...common,
-            input_fidelity: "high",
+            ...(supportsInputFidelity(config.model) ? { input_fidelity: "high" as const } : {}),
             image: await Promise.all(input.references.map((reference) => toFile(reference.bytes, reference.name, { type: reference.mimeType }))),
           })
         : client.images.generate(common);
