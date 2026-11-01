@@ -153,25 +153,51 @@ export async function processFinalRenderJob(
         buildDurationFallbackAlignment(script, narrationDurationMs);
       if (narrationAlignment.source !== "provider") {
         const alignedAt = Date.now();
-        const forced = await forceAlignNarration({ audio: narrationBytes, text: script });
-        narrationAlignment = forced.alignment;
-        await db.transaction(async (transaction) => {
-          await transaction
-            .update(audioRecords)
-            .set({ alignment: narrationAlignment, updatedAt: new Date() })
-            .where(eq(audioRecords.id, cachedAudio.id));
-          await transaction.insert(apiUsage).values({
-            projectId: row.render.projectId,
-            provider: "elevenlabs",
-            operation: "forced_alignment",
-            model: "forced-alignment",
-            units: narrationDurationMs / 60_000,
-            durationMs: Date.now() - alignedAt,
-            estimatedCost:
-              (narrationDurationMs / 60_000) *
-              Number(process.env.ELEVENLABS_FORCED_ALIGNMENT_USD_PER_MINUTE ?? 0),
+        try {
+          const forced = await forceAlignNarration({ audio: narrationBytes, text: script });
+          narrationAlignment = forced.alignment;
+          await db.transaction(async (transaction) => {
+            await transaction
+              .update(audioRecords)
+              .set({
+                status: "completed",
+                alignment: narrationAlignment,
+                errorCode: null,
+                errorMessage: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(audioRecords.id, cachedAudio.id));
+            await transaction.insert(apiUsage).values({
+              projectId: row.render.projectId,
+              provider: "elevenlabs",
+              operation: "forced_alignment",
+              model: "forced-alignment",
+              units: narrationDurationMs / 60_000,
+              durationMs: Date.now() - alignedAt,
+              estimatedCost:
+                (narrationDurationMs / 60_000) *
+                Number(process.env.ELEVENLABS_FORCED_ALIGNMENT_USD_PER_MINUTE ?? 0),
+            });
           });
-        });
+        } catch {
+          // Alignment is an enhancement for already-approved cached narration. A scoped or
+          // expired API key must not invalidate the audio or trigger a new TTS generation.
+          await db.transaction(async (transaction) => {
+            await transaction
+              .update(audioRecords)
+              .set({ status: "completed", errorCode: null, errorMessage: null, updatedAt: new Date() })
+              .where(eq(audioRecords.id, cachedAudio.id));
+            await transaction.insert(apiUsage).values({
+              projectId: row.render.projectId,
+              provider: "elevenlabs",
+              operation: "forced_alignment_unavailable",
+              model: "forced-alignment",
+              units: 0,
+              durationMs: Date.now() - alignedAt,
+              estimatedCost: 0,
+            });
+          });
+        }
       }
       await db
         .update(finalRenders)
