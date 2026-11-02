@@ -236,6 +236,8 @@ export function buildSystemMediaCompatibilityArgs(
     preset,
     "-crf",
     "18",
+    "-video_track_timescale",
+    "12288",
     "-c:a",
     "aac",
     "-b:a",

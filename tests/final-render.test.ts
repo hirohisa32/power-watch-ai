@@ -8,6 +8,7 @@ import {
   buildFixedOpeningConcatArgs,
   buildFfmpegArgs,
   buildSceneRetimeArgs,
+  buildSystemMediaCompatibilityArgs,
   buildCompatibilityConcatArgs,
   buildTransportStreamArgs,
   buildPrimingTrimArgs,
@@ -202,6 +203,12 @@ describe("fixed Opening final render", () => {
 
     const shortened = buildSceneRetimeArgs("scene.mp4", "prepared.mp4", 30, 5, 4);
     expect(shortened).toContain("fps=30,setpts=PTS-STARTPTS,setpts=0.80000000*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=4,setpts=PTS-STARTPTS");
+  });
+
+  it("uses one video track timescale for body, opening, and ending segments", () => {
+    const args = buildSystemMediaCompatibilityArgs("opening.mp4", "opening-compatible.mp4", 30, 15.1, true);
+    expect(args).toContain("-video_track_timescale");
+    expect(args).toContain("12288");
   });
 
   it("uses concise approved subtitles instead of the full narration", () => {
