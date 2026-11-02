@@ -110,14 +110,12 @@ const PLAN: readonly PlanItem[] = [
     productPhotoRole: "clous_de_paris",
   },
   {
-    sourceTitle: "機械に刻まれた系譜",
+    sourceTitle: "受け継がれる系譜",
     order: 10,
     duration: 4,
     storyPhase: "reveal",
     narration: "名機478、フレンチケース、二国の歴史。",
     subtitle: "JAEGER-LECOULTRE",
-    productPhotoRole: "front",
-    replaceProductPhoto: true,
   },
   {
     sourceTitle: "歴史を宿す一本",
@@ -202,13 +200,15 @@ async function prepare(userId: string) {
       return generation?.referenceAssetIds ?? [];
     }),
   );
-  const replacementAsset =
-    productAssets.find(
-      (asset) =>
-        !usedAssetIds.has(asset.id) &&
-        ["front", "hero", "dial"].includes(asset.role ?? inferProductPhotoRole(asset.label)),
-    ) ?? productAssets.find((asset) => !usedAssetIds.has(asset.id));
-  if (!replacementAsset) throw new Error("DISTINCT_PRODUCT_PHOTO_REQUIRED");
+  const replacementNeeded = PLAN.some((item) => item.replaceProductPhoto);
+  const replacementAsset = replacementNeeded
+    ? (productAssets.find(
+        (asset) =>
+          !usedAssetIds.has(asset.id) &&
+          ["front", "hero", "dial"].includes(asset.role ?? inferProductPhotoRole(asset.label)),
+      ) ?? productAssets.find((asset) => !usedAssetIds.has(asset.id)))
+    : null;
+  if (replacementNeeded && !replacementAsset) throw new Error("DISTINCT_PRODUCT_PHOTO_REQUIRED");
 
   const qualityInput = PLAN.map((item) => {
     const scene = sceneByTitle.get(item.sourceTitle)!;
@@ -235,9 +235,9 @@ async function prepare(userId: string) {
     for (const item of PLAN) {
       const scene = sceneByTitle.get(item.sourceTitle)!;
       const isReplacement = Boolean(item.replaceProductPhoto);
-      const productPhotoId = isReplacement ? replacementAsset.id : scene.productPhotoId;
+      const productPhotoId = isReplacement ? replacementAsset!.id : scene.productPhotoId;
       const preferredAssetLabels = isReplacement
-        ? [replacementAsset.label]
+        ? [replacementAsset!.label]
         : scene.preferredAssetLabels;
       const watchReference = scene.watchReference || Boolean(item.productPhotoRole);
       const visualIntent = scene.visualIntent ?? scene.visualDescription;
