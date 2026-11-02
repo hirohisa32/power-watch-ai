@@ -303,7 +303,7 @@ export const scenes = pgTable(
   (table) => [
     uniqueIndex("scenes_storyboard_order_unique").on(table.storyboardId, table.order),
     index("scenes_project_idx").on(table.projectId),
-    check("scenes_duration_check", sql`${table.duration} BETWEEN 3 AND 8`),
+    check("scenes_duration_check", sql`${table.duration} BETWEEN 1 AND 8`),
   ],
 );
 
