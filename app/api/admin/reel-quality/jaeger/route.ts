@@ -238,6 +238,16 @@ async function prepare(userId: string) {
     await db.transaction(async (transaction) => {
       transactionStep = "lock";
       await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${project.id}))`);
+      transactionStep = "short-hook-schema";
+      await transaction.execute(
+        sql`ALTER TABLE "scenes" DROP CONSTRAINT IF EXISTS "scenes_duration_check"`,
+      );
+      await transaction.execute(
+        sql`ALTER TABLE "scenes" ADD CONSTRAINT "scenes_duration_check" CHECK ("duration" BETWEEN 1 AND 8)`,
+      );
+      await transaction.execute(
+        sql`INSERT INTO "app_migrations" ("name") VALUES ('0022_short_product_hooks.sql') ON CONFLICT ("name") DO NOTHING`,
+      );
       transactionStep = "project";
       await transaction
         .update(projects)
