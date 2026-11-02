@@ -152,6 +152,7 @@ describe("fixed Opening final render", () => {
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("concat=n=2");
     expect(filters).toContain("fps=30");
+    expect(filters).toContain("tpad=stop_mode=clone:stop_duration=5");
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");
     expect(args).not.toContain(files.opening);
