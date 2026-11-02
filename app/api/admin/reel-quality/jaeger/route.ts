@@ -235,7 +235,11 @@ async function prepare(userId: string) {
       .where(eq(projects.id, project.id));
     await transaction
       .update(scenes)
-      .set({ order: sql`${scenes.order} + 1000`, includeInFinal: false, updatedAt: new Date() })
+      .set({
+        order: sql`(${scenes.order} * -1) - 10000`,
+        includeInFinal: false,
+        updatedAt: new Date(),
+      })
       .where(eq(scenes.storyboardId, storyboard.id));
 
     for (const item of PLAN) {
