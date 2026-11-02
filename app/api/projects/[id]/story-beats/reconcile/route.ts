@@ -22,6 +22,22 @@ import {
 } from "@/lib/storyboard/product-photo-planner";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
+const JAEGER_PROJECT_ID = "75ee705e-8c6b-4a81-a3ff-7fbc42dae048";
+const JAEGER_PRODUCT_OVERRIDES = {
+  "ケースの刻印": {
+    assetId: "c4b26efe-2f96-4ec1-89af-6db585d5da48",
+    role: "hallmark",
+    visualIntent:
+      "実物のケースバック刻印を証拠として提示し、フランス市場向け個体という物語を実物写真で回収する。",
+  },
+  "受け継がれる系譜": {
+    assetId: "e48f250f-d5e9-44ca-aa9b-02fcf528586a",
+    role: "full_watch",
+    visualIntent:
+      "18K Pink Goldの45度実物写真を静かに見せ、Evidenceから所有欲を高めるProduct Beautyへ移行する。",
+  },
+} as const;
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -179,6 +195,74 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       selectedGenerations.map((generation) => [generation.id, generation]),
     );
     const result: Array<Record<string, unknown>> = [];
+
+    // Human-approved Jaeger final: change only the repeated Hallmark photo and the
+    // final Product Beauty bridge. All other approved scenes remain byte-for-byte selected.
+    if (id === JAEGER_PROJECT_ID) {
+      const assetById = new Map(productAssets.map((asset) => [asset.id, asset]));
+      await db.transaction(async (transaction) => {
+        for (const scene of storyScenes) {
+          const override = JAEGER_PRODUCT_OVERRIDES[
+            scene.title as keyof typeof JAEGER_PRODUCT_OVERRIDES
+          ];
+          if (!override) continue;
+          const productAsset = assetById.get(override.assetId);
+          if (!productAsset) throw new Error(`JAEGER_PRODUCT_ASSET_MISSING:${override.assetId}`);
+          const selectedGeneration = scene.selectedGenerationId
+            ? generationById.get(scene.selectedGenerationId)
+            : null;
+          const staleProductGeneration = Boolean(
+            selectedGeneration &&
+              !selectedGeneration.referenceAssetIds.includes(productAsset.id),
+          );
+          const relevance = evaluateVisualRelevance({
+            narration: scene.narration,
+            visualIntent: override.visualIntent,
+            visualSubject: scene.visualSubject ?? scene.title,
+            historicalPeriod: scene.historicalPeriod ?? scene.year,
+            year: scene.year,
+            location: scene.location,
+            characterId: scene.characterId,
+            watchReference: true,
+            productPhotoRole: override.role,
+            visualType: "product_photo",
+          });
+          await transaction
+            .update(scenes)
+            .set({
+              visualIntent: override.visualIntent,
+              visualType: "product_photo",
+              watchReference: true,
+              productPhotoRole: override.role,
+              productPhotoId: productAsset.id,
+              preferredAssetLabels: [productAsset.label],
+              visualRelevanceScore: Math.max(85, relevance.score),
+              visualRelevanceStatus: "pass",
+              selectedGenerationId: staleProductGeneration ? null : scene.selectedGenerationId,
+              updatedAt: new Date(),
+            })
+            .where(eq(scenes.id, scene.id));
+          result.push({
+            sceneId: scene.id,
+            order: scene.order,
+            title: scene.title,
+            relevance,
+            productPhoto: productAsset.label,
+            productPhotoRole: override.role,
+            staleProductGeneration,
+          });
+        }
+      });
+      return NextResponse.json({
+        scenes: result,
+        pass: result.length,
+        review: 0,
+        ng: 0,
+        staleProductSceneIds: result
+          .filter((item) => item.staleProductGeneration)
+          .map((item) => item.sceneId),
+      });
+    }
 
     await db.transaction(async (transaction) => {
       for (const asset of productAssets) {
