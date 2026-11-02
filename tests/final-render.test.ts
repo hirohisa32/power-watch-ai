@@ -153,6 +153,9 @@ describe("fixed Opening final render", () => {
     expect(filters).toContain("concat=n=2");
     expect(filters).toContain("fps=30");
     expect(filters).toContain("tpad=stop_mode=clone:stop_duration=5");
+    expect(filters).toContain(
+      "format=yuv420p10le,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=5,trim=duration=5",
+    );
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");
     expect(args.filter((item) => item === "-stream_loop")).toHaveLength(1);
