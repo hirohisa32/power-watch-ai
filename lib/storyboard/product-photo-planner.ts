@@ -2,10 +2,12 @@ export const PRODUCT_PHOTO_ROLES = [
   "full_watch",
   "front",
   "dial",
+  "dial_macro",
   "case",
   "side_case",
   "side",
   "crown",
+  "wrist_shot",
   "caseback",
   "movement",
   "movement_wide",
@@ -16,7 +18,10 @@ export const PRODUCT_PHOTO_ROLES = [
   "fab_suisse",
   "clous_de_paris",
   "bracelet",
+  "clasp",
+  "serial",
   "hero",
+  "other",
 ] as const;
 
 export type ProductPhotoRole = (typeof PRODUCT_PHOTO_ROLES)[number];
@@ -28,6 +33,7 @@ export const PRODUCT_PHOTO_EVIDENCE_ROLES = [
   "movement_detail",
   "regulator",
   "engraving",
+  "serial",
   "hallmark",
   "fab_suisse",
 ] as const satisfies readonly ProductPhotoRole[];
@@ -36,12 +42,15 @@ export const PRODUCT_PHOTO_DESIRE_ROLES = [
   "full_watch",
   "front",
   "dial",
+  "dial_macro",
   "case",
   "side_case",
   "side",
   "crown",
   "clous_de_paris",
   "bracelet",
+  "clasp",
+  "wrist_shot",
   "hero",
 ] as const satisfies readonly ProductPhotoRole[];
 
@@ -77,6 +86,10 @@ export function evaluateFinalProductArc(
 }
 
 const ROLE_PATTERNS: Array<[ProductPhotoRole, RegExp]> = [
+  ["wrist_shot", /wrist|worn|腕装着|着用/iu],
+  ["dial_macro", /dial macro|文字盤マクロ|文字盤アップ|macro/iu],
+  ["clasp", /clasp|バックル|クラスプ/iu],
+  ["serial", /serial|シリアル/iu],
   ["regulator", /swan.?neck|regulator|緩急針|スワンネック/iu],
   [
     "movement_detail",
@@ -100,7 +113,7 @@ const ROLE_PATTERNS: Array<[ProductPhotoRole, RegExp]> = [
 ];
 
 export function inferProductPhotoRole(label: string): ProductPhotoRole {
-  return ROLE_PATTERNS.find(([, pattern]) => pattern.test(label))?.[0] ?? "hero";
+  return ROLE_PATTERNS.find(([, pattern]) => pattern.test(label))?.[0] ?? "other";
 }
 
 export function desiredProductPhotoRole(context: string): ProductPhotoRole {
@@ -111,10 +124,12 @@ const ROLE_FALLBACKS: Record<ProductPhotoRole, ProductPhotoRole[]> = {
   full_watch: ["full_watch", "hero", "front", "dial", "case"],
   front: ["front", "hero", "dial", "case"],
   dial: ["dial", "front", "hero"],
+  dial_macro: ["dial_macro", "dial", "front", "hero"],
   case: ["case", "side", "caseback", "front", "hero"],
   side_case: ["side_case", "side", "crown", "case", "hero"],
   side: ["side", "crown", "case", "hero"],
   crown: ["crown", "side", "case", "hero"],
+  wrist_shot: ["wrist_shot", "full_watch", "hero", "front"],
   caseback: ["caseback", "engraving", "case", "side"],
   movement: ["movement", "caseback"],
   movement_wide: ["movement_wide", "movement", "caseback"],
@@ -125,8 +140,31 @@ const ROLE_FALLBACKS: Record<ProductPhotoRole, ProductPhotoRole[]> = {
   fab_suisse: ["fab_suisse", "engraving", "dial", "movement", "caseback"],
   clous_de_paris: ["clous_de_paris", "dial", "front", "hero"],
   bracelet: ["bracelet", "side", "hero"],
+  clasp: ["clasp", "bracelet", "side", "hero"],
+  serial: ["serial", "engraving", "caseback", "movement_detail"],
   hero: ["hero", "front", "dial", "side"],
+  other: ["other", "hero", "front", "dial"],
 };
+
+export type ProductPhotoAssetCandidate = {
+  id?: string;
+  label: string;
+  humanLabel?: string | null;
+  detectedRole?: string | null;
+  role?: string | null;
+  humanLocked?: boolean | null;
+};
+
+export function isProductPhotoRole(value: string | null | undefined): value is ProductPhotoRole {
+  return PRODUCT_PHOTO_ROLES.includes(value as ProductPhotoRole);
+}
+
+/** Human lock > vision detection > original Human label > fallback. */
+export function effectiveProductPhotoRole(asset: ProductPhotoAssetCandidate): ProductPhotoRole {
+  if (asset.humanLocked && isProductPhotoRole(asset.role)) return asset.role;
+  if (isProductPhotoRole(asset.detectedRole)) return asset.detectedRole;
+  return inferProductPhotoRole(asset.humanLabel ?? asset.label);
+}
 
 export function shouldUseProductEvidence(context: string) {
   return /スワンネック|シャトン|ムーブメント|ベゼル|クルー?ド・パリ|ケース|刻印|文字盤|裏蓋|リューズ|ブレスレット|caseback|movement|bezel|engraving/iu.test(
@@ -143,9 +181,24 @@ export function planProductPhotoUsage<
     visualSubject?: string;
   },
 >(scenes: T[], availableLabels: string[]) {
-  const candidates = availableLabels.map((label) => ({
-    label,
-    role: inferProductPhotoRole(label),
+  return planProductPhotoUsageWithAssets(
+    scenes,
+    availableLabels.map((label) => ({ label })),
+  );
+}
+
+export function planProductPhotoUsageWithAssets<
+  T extends {
+    watchReference: boolean;
+    preferredAssetLabels: string[];
+    narration: string;
+    visualIntent?: string;
+    visualSubject?: string;
+  },
+>(scenes: T[], assets: ProductPhotoAssetCandidate[]) {
+  const candidates = assets.map((asset) => ({
+    label: asset.label,
+    role: effectiveProductPhotoRole(asset),
   }));
   let previousLabel: string | null = null;
   let previousRole: ProductPhotoRole | null = null;

@@ -1128,6 +1128,103 @@ textarea {
   color: var(--gold-light);
   font-size: 13px;
 }
+.asset-metadata-manager {
+  margin-top: 16px;
+}
+.asset-manager-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.asset-manager-head .hint {
+  margin: 0;
+}
+.asset-manager-message {
+  color: var(--gold-light);
+  font-size: 12px;
+}
+.asset-role-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.asset-role-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.018);
+}
+.asset-thumb {
+  display: block;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #090909;
+}
+.asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.asset-role-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.asset-role-copy > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+.asset-role-copy span {
+  color: var(--muted);
+}
+.asset-role-copy strong {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.asset-role-warning {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin: 4px 0 0;
+  color: #e3b978;
+  font-size: 11px;
+}
+.asset-role-lock {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: #a8cba8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .asset-manager-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .asset-role-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+  .asset-thumb {
+    width: 64px;
+    height: 64px;
+  }
+  .asset-role-card > .btn,
+  .asset-role-lock {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: center;
+  }
+}
 .key-value {
   display: grid;
   grid-template-columns: 1fr auto;

@@ -8,6 +8,8 @@ import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 import {
   inferProductPhotoRole,
   planProductPhotoUsage,
+  effectiveProductPhotoRole,
+  planProductPhotoUsageWithAssets,
 } from "@/lib/storyboard/product-photo-planner";
 import { buildFinalRenderInput } from "@/lib/render/plan";
 
@@ -174,5 +176,54 @@ describe("Story Beat production standard", () => {
       },
     });
     expect(plan.totalDuration).toBe(7.5);
+  });
+});
+
+describe("product photo metadata priority", () => {
+  it("uses Human Lock before detected role and label", () => {
+    expect(
+      effectiveProductPhotoRole({
+        label: "腕装着",
+        humanLabel: "腕装着",
+        detectedRole: "dial_macro",
+        role: "hero",
+        humanLocked: true,
+      }),
+    ).toBe("hero");
+  });
+
+  it("uses detected role before a misleading Human label", () => {
+    expect(
+      effectiveProductPhotoRole({
+        label: "裏蓋",
+        humanLabel: "裏蓋",
+        detectedRole: "clous_de_paris",
+        humanLocked: false,
+      }),
+    ).toBe("clous_de_paris");
+  });
+
+  it("plans from detected image content", () => {
+    const planned = planProductPhotoUsageWithAssets(
+      [
+        {
+          watchReference: true,
+          preferredAssetLabels: [],
+          narration: "文字盤のクルー・ド・パリを映し出す。",
+          visualIntent: "文字盤意匠の接写",
+          visualSubject: "Clous de Paris",
+        },
+      ],
+      [
+        {
+          label: "裏蓋",
+          humanLabel: "裏蓋",
+          detectedRole: "clous_de_paris",
+          humanLocked: false,
+        },
+      ],
+    );
+    expect(planned[0].preferredAssetLabels).toEqual(["裏蓋"]);
+    expect(planned[0].productPhotoRole).toBe("clous_de_paris");
   });
 });

@@ -6,8 +6,19 @@ import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { assets, finalRenders, projects, storyboards } from "@/lib/db/schema";
-import { LANGUAGE_LABELS, PROJECT_STATUS_LABELS, STYLE_LABELS, projectProgress } from "@/lib/ui/presentation";
+import {
+  LANGUAGE_LABELS,
+  PROJECT_STATUS_LABELS,
+  STYLE_LABELS,
+  projectProgress,
+} from "@/lib/ui/presentation";
 import { StoryboardButton } from "./storyboard-button";
+import { AssetMetadataManager } from "./asset-metadata-manager";
+import {
+  hasRoleMismatch,
+  WATCH_ROLE_LABELS,
+  type DetectedWatchRole,
+} from "@/lib/assets/role-detection";
 
 export const metadata: Metadata = { title: "プロジェクト詳細" };
 export const dynamic = "force-dynamic";
@@ -51,8 +62,44 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         </div>
         <StoryboardButton projectId={project.id} exists={Boolean(activeStoryboard)} />
       </div>
-      <div className="production-progress"><div><strong>{PROJECT_STATUS_LABELS[project.status]}</strong><span>{projectProgress(project.status)}%</span></div><div className="progress-track"><span style={{ width: `${projectProgress(project.status)}%` }} /></div><p>{project.status === "completed" ? "動画が完成しました" : activeStoryboard ? "動画構成を確認し、映像の作成へ進めます。" : "台本と時計画像を確認し、動画構成を作成してください。"}</p></div>
-      {completedRender && <section className="completed-callout"><div><p className="eyebrow">完成動画</p><h2>動画が完成しました</h2><p>{completedRender.durationMs ? `${(completedRender.durationMs / 1000).toFixed(0)}秒 · ` : ""}{completedRender.width}×{completedRender.height}</p></div><div className="card-actions"><a className="btn" href={`/api/renders/${completedRender.id}/video`} target="_blank">動画を見る</a><a className="btn btn-primary" href={`/api/renders/${completedRender.id}/download`}>MP4をダウンロード</a></div></section>}
+      <div className="production-progress">
+        <div>
+          <strong>{PROJECT_STATUS_LABELS[project.status]}</strong>
+          <span>{projectProgress(project.status)}%</span>
+        </div>
+        <div className="progress-track">
+          <span style={{ width: `${projectProgress(project.status)}%` }} />
+        </div>
+        <p>
+          {project.status === "completed"
+            ? "動画が完成しました"
+            : activeStoryboard
+              ? "動画構成を確認し、映像の作成へ進めます。"
+              : "台本と時計画像を確認し、動画構成を作成してください。"}
+        </p>
+      </div>
+      {completedRender && (
+        <section className="completed-callout">
+          <div>
+            <p className="eyebrow">完成動画</p>
+            <h2>動画が完成しました</h2>
+            <p>
+              {completedRender.durationMs
+                ? `${(completedRender.durationMs / 1000).toFixed(0)}秒 · `
+                : ""}
+              {completedRender.width}×{completedRender.height}
+            </p>
+          </div>
+          <div className="card-actions">
+            <a className="btn" href={`/api/renders/${completedRender.id}/video`} target="_blank">
+              動画を見る
+            </a>
+            <a className="btn btn-primary" href={`/api/renders/${completedRender.id}/download`}>
+              MP4をダウンロード
+            </a>
+          </div>
+        </section>
+      )}
       <div className="detail-grid">
         <section className="panel">
           <h2>台本</h2>
@@ -83,16 +130,22 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             {images.length === 0 ? (
               <p className="hint">画像は登録されていません。</p>
             ) : (
-              <div className="asset-list">
-                {images.map((asset) => (
-                  <div className="asset" key={asset.id}>
-                    <a href={`/api/assets/${asset.id}`} target="_blank" rel="noreferrer">
-                      {asset.label}
-                    </a>
-                    <div className="hint">{(asset.sizeBytes / 1024 / 1024).toFixed(1)} MB</div>
-                  </div>
-                ))}
-              </div>
+              <AssetMetadataManager
+                projectId={project.id}
+                initialAssets={images.map((asset) => ({
+                  id: asset.id,
+                  label: asset.label,
+                  humanLabel: asset.humanLabel ?? asset.label,
+                  detectedRole: asset.detectedRole,
+                  detectedRoleLabel:
+                    asset.detectedRole && asset.detectedRole in WATCH_ROLE_LABELS
+                      ? WATCH_ROLE_LABELS[asset.detectedRole as DetectedWatchRole]
+                      : asset.detectedRole,
+                  confidence: asset.detectionConfidence,
+                  mismatch: hasRoleMismatch(asset),
+                  humanLocked: asset.humanLocked,
+                }))}
+              />
             )}
           </section>
         </aside>

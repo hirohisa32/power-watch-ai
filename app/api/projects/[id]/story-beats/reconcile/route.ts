@@ -17,20 +17,20 @@ import { assertSameOrigin } from "@/lib/security";
 import {
   desiredProductPhotoRole,
   inferProductPhotoRole,
-  planProductPhotoUsage,
+  planProductPhotoUsageWithAssets,
   shouldUseProductEvidence,
 } from "@/lib/storyboard/product-photo-planner";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
 const JAEGER_PROJECT_ID = "75ee705e-8c6b-4a81-a3ff-7fbc42dae048";
 const JAEGER_PRODUCT_OVERRIDES = {
-  "ケースの刻印": {
+  ケースの刻印: {
     assetId: "c4b26efe-2f96-4ec1-89af-6db585d5da48",
     role: "hallmark",
     visualIntent:
       "実物のケースバック刻印を証拠として提示し、フランス市場向け個体という物語を実物写真で回収する。",
   },
-  "受け継がれる系譜": {
+  受け継がれる系譜: {
     assetId: "e48f250f-d5e9-44ca-aa9b-02fcf528586a",
     role: "full_watch",
     visualIntent:
@@ -38,10 +38,7 @@ const JAEGER_PRODUCT_OVERRIDES = {
   },
 } as const;
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
@@ -132,7 +129,7 @@ export async function GET(
         visualType: scene.visualType,
         visualRelevanceScore: scene.visualRelevanceScore,
         visualRelevanceStatus: scene.visualRelevanceStatus,
-        productPhoto: scene.productPhotoId ? labelById.get(scene.productPhotoId) ?? null : null,
+        productPhoto: scene.productPhotoId ? (labelById.get(scene.productPhotoId) ?? null) : null,
         productPhotoRole: scene.productPhotoRole,
         selectedGenerationId: scene.selectedGenerationId,
       })),
@@ -177,13 +174,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           `${scene.narration} ${scene.visualIntent ?? scene.visualDescription} ${scene.visualSubject ?? scene.title}`,
         ),
     }));
-    const plans = planProductPhotoUsage(
+    const plans = planProductPhotoUsageWithAssets(
       evidenceScenes.map((scene) => ({
         ...scene,
         visualIntent: scene.visualIntent ?? scene.visualDescription,
         visualSubject: scene.visualSubject ?? scene.title,
       })),
-      productAssets.map((asset) => asset.label),
+      productAssets,
     );
     const generationIds = storyScenes
       .map((scene) => scene.selectedGenerationId)
@@ -202,9 +199,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const assetById = new Map(productAssets.map((asset) => [asset.id, asset]));
       await db.transaction(async (transaction) => {
         for (const scene of storyScenes) {
-          const override = JAEGER_PRODUCT_OVERRIDES[
-            scene.title as keyof typeof JAEGER_PRODUCT_OVERRIDES
-          ];
+          const override =
+            JAEGER_PRODUCT_OVERRIDES[scene.title as keyof typeof JAEGER_PRODUCT_OVERRIDES];
           if (!override) continue;
           const productAsset = assetById.get(override.assetId);
           if (!productAsset) throw new Error(`JAEGER_PRODUCT_ASSET_MISSING:${override.assetId}`);
@@ -212,8 +208,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             ? generationById.get(scene.selectedGenerationId)
             : null;
           const staleProductGeneration = Boolean(
-            selectedGeneration &&
-              !selectedGeneration.referenceAssetIds.includes(productAsset.id),
+            selectedGeneration && !selectedGeneration.referenceAssetIds.includes(productAsset.id),
           );
           const relevance = evaluateVisualRelevance({
             narration: scene.narration,
@@ -266,7 +261,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await db.transaction(async (transaction) => {
       for (const asset of productAssets) {
-        const role = asset.role ?? inferProductPhotoRole(asset.label);
+        const role =
+          asset.humanLocked && asset.role
+            ? asset.role
+            : (asset.detectedRole ?? inferProductPhotoRole(asset.humanLabel ?? asset.label));
         await transaction
           .update(assets)
           .set({
@@ -283,14 +281,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const desiredRole = desiredProductPhotoRole(
           `${scene.narration} ${scene.visualIntent ?? scene.visualDescription} ${scene.visualSubject ?? scene.title}`,
         );
-        const promotedVisualIntent = useProductEvidence && !scene.watchReference
-          ? `実物の商品写真だけを使用し、${desiredRole}の識別情報を保持したまま、ナレーションが述べる細部を静かなカメラモーションで提示する。`
-          : null;
+        const promotedVisualIntent =
+          useProductEvidence && !scene.watchReference
+            ? `実物の商品写真だけを使用し、${desiredRole}の識別情報を保持したまま、ナレーションが述べる細部を静かなカメラモーションで提示する。`
+            : null;
         const visualIntent = promotedVisualIntent ?? scene.visualIntent ?? scene.visualDescription;
         const visualSubject = scene.visualSubject ?? scene.title;
-        const visualType = useProductEvidence
-          ? "product_photo"
-          : scene.visualType ?? "story";
+        const visualType = useProductEvidence ? "product_photo" : (scene.visualType ?? "story");
         const relevance = evaluateVisualRelevance({
           narration: scene.narration,
           visualIntent,

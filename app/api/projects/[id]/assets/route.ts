@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { assets, projects } from "@/lib/db/schema";
+import { detectWatchPhotoRole } from "@/lib/assets/role-detection";
 import { apiError } from "@/lib/http";
 import { hasValidImageSignature, type WatchMimeType } from "@/lib/images";
 import { assertSameOrigin } from "@/lib/security";
@@ -53,12 +54,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         projectId: id,
         type: "watch_image",
         label,
+        humanLabel: label,
         objectKey: uploadedKey,
         mimeType: file.type,
         sizeBytes: file.size,
       })
-      .returning({ id: assets.id });
-    return NextResponse.json(asset, { status: 201 });
+      .returning();
+    try {
+      const detection = await detectWatchPhotoRole({ bytes, mimeType: file.type });
+      await db
+        .update(assets)
+        .set({
+          detectedRole: detection.role,
+          detectionConfidence: detection.confidence,
+          analysis: { roleDetection: detection },
+        })
+        .where(eq(assets.id, asset.id));
+      return NextResponse.json(
+        { ...asset, detectedRole: detection.role, detectionConfidence: detection.confidence },
+        { status: 201 },
+      );
+    } catch (analysisError) {
+      console.error("Watch photo role detection failed", {
+        projectId: id,
+        assetId: asset.id,
+        error: analysisError instanceof Error ? analysisError.message : "unknown",
+      });
+      return NextResponse.json({ ...asset, analysisPending: true }, { status: 201 });
+    }
   } catch (error) {
     if (uploadedKey) await deletePrivateObject(uploadedKey).catch(() => undefined);
     return apiError(

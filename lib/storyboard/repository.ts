@@ -7,6 +7,7 @@ import type { StoryboardDirectorResult } from "@/lib/storyboard/director";
 import type { StoryboardOutput } from "@/lib/storyboard/schema";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 import { evaluateStoryQuality } from "@/lib/storyboard/story-quality";
+import { planProductPhotoUsageWithAssets } from "@/lib/storyboard/product-photo-planner";
 
 export type PersistStoryboardInput = {
   projectId: string;
@@ -56,24 +57,25 @@ export class DrizzleStoryboardPersistence implements StoryboardPersistence {
         .update(storyboards)
         .set({ isActive: false, updatedAt: new Date() })
         .where(and(eq(storyboards.projectId, input.projectId), eq(storyboards.isActive, true)));
+      const productAssets = await transaction
+        .select()
+        .from(assets)
+        .where(eq(assets.projectId, input.projectId));
+      const plannedScenes = planProductPhotoUsageWithAssets(input.storyboard.scenes, productAssets);
       const [storyboard] = await transaction
         .insert(storyboards)
         .values({
           projectId: input.projectId,
           version,
           isActive: true,
-          totalDuration: input.storyboard.scenes.reduce((sum, scene) => sum + scene.duration, 0),
-          storyQuality: evaluateStoryQuality(input.storyboard.scenes),
-          storyQualityStatus: evaluateStoryQuality(input.storyboard.scenes).status,
+          totalDuration: plannedScenes.reduce((sum, scene) => sum + scene.duration, 0),
+          storyQuality: evaluateStoryQuality(plannedScenes),
+          storyQualityStatus: evaluateStoryQuality(plannedScenes).status,
         })
         .returning({ id: storyboards.id });
-      const productAssets = await transaction
-        .select({ id: assets.id, label: assets.label })
-        .from(assets)
-        .where(eq(assets.projectId, input.projectId));
       const assetByLabel = new Map(productAssets.map((asset) => [asset.label, asset.id]));
       await transaction.insert(scenes).values(
-        input.storyboard.scenes.map(({ sceneNumber, ...scene }) => {
+        plannedScenes.map(({ sceneNumber, ...scene }) => {
           const relevance = evaluateVisualRelevance(scene);
           return {
             ...scene,
