@@ -25,9 +25,9 @@ export function buildFfmpegArgs(
 ) {
   const bodyDuration = input.scenes.reduce((sum, scene) => sum + scene.duration, 0);
   const args = ["-y", "-hide_banner", "-loglevel", "warning"];
-  // Loop defensively so a provider clip that is a few frames short still fills its
-  // storyboard slot. The following trim keeps normally sized clips unchanged.
-  files.videos.forEach((video) => args.push("-stream_loop", "-1", "-i", video));
+  // Keep inputs finite. The per-scene tpad below must observe EOF so it can fill
+  // only that scene's missing frames instead of leaving the final frame held.
+  files.videos.forEach((video) => args.push("-i", video));
   const narrationIndex = files.videos.length;
   const bgmIndex = narrationIndex + 1;
   const seIndex = narrationIndex + 2;

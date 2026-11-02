@@ -155,6 +155,7 @@ describe("fixed Opening final render", () => {
     expect(filters).toContain("tpad=stop_mode=clone:stop_duration=5");
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");
+    expect(args.filter((item) => item === "-stream_loop")).toHaveLength(1);
     expect(args).not.toContain(files.opening);
     expect(args).toContain(files.bgm);
     expect(args.join(" ")).not.toContain("aevalsrc='(0.018*sin");
