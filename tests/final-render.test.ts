@@ -143,6 +143,7 @@ describe("fixed Opening final render", () => {
     const files = {
       opening: "assets/opening/opening-master.mp4",
       videos: ["history.mp4", "ending.mp4"],
+      videoDurations: [4, 5],
       narration: "n.mp3",
       bgm: "approved-bgm.mp3",
       subtitles: "s.ass",
@@ -152,9 +153,10 @@ describe("fixed Opening final render", () => {
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("concat=n=2");
     expect(filters).toContain("fps=30");
-    expect(filters).toContain("tpad=stop_mode=clone:stop_duration=5");
+    expect(filters).toContain("setpts=1.25000000*PTS");
+    expect(filters).toContain("tpad=stop_mode=clone:stop_duration=0.1");
     expect(filters).toContain(
-      "format=yuv420p10le,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=5,trim=duration=5",
+      "format=yuv420p10le,setpts=PTS-STARTPTS,setpts=1.25000000*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=5",
     );
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");

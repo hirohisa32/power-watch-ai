@@ -357,12 +357,16 @@ export async function processFinalRenderJob(
 
     stage = "scene-download";
     const videoPaths: string[] = [];
+    const videoDurations: number[] = [];
     for (const [index, scene] of renderInput.scenes.entries()) {
       const url = await dependencies.sign(scene.objectKey, 15 * 60);
       const bytes = await dependencies.download(url, 250 * 1024 * 1024);
       const file = path.join(workDir, `scene-${index}.mp4`);
       await writeFile(file, bytes);
       videoPaths.push(file);
+      const durationMs = await dependencies.probe(file);
+      if (!durationMs || durationMs <= 0) throw new Error("SCENE_DURATION_UNAVAILABLE");
+      videoDurations.push(durationMs / 1000);
     }
     stage = "system-media-download";
     const openingPath = renderInput.openingAsset
@@ -398,6 +402,7 @@ export async function processFinalRenderJob(
       opening: openingPath,
       ending: endingPath,
       videos: videoPaths,
+      videoDurations,
       narration: narrationPath,
       bgm: bgmPath,
       subtitles: subtitlePath,
