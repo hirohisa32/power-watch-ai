@@ -18,6 +18,10 @@ import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
 const PROJECT_ID = "75ee705e-8c6b-4a81-a3ff-7fbc42dae048";
 
+class JaegerPrepareError extends Error {
+  name = "JaegerPrepareError";
+}
+
 type PlanItem = {
   sourceTitle: string;
   finalTitle?: string;
@@ -173,6 +177,8 @@ export async function POST(request: Request) {
     await prepare(user.id);
     return NextResponse.json(await status(user.id));
   } catch (error) {
+    if (error instanceof JaegerPrepareError)
+      return NextResponse.json({ error: error.message }, { status: 409 });
     return apiError(error, "Jaeger Reelを再編集できませんでした");
   }
 }
@@ -227,72 +233,86 @@ async function prepare(userId: string) {
   });
   const storyQuality = evaluateStoryQuality(qualityInput);
 
-  await db.transaction(async (transaction) => {
-    await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${project.id}))`);
-    await transaction
-      .update(projects)
-      .set({ targetDuration: 60, narrationSubtitlesEnabled: false, updatedAt: new Date() })
-      .where(eq(projects.id, project.id));
-    await transaction
-      .update(scenes)
-      .set({
-        order: sql`(${scenes.order} * -1) - 10000`,
-        includeInFinal: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(scenes.storyboardId, storyboard.id));
-
-    for (const item of PLAN) {
-      const scene = sceneFor(item)!;
-      const productAsset = item.productAssetId ? assetById.get(item.productAssetId)! : null;
-      const productPhotoId = productAsset?.id ?? scene.productPhotoId;
-      const preferredAssetLabels = productAsset ? [productAsset.label] : scene.preferredAssetLabels;
-      const watchReference = scene.watchReference || Boolean(item.productPhotoRole);
-      const visualIntent = scene.visualIntent ?? scene.visualDescription;
-      const relevance = evaluateVisualRelevance({
-        narration: item.narration,
-        visualIntent,
-        visualSubject: scene.visualSubject ?? scene.title,
-        historicalPeriod: scene.historicalPeriod ?? scene.year,
-        year: scene.year,
-        location: scene.location,
-        characterId: scene.characterId,
-        watchReference,
-        productPhotoRole: item.productPhotoRole ?? scene.productPhotoRole,
-        visualType: watchReference ? "product_photo" : (scene.visualType ?? "story"),
-      });
+  let transactionStep = "start";
+  try {
+    await db.transaction(async (transaction) => {
+      transactionStep = "lock";
+      await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${project.id}))`);
+      transactionStep = "project";
+      await transaction
+        .update(projects)
+        .set({ targetDuration: 60, narrationSubtitlesEnabled: false, updatedAt: new Date() })
+        .where(eq(projects.id, project.id));
+      transactionStep = "reserve-orders";
       await transaction
         .update(scenes)
         .set({
-          order: item.order,
-          title: item.finalTitle ?? scene.title,
-          duration: item.duration,
-          narration: item.narration,
-          subtitle: item.subtitle,
-          storyPhase: item.storyPhase,
-          includeInFinal: true,
-          watchReference,
-          productPhotoId,
-          productPhotoRole: item.productPhotoRole ?? scene.productPhotoRole,
-          preferredAssetLabels,
-          visualType: watchReference ? "product_photo" : (scene.visualType ?? "story"),
-          visualRelevanceScore: Math.max(85, relevance.score),
-          visualRelevanceStatus: "pass",
-          selectedGenerationId: item.forceRegeneration ? null : scene.selectedGenerationId,
+          order: sql`(${scenes.order} * -1) - 10000`,
+          includeInFinal: false,
           updatedAt: new Date(),
         })
-        .where(eq(scenes.id, scene.id));
-    }
-    await transaction
-      .update(storyboards)
-      .set({
-        totalDuration: PLAN.reduce((sum, item) => sum + item.duration, 0),
-        storyQuality,
-        storyQualityStatus: storyQuality.status,
-        updatedAt: new Date(),
-      })
-      .where(eq(storyboards.id, storyboard.id));
-  });
+        .where(eq(scenes.storyboardId, storyboard.id));
+
+      for (const item of PLAN) {
+        transactionStep = `scene-${item.order}`;
+        const scene = sceneFor(item)!;
+        const productAsset = item.productAssetId ? assetById.get(item.productAssetId)! : null;
+        const productPhotoId = productAsset?.id ?? scene.productPhotoId;
+        const preferredAssetLabels = productAsset
+          ? [productAsset.label]
+          : scene.preferredAssetLabels;
+        const watchReference = scene.watchReference || Boolean(item.productPhotoRole);
+        const visualIntent = scene.visualIntent ?? scene.visualDescription;
+        const relevance = evaluateVisualRelevance({
+          narration: item.narration,
+          visualIntent,
+          visualSubject: scene.visualSubject ?? scene.title,
+          historicalPeriod: scene.historicalPeriod ?? scene.year,
+          year: scene.year,
+          location: scene.location,
+          characterId: scene.characterId,
+          watchReference,
+          productPhotoRole: item.productPhotoRole ?? scene.productPhotoRole,
+          visualType: watchReference ? "product_photo" : (scene.visualType ?? "story"),
+        });
+        await transaction
+          .update(scenes)
+          .set({
+            order: item.order,
+            title: item.finalTitle ?? scene.title,
+            duration: item.duration,
+            narration: item.narration,
+            subtitle: item.subtitle,
+            storyPhase: item.storyPhase,
+            includeInFinal: true,
+            watchReference,
+            productPhotoId,
+            productPhotoRole: item.productPhotoRole ?? scene.productPhotoRole,
+            preferredAssetLabels,
+            visualType: watchReference ? "product_photo" : (scene.visualType ?? "story"),
+            visualRelevanceScore: Math.max(85, relevance.score),
+            visualRelevanceStatus: "pass",
+            selectedGenerationId: item.forceRegeneration ? null : scene.selectedGenerationId,
+            updatedAt: new Date(),
+          })
+          .where(eq(scenes.id, scene.id));
+      }
+      transactionStep = "storyboard";
+      await transaction
+        .update(storyboards)
+        .set({
+          totalDuration: PLAN.reduce((sum, item) => sum + item.duration, 0),
+          storyQuality,
+          storyQualityStatus: storyQuality.status,
+          updatedAt: new Date(),
+        })
+        .where(eq(storyboards.id, storyboard.id));
+    });
+  } catch (error) {
+    const databaseCode =
+      typeof error === "object" && error && "code" in error ? String(error.code) : "unknown";
+    throw new JaegerPrepareError(`JAEGER_PREPARE_FAILED:${transactionStep}:${databaseCode}`);
+  }
 }
 
 async function status(userId: string) {
