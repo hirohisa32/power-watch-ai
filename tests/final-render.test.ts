@@ -194,11 +194,14 @@ describe("fixed Opening final render", () => {
     expect(concat).not.toContain("-filter_complex");
   });
 
-  it("retimes an extended scene before the multi-scene concat", () => {
+  it("retimes every measured scene before the multi-scene concat", () => {
     const args = buildSceneRetimeArgs("scene.mp4", "prepared.mp4", 30, 5, 6.5);
     expect(args).toContain("fps=30,setpts=PTS-STARTPTS,setpts=1.30000000*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=6.5,setpts=PTS-STARTPTS");
     expect(args).toContain("veryfast");
     expect(args).toContain("prepared.mp4");
+
+    const shortened = buildSceneRetimeArgs("scene.mp4", "prepared.mp4", 30, 5, 4);
+    expect(shortened).toContain("fps=30,setpts=PTS-STARTPTS,setpts=0.80000000*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=4,setpts=PTS-STARTPTS");
   });
 
   it("uses concise approved subtitles instead of the full narration", () => {

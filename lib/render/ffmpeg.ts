@@ -310,7 +310,7 @@ export async function renderWithFfmpeg(
     const bodyVideos = [...files.videos];
     for (const [index, scene] of input.scenes.entries()) {
       const sourceDuration = files.videoDurations?.[index];
-      if (!sourceDuration || scene.duration <= sourceDuration + 0.04) continue;
+      if (!sourceDuration) continue;
       const prepared = path.join(path.dirname(files.output), `scene-${index}-retimed.mp4`);
       await run(
         executable,
