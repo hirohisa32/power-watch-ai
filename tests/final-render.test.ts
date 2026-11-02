@@ -12,7 +12,13 @@ import {
   buildPrimingTrimArgs,
   buildOpeningCompatibilityArgs,
 } from "@/lib/render/ffmpeg";
-import { buildFinalRenderInput, narrationObjectKey, renderObjectKey } from "@/lib/render/plan";
+import {
+  buildFinalRenderInput,
+  narrationObjectKey,
+  renderObjectKey,
+  scaleSceneDurationsToNarration,
+  scaleTextOverlays,
+} from "@/lib/render/plan";
 import { canRetryRender, nextRenderState } from "@/lib/render/state";
 
 const scenes = [
@@ -211,6 +217,27 @@ describe("fixed Opening final render", () => {
     expect(input.overlays).toContainEqual(
       expect.objectContaining({ kind: "evidence", primary: "CALIBRE 478" }),
     );
+  });
+
+  it("keeps the approved scene rhythm when narration subtitles are disabled", () => {
+    const synchronized = scaleSceneDurationsToNarration(
+      [{ duration: 6 }, { duration: 7 }, { duration: 4 }, { duration: 5 }],
+      20_000,
+    );
+
+    expect(synchronized.reduce((sum, scene) => sum + scene.duration, 0)).toBeCloseTo(20, 6);
+    expect(synchronized.map((scene) => scene.duration)).toEqual([
+      expect.closeTo(5.4545, 3),
+      expect.closeTo(6.3636, 3),
+      expect.closeTo(3.6364, 3),
+      expect.closeTo(4.5455, 3),
+    ]);
+  });
+
+  it("keeps evidence overlays on the scaled scene timeline", () => {
+    expect(scaleTextOverlays([{ startMs: 5_000, endMs: 8_000 }], 0.8)).toEqual([
+      { startMs: 4_000, endMs: 6_400 },
+    ]);
   });
 
   it("records the immutable master and zero Opening credits", () => {

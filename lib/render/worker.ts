@@ -27,7 +27,12 @@ import { apiUsage, audioRecords, bgmAssets, finalRenders, renderJobs } from "@/l
 import { createReadUrl, uploadPrivateObject } from "@/lib/storage";
 import { createAssSubtitles } from "./ass";
 import { concatSpeechAudio, probeDurationMs, renderWithFfmpeg } from "./ffmpeg";
-import { narrationObjectKey, renderObjectKey } from "./plan";
+import {
+  narrationObjectKey,
+  renderObjectKey,
+  scaleSceneDurationsToNarration,
+  scaleTextOverlays,
+} from "./plan";
 import type { FinalRenderInput } from "./types";
 import { settleCompletedRender } from "@/lib/billing/service";
 import { HAYASHI_VOICE } from "@/lib/system-media/config";
@@ -521,17 +526,27 @@ export function synchronizeRenderInput(
     subtitle: scene.subtitle,
   }));
   const windows = sceneSpeechWindows(narrationScenes, alignment, input.language);
-  const scenes = input.scenes.map((scene, index) => {
-    const startMs = index === 0 ? 0 : (windows[index]?.speechStartMs ?? 0);
-    const nextStartMs = windows[index + 1]?.speechStartMs ?? narrationDurationMs;
-    return { ...scene, duration: Math.max(0.3, (nextStartMs - startMs) / 1000) };
-  });
+  const scenes =
+    input.narrationSubtitlesEnabled === false
+      ? scaleSceneDurationsToNarration(input.scenes, narrationDurationMs)
+      : input.scenes.map((scene, index) => {
+          const startMs = index === 0 ? 0 : (windows[index]?.speechStartMs ?? 0);
+          const nextStartMs = windows[index + 1]?.speechStartMs ?? narrationDurationMs;
+          return { ...scene, duration: Math.max(0.3, (nextStartMs - startMs) / 1000) };
+        });
   const endingDuration = input.endingAsset
     ? (input.endingAsset.recommendedDuration ?? input.endingAsset.duration)
     : 0;
+  const configuredSceneDuration = input.scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const synchronizedSceneDuration = scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const overlays =
+    input.narrationSubtitlesEnabled === false && configuredSceneDuration > 0
+      ? scaleTextOverlays(input.overlays, synchronizedSceneDuration / configuredSceneDuration)
+      : input.overlays;
   return {
     ...input,
     scenes,
+    overlays,
     subtitles:
       input.narrationSubtitlesEnabled !== false
         ? buildAlignedSubtitleCues(narrationScenes, alignment, 75, input.language)

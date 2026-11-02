@@ -110,6 +110,45 @@ export function effectiveSystemAssetDuration(asset: RenderSystemAsset | null) {
   return Math.max(0, Math.min(asset.recommendedDuration ?? end - start, end - start));
 }
 
+/**
+ * Keep the approved storyboard rhythm when narration subtitles are disabled.
+ * Provider alignment can differ from the original text for numbers and foreign
+ * words; using unmatched character offsets would otherwise place the remaining
+ * duration into the final scene.
+ */
+export function scaleSceneDurationsToNarration<T extends { duration: number }>(
+  scenes: T[],
+  narrationDurationMs: number,
+): T[] {
+  if (!scenes.length) return scenes;
+  const narrationDuration = Math.max(0.3 * scenes.length, narrationDurationMs / 1000);
+  const configuredDuration = scenes.reduce((sum, scene) => sum + Math.max(0.3, scene.duration), 0);
+  if (configuredDuration <= 0) return scenes;
+
+  const scale = narrationDuration / configuredDuration;
+  let allocated = 0;
+  return scenes.map((scene, index) => {
+    const duration =
+      index === scenes.length - 1
+        ? Math.max(0.3, narrationDuration - allocated)
+        : Math.max(0.3, Math.max(0.3, scene.duration) * scale);
+    allocated += duration;
+    return { ...scene, duration };
+  });
+}
+
+export function scaleTextOverlays<T extends { startMs: number; endMs: number }>(
+  overlays: T[],
+  scale: number,
+): T[] {
+  if (!Number.isFinite(scale) || scale <= 0) return overlays;
+  return overlays.map((overlay) => ({
+    ...overlay,
+    startMs: Math.round(overlay.startMs * scale),
+    endMs: Math.round(overlay.endMs * scale),
+  }));
+}
+
 export function narrationObjectKey(projectId: string, audioId: string) {
   return `projects/${projectId}/audio/narration/${audioId}.mp3`;
 }
