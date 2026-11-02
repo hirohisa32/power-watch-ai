@@ -1,7 +1,9 @@
 export const PRODUCT_PHOTO_ROLES = [
+  "full_watch",
   "front",
   "dial",
   "case",
+  "side_case",
   "side",
   "crown",
   "caseback",
@@ -31,9 +33,11 @@ export const PRODUCT_PHOTO_EVIDENCE_ROLES = [
 ] as const satisfies readonly ProductPhotoRole[];
 
 export const PRODUCT_PHOTO_DESIRE_ROLES = [
+  "full_watch",
   "front",
   "dial",
   "case",
+  "side_case",
   "side",
   "crown",
   "clous_de_paris",
@@ -86,6 +90,7 @@ const ROLE_PATTERNS: Array<[ProductPhotoRole, RegExp]> = [
   ["caseback", /caseback|case back|裏蓋|裏ぶた/iu],
   ["engraving", /engraving|mark|serial|hallmark|刻印|銘|シリアル|品位/iu],
   ["crown", /crown|竜頭|リューズ/iu],
+  ["side_case", /side case|case profile|ケース側面/iu],
   ["side", /side|profile|側面/iu],
   ["bracelet", /bracelet|clasp|strap|ブレスレット|クラスプ|ベルト/iu],
   ["dial", /dial|hands|index|bezel|文字盤|針|インデックス|ベゼル|クルー?ド・パリ/iu],
@@ -103,9 +108,11 @@ export function desiredProductPhotoRole(context: string): ProductPhotoRole {
 }
 
 const ROLE_FALLBACKS: Record<ProductPhotoRole, ProductPhotoRole[]> = {
+  full_watch: ["full_watch", "hero", "front", "dial", "case"],
   front: ["front", "hero", "dial", "case"],
   dial: ["dial", "front", "hero"],
   case: ["case", "side", "caseback", "front", "hero"],
+  side_case: ["side_case", "side", "crown", "case", "hero"],
   side: ["side", "crown", "case", "hero"],
   crown: ["crown", "side", "case", "hero"],
   caseback: ["caseback", "engraving", "case", "side"],

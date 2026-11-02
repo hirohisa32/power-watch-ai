@@ -32,12 +32,14 @@ type PlanItem = {
   subtitle: string;
   productPhotoRole?: string;
   productAssetId?: string;
-  forceRegeneration?: boolean;
+  visualIntent?: string;
 };
 
 const PRODUCT_ASSETS = {
   hookDial: "f0828d12-ffaa-4071-a550-17c217676163",
+  hallmarkEvidence: "c4b26efe-2f96-4ec1-89af-6db585d5da48",
   clousAngle: "70f1c9ae-0c3b-4d0e-8816-39c18b438303",
+  pinkGoldAngle: "e48f250f-d5e9-44ca-aa9b-02fcf528586a",
   fullWatchHero: "805fc990-fd52-4280-af4e-654f36eb4d28",
 } as const;
 
@@ -52,7 +54,8 @@ const PLAN: readonly PlanItem[] = [
     subtitle: "",
     productPhotoRole: "dial",
     productAssetId: PRODUCT_ASSETS.hookDial,
-    forceRegeneration: true,
+    visualIntent:
+      "Opening直後に実物の文字盤とブランド表記を一瞬だけ見せ、時計の美しさを予告する。",
   },
   {
     sourceTitle: "名機の誕生",
@@ -87,7 +90,7 @@ const PLAN: readonly PlanItem[] = [
     storyPhase: "reason",
     narration: "この一本は、18金のフレンチケースをまといます。",
     subtitle: "18K PINK GOLD  /  FRENCH CASE",
-    productPhotoRole: "side",
+    productPhotoRole: "side_case",
   },
   {
     sourceTitle: "フランスの表示義務",
@@ -105,6 +108,9 @@ const PLAN: readonly PlanItem[] = [
     narration: "ケースの刻印も、その出自を語ります。",
     subtitle: "FRENCH HALLMARK",
     productPhotoRole: "hallmark",
+    productAssetId: PRODUCT_ASSETS.hallmarkEvidence,
+    visualIntent:
+      "実物のケースバック刻印を証拠として提示し、フランス市場向け個体という物語を実物写真で回収する。",
   },
   {
     sourceTitle: "国境を越えた職人の歴史",
@@ -133,7 +139,8 @@ const PLAN: readonly PlanItem[] = [
     subtitle: "CLOUS DE PARIS",
     productPhotoRole: "clous_de_paris",
     productAssetId: PRODUCT_ASSETS.clousAngle,
-    forceRegeneration: true,
+    visualIntent:
+      "実物写真のベゼルへゆっくり寄り、クールド・パリの凹凸へ光が流れる様子を見せる。",
   },
   {
     sourceTitle: "受け継がれる系譜",
@@ -142,6 +149,10 @@ const PLAN: readonly PlanItem[] = [
     storyPhase: "reveal",
     narration: "名機478、フレンチケース、二国の歴史。",
     subtitle: "JAEGER-LECOULTRE",
+    productPhotoRole: "full_watch",
+    productAssetId: PRODUCT_ASSETS.pinkGoldAngle,
+    visualIntent:
+      "18K Pink Goldの45度実物写真を静かに見せ、Evidenceから所有欲を高めるProduct Beautyへ移行する。",
   },
   {
     sourceTitle: "歴史を宿す一本",
@@ -152,7 +163,8 @@ const PLAN: readonly PlanItem[] = [
     subtitle: "A PIECE OF HISTORY",
     productPhotoRole: "hero",
     productAssetId: PRODUCT_ASSETS.fullWatchHero,
-    forceRegeneration: true,
+    visualIntent:
+      "時計全体と文字盤、18K Pink Gold、クールド・パリが同時に伝わる実物Heroを余韻を持って見せる。",
   },
 ];
 
@@ -272,7 +284,12 @@ async function prepare(userId: string) {
           ? [productAsset.label]
           : scene.preferredAssetLabels;
         const watchReference = scene.watchReference || Boolean(item.productPhotoRole);
-        const visualIntent = scene.visualIntent ?? scene.visualDescription;
+        const visualIntent = item.visualIntent ?? scene.visualIntent ?? scene.visualDescription;
+        // Role metadata can be corrected without rebuilding an unchanged photo-motion asset.
+        // Only a different source photograph invalidates the selected generation.
+        const productIdentityChanged = Boolean(
+          productAsset && scene.productPhotoId !== productAsset.id,
+        );
         const relevance = evaluateVisualRelevance({
           narration: item.narration,
           visualIntent,
@@ -299,10 +316,11 @@ async function prepare(userId: string) {
             productPhotoId,
             productPhotoRole: item.productPhotoRole ?? scene.productPhotoRole,
             preferredAssetLabels,
+            visualIntent,
             visualType: watchReference ? "product_photo" : (scene.visualType ?? "story"),
             visualRelevanceScore: Math.max(85, relevance.score),
             visualRelevanceStatus: "pass",
-            selectedGenerationId: item.forceRegeneration ? null : scene.selectedGenerationId,
+            selectedGenerationId: productIdentityChanged ? null : scene.selectedGenerationId,
             updatedAt: new Date(),
           })
           .where(eq(scenes.id, scene.id));

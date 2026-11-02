@@ -6,6 +6,8 @@ describe("product evidence to desire arc", () => {
     expect(productPhotoClass("movement_detail")).toBe("evidence");
     expect(productPhotoClass("hallmark")).toBe("evidence");
     expect(productPhotoClass("clous_de_paris")).toBe("desire");
+    expect(productPhotoClass("full_watch")).toBe("desire");
+    expect(productPhotoClass("side_case")).toBe("desire");
     expect(productPhotoClass("hero")).toBe("desire");
   });
 
