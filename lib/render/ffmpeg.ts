@@ -50,15 +50,7 @@ export function buildFfmpegArgs(
         ? `fade=t=out:st=${Math.max(0, scene.duration - outgoing).toFixed(3)}:d=${outgoing}${index === input.scenes.length - 1 && input.endingAsset ? ":color=0x120B07" : ""}`
         : "",
     ].filter(Boolean);
-    const sourceDuration = files.videoDurations?.[index];
-    // Retime every provider clip from its probed duration to the semantic scene
-    // duration. This is deterministic across FFmpeg builds, unlike relying on
-    // input looping or a long cloned tail after the decoder reaches EOF.
-    const retime =
-      sourceDuration && Number.isFinite(sourceDuration) && sourceDuration > 0
-        ? `setpts=${(scene.duration / sourceDuration).toFixed(8)}*PTS,`
-        : "setpts=PTS-STARTPTS,";
-    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=${input.fps},format=yuv420p10le,setpts=PTS-STARTPTS,${retime}tpad=stop_mode=clone:stop_duration=0.1,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
+    return `[${index}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=${input.fps},format=yuv420p10le,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=${scene.duration},setpts=PTS-STARTPTS${fades.length ? `,${fades.join(",")}` : ""}[v${index}]`;
   });
   const concat = `${input.scenes.map((_, index) => `[v${index}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[base]`;
   const subtitle = `[base]subtitles=filename='${escapeFilterPath(files.subtitles)}':fontsdir='${escapeFilterPath(fontDirectory)}'[vout]`;
@@ -151,6 +143,42 @@ export function buildCompatibilityConcatArgs(concatList: string, output: string)
 
 export function buildOpeningCompatibilityArgs(input: string, output: string, fps: number) {
   return buildSystemMediaCompatibilityArgs(input, output, fps, undefined, true);
+}
+
+export function buildSceneRetimeArgs(
+  input: string,
+  output: string,
+  fps: number,
+  sourceDuration: number,
+  targetDuration: number,
+) {
+  const ratio = targetDuration / sourceDuration;
+  return [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-i",
+    input,
+    "-vf",
+    `fps=${fps},setpts=PTS-STARTPTS,setpts=${ratio.toFixed(8)}*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=${targetDuration},setpts=PTS-STARTPTS`,
+    "-an",
+    "-t",
+    String(targetDuration),
+    "-r",
+    String(fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "18",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    output,
+  ];
 }
 
 export function buildSystemMediaCompatibilityArgs(
@@ -277,12 +305,33 @@ export async function renderWithFfmpeg(
   const endingCompatible = path.join(path.dirname(files.output), "selected-ending-compatible.mp4");
   const concatList = path.join(path.dirname(files.output), "system-media-concat.txt");
   const combinedOutput = path.join(path.dirname(files.output), "combined-before-ending-bgm.mp4");
+  const preparedVideos: string[] = [];
   try {
+    const bodyVideos = [...files.videos];
+    for (const [index, scene] of input.scenes.entries()) {
+      const sourceDuration = files.videoDurations?.[index];
+      if (!sourceDuration || scene.duration <= sourceDuration + 0.04) continue;
+      const prepared = path.join(path.dirname(files.output), `scene-${index}-retimed.mp4`);
+      await run(
+        executable,
+        buildSceneRetimeArgs(
+          files.videos[index],
+          prepared,
+          input.fps,
+          sourceDuration,
+          scene.duration,
+        ),
+        180_000,
+      );
+      bodyVideos[index] = prepared;
+      preparedVideos.push(prepared);
+    }
+    const bodyFiles = { ...files, videos: bodyVideos };
     await run(
       executable,
       buildFfmpegArgs(
         input,
-        files,
+        bodyFiles,
         fontDirectory,
         bodyOutput,
         preset,
@@ -356,6 +405,7 @@ export async function renderWithFfmpeg(
       rm(endingCompatible, { force: true }),
       rm(concatList, { force: true }),
       rm(combinedOutput, { force: true }),
+      ...preparedVideos.map((file) => rm(file, { force: true })),
     ]);
   }
 }

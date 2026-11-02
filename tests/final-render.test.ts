@@ -7,6 +7,7 @@ import {
   buildLuxuryEndingTextAnimationArgs,
   buildFixedOpeningConcatArgs,
   buildFfmpegArgs,
+  buildSceneRetimeArgs,
   buildCompatibilityConcatArgs,
   buildTransportStreamArgs,
   buildPrimingTrimArgs,
@@ -153,10 +154,9 @@ describe("fixed Opening final render", () => {
     const filters = args[args.indexOf("-filter_complex") + 1];
     expect(filters).toContain("concat=n=2");
     expect(filters).toContain("fps=30");
-    expect(filters).toContain("setpts=1.25000000*PTS");
     expect(filters).toContain("tpad=stop_mode=clone:stop_duration=0.1");
     expect(filters).toContain(
-      "format=yuv420p10le,setpts=PTS-STARTPTS,setpts=1.25000000*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=5",
+      "format=yuv420p10le,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=5",
     );
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");
@@ -192,6 +192,13 @@ describe("fixed Opening final render", () => {
     const concat = buildFixedOpeningConcatArgs(files, "combined.ts", "audio.m4a");
     expect(concat.slice(concat.indexOf("-c"), concat.indexOf("-c") + 2)).toEqual(["-c", "copy"]);
     expect(concat).not.toContain("-filter_complex");
+  });
+
+  it("retimes an extended scene before the multi-scene concat", () => {
+    const args = buildSceneRetimeArgs("scene.mp4", "prepared.mp4", 30, 5, 6.5);
+    expect(args).toContain("fps=30,setpts=PTS-STARTPTS,setpts=1.30000000*PTS,tpad=stop_mode=clone:stop_duration=0.1,trim=duration=6.5,setpts=PTS-STARTPTS");
+    expect(args).toContain("veryfast");
+    expect(args).toContain("prepared.mp4");
   });
 
   it("uses concise approved subtitles instead of the full narration", () => {
