@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -12,7 +12,7 @@ import {
 } from "@/lib/db/schema";
 import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
-import { inferProductPhotoRole } from "@/lib/storyboard/product-photo-planner";
+import { evaluateFinalProductArc } from "@/lib/storyboard/product-photo-planner";
 import { evaluateStoryQuality } from "@/lib/storyboard/story-quality";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
@@ -20,19 +20,39 @@ const PROJECT_ID = "75ee705e-8c6b-4a81-a3ff-7fbc42dae048";
 
 type PlanItem = {
   sourceTitle: string;
+  finalTitle?: string;
   order: number;
   duration: number;
   storyPhase: "hook" | "context" | "reason" | "evidence" | "reveal" | "payoff";
   narration: string;
   subtitle: string;
   productPhotoRole?: string;
-  replaceProductPhoto?: boolean;
+  productAssetId?: string;
+  forceRegeneration?: boolean;
 };
+
+const PRODUCT_ASSETS = {
+  hookDial: "f0828d12-ffaa-4071-a550-17c217676163",
+  clousAngle: "70f1c9ae-0c3b-4d0e-8816-39c18b438303",
+  fullWatchHero: "805fc990-fd52-4280-af4e-654f36eb4d28",
+} as const;
 
 const PLAN: readonly PlanItem[] = [
   {
-    sourceTitle: "名機の誕生",
+    sourceTitle: "機械に刻まれた系譜",
+    finalTitle: "時計の美を予告",
     order: 1,
+    duration: 1.2,
+    storyPhase: "hook",
+    narration: "",
+    subtitle: "",
+    productPhotoRole: "dial",
+    productAssetId: PRODUCT_ASSETS.hookDial,
+    forceRegeneration: true,
+  },
+  {
+    sourceTitle: "名機の誕生",
+    order: 2,
     duration: 6,
     storyPhase: "hook",
     narration: "1945年、戦後の時計史に、ルクルトが生んだひとつの名機、キャリバー478。",
@@ -40,7 +60,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "精度の系譜",
-    order: 2,
+    order: 3,
     duration: 7,
     storyPhase: "context",
     narration:
@@ -49,7 +69,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "機械造形への視線",
-    order: 3,
+    order: 4,
     duration: 4,
     storyPhase: "reason",
     narration: "スワンネック緩急針、金のシャトン。",
@@ -58,7 +78,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "今回の一本へ",
-    order: 4,
+    order: 5,
     duration: 5,
     storyPhase: "reason",
     narration: "この一本は、18金のフレンチケースをまといます。",
@@ -67,7 +87,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "フランスの表示義務",
-    order: 5,
+    order: 6,
     duration: 7,
     storyPhase: "reason",
     narration: "フランス市場では、輸入時計に原産国表示を求める独自の決まりがありました。",
@@ -75,7 +95,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "ケースの刻印",
-    order: 6,
+    order: 7,
     duration: 4,
     storyPhase: "evidence",
     narration: "ケースの刻印も、その出自を語ります。",
@@ -84,7 +104,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "国境を越えた職人の歴史",
-    order: 7,
+    order: 8,
     duration: 7,
     storyPhase: "evidence",
     narration:
@@ -93,7 +113,7 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "文字盤とムーブメントの証拠",
-    order: 8,
+    order: 9,
     duration: 5,
     storyPhase: "evidence",
     narration: "FAB SUISSEは、フランスへ届けられた証です。",
@@ -102,16 +122,18 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "クールド・パリ",
-    order: 9,
+    order: 10,
     duration: 4,
     storyPhase: "reveal",
     narration: "光を受けて表情を変える、クールド・パリ。",
     subtitle: "CLOUS DE PARIS",
     productPhotoRole: "clous_de_paris",
+    productAssetId: PRODUCT_ASSETS.clousAngle,
+    forceRegeneration: true,
   },
   {
     sourceTitle: "受け継がれる系譜",
-    order: 10,
+    order: 11,
     duration: 4,
     storyPhase: "reveal",
     narration: "名機478、フレンチケース、二国の歴史。",
@@ -119,12 +141,14 @@ const PLAN: readonly PlanItem[] = [
   },
   {
     sourceTitle: "歴史を宿す一本",
-    order: 11,
+    order: 12,
     duration: 5,
     storyPhase: "payoff",
     narration: "そのすべてを宿す、特別なジャガー・ルクルトです。",
     subtitle: "A PIECE OF HISTORY",
     productPhotoRole: "hero",
+    productAssetId: PRODUCT_ASSETS.fullWatchHero,
+    forceRegeneration: true,
   },
 ];
 
@@ -178,40 +202,22 @@ async function prepare(userId: string) {
     db.select().from(assets).where(eq(assets.projectId, project.id)).orderBy(assets.createdAt),
   ]);
   const sceneByTitle = new Map(currentScenes.map((scene) => [scene.title, scene]));
-  const missing = PLAN.filter((item) => !sceneByTitle.has(item.sourceTitle));
+  const sceneFor = (item: PlanItem) =>
+    sceneByTitle.get(item.sourceTitle) ??
+    (item.finalTitle ? sceneByTitle.get(item.finalTitle) : undefined);
+  const missing = PLAN.filter((item) => !sceneFor(item));
   if (missing.length)
     throw new Error(`PLAN_SCENE_MISSING:${missing.map((item) => item.sourceTitle).join(",")}`);
 
-  const selectedIds = currentScenes
-    .map((scene) => scene.selectedGenerationId)
-    .filter((value): value is string => Boolean(value));
-  const selectedGenerations = selectedIds.length
-    ? await db.select().from(videoGenerations).where(inArray(videoGenerations.id, selectedIds))
-    : [];
-  const generationById = new Map(
-    selectedGenerations.map((generation) => [generation.id, generation]),
+  const assetById = new Map(productAssets.map((asset) => [asset.id, asset]));
+  const missingProductAssets = PLAN.flatMap((item) =>
+    item.productAssetId && !assetById.has(item.productAssetId) ? [item.productAssetId] : [],
   );
-  const usedAssetIds = new Set(
-    PLAN.filter((item) => !item.replaceProductPhoto).flatMap((item) => {
-      const scene = sceneByTitle.get(item.sourceTitle);
-      const generation = scene?.selectedGenerationId
-        ? generationById.get(scene.selectedGenerationId)
-        : null;
-      return generation?.referenceAssetIds ?? [];
-    }),
-  );
-  const replacementNeeded = PLAN.some((item) => item.replaceProductPhoto);
-  const replacementAsset = replacementNeeded
-    ? (productAssets.find(
-        (asset) =>
-          !usedAssetIds.has(asset.id) &&
-          ["front", "hero", "dial"].includes(asset.role ?? inferProductPhotoRole(asset.label)),
-      ) ?? productAssets.find((asset) => !usedAssetIds.has(asset.id)))
-    : null;
-  if (replacementNeeded && !replacementAsset) throw new Error("DISTINCT_PRODUCT_PHOTO_REQUIRED");
+  if (missingProductAssets.length)
+    throw new Error(`PRODUCT_ASSET_MISSING:${missingProductAssets.join(",")}`);
 
   const qualityInput = PLAN.map((item) => {
-    const scene = sceneByTitle.get(item.sourceTitle)!;
+    const scene = sceneFor(item)!;
     return {
       storyPhase: item.storyPhase,
       narration: item.narration,
@@ -233,12 +239,10 @@ async function prepare(userId: string) {
       .where(eq(scenes.storyboardId, storyboard.id));
 
     for (const item of PLAN) {
-      const scene = sceneByTitle.get(item.sourceTitle)!;
-      const isReplacement = Boolean(item.replaceProductPhoto);
-      const productPhotoId = isReplacement ? replacementAsset!.id : scene.productPhotoId;
-      const preferredAssetLabels = isReplacement
-        ? [replacementAsset!.label]
-        : scene.preferredAssetLabels;
+      const scene = sceneFor(item)!;
+      const productAsset = item.productAssetId ? assetById.get(item.productAssetId)! : null;
+      const productPhotoId = productAsset?.id ?? scene.productPhotoId;
+      const preferredAssetLabels = productAsset ? [productAsset.label] : scene.preferredAssetLabels;
       const watchReference = scene.watchReference || Boolean(item.productPhotoRole);
       const visualIntent = scene.visualIntent ?? scene.visualDescription;
       const relevance = evaluateVisualRelevance({
@@ -257,6 +261,7 @@ async function prepare(userId: string) {
         .update(scenes)
         .set({
           order: item.order,
+          title: item.finalTitle ?? scene.title,
           duration: item.duration,
           narration: item.narration,
           subtitle: item.subtitle,
@@ -269,7 +274,7 @@ async function prepare(userId: string) {
           visualType: watchReference ? "product_photo" : (scene.visualType ?? "story"),
           visualRelevanceScore: Math.max(85, relevance.score),
           visualRelevanceStatus: "pass",
-          selectedGenerationId: isReplacement ? null : scene.selectedGenerationId,
+          selectedGenerationId: item.forceRegeneration ? null : scene.selectedGenerationId,
           updatedAt: new Date(),
         })
         .where(eq(scenes.id, scene.id));
@@ -308,11 +313,18 @@ async function status(userId: string) {
     .orderBy(desc(finalRenders.createdAt))
     .limit(3);
   const included = rows.filter((row) => row.scene.includeInFinal);
+  const productArc = evaluateFinalProductArc(
+    included.map((row) => ({
+      watchReference: row.scene.watchReference,
+      productPhotoRole: row.scene.productPhotoRole,
+    })),
+  );
   return {
     projectId: project.id,
     subtitlesEnabled: project.narrationSubtitlesEnabled,
     storyQuality: storyboard.storyQuality,
     storyQualityStatus: storyboard.storyQualityStatus,
+    productArc,
     prepared: included.length === PLAN.length && project.narrationSubtitlesEnabled === false,
     allIncludedReady: included.every(
       (row) => row.generation?.status === "completed" && Boolean(row.generation.outputObjectKey),

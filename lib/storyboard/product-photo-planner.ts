@@ -19,6 +19,59 @@ export const PRODUCT_PHOTO_ROLES = [
 
 export type ProductPhotoRole = (typeof PRODUCT_PHOTO_ROLES)[number];
 
+export const PRODUCT_PHOTO_EVIDENCE_ROLES = [
+  "caseback",
+  "movement",
+  "movement_wide",
+  "movement_detail",
+  "regulator",
+  "engraving",
+  "hallmark",
+  "fab_suisse",
+] as const satisfies readonly ProductPhotoRole[];
+
+export const PRODUCT_PHOTO_DESIRE_ROLES = [
+  "front",
+  "dial",
+  "case",
+  "side",
+  "crown",
+  "clous_de_paris",
+  "bracelet",
+  "hero",
+] as const satisfies readonly ProductPhotoRole[];
+
+export type ProductPhotoClass = "evidence" | "desire" | "support";
+
+export function productPhotoClass(role: string | null | undefined): ProductPhotoClass {
+  if (PRODUCT_PHOTO_EVIDENCE_ROLES.includes(role as (typeof PRODUCT_PHOTO_EVIDENCE_ROLES)[number]))
+    return "evidence";
+  if (PRODUCT_PHOTO_DESIRE_ROLES.includes(role as (typeof PRODUCT_PHOTO_DESIRE_ROLES)[number]))
+    return "desire";
+  return "support";
+}
+
+export function evaluateFinalProductArc(
+  scenes: Array<{ watchReference: boolean; productPhotoRole?: string | null }>,
+) {
+  const tailSize = Math.max(1, Math.ceil(scenes.length * 0.2));
+  const tail = scenes.slice(-tailSize);
+  const productTail = tail.filter((scene) => scene.watchReference);
+  const desireCount = productTail.filter(
+    (scene) => productPhotoClass(scene.productPhotoRole) === "desire",
+  ).length;
+  const finalProduct = [...scenes].reverse().find((scene) => scene.watchReference);
+  return {
+    tailSize,
+    desireCount,
+    evidenceCount: productTail.filter(
+      (scene) => productPhotoClass(scene.productPhotoRole) === "evidence",
+    ).length,
+    finalProductClass: productPhotoClass(finalProduct?.productPhotoRole),
+    passed: desireCount > 0 && productPhotoClass(finalProduct?.productPhotoRole) === "desire",
+  };
+}
+
 const ROLE_PATTERNS: Array<[ProductPhotoRole, RegExp]> = [
   ["regulator", /swan.?neck|regulator|緩急針|スワンネック/iu],
   [

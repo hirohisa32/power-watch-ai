@@ -30,6 +30,7 @@ export function evaluateStoryQuality(scenes: StoryQualityScene[]): StoryQualityS
   const productScenes = active.filter((scene) => scene.watchReference);
   const uniqueRoles = new Set(productScenes.map((scene) => scene.productPhotoRole).filter(Boolean));
   const hasOrderedArc = orderedSubsequence(phases, STORY_PHASES);
+  const productArc = evaluateFinalProductArc(active);
 
   const hook = clamp(
     72 +
@@ -60,11 +61,13 @@ export function evaluateStoryQuality(scenes: StoryQualityScene[]): StoryQualityS
       (/特別|この一本|そのすべて|歴史|証/iu.test(last?.narration ?? "") ? 8 : 0),
   );
   const purchaseDesire = clamp(
-    64 +
+    54 +
       Math.min(12, uniqueRoles.size * 2) +
       (phases.includes("reveal") ? 7 : 0) +
       (last?.storyPhase === "payoff" ? 8 : 0) +
-      (/特別|美し|宿す|まとう|この一本/iu.test(last?.narration ?? "") ? 8 : 0),
+      (/特別|美し|宿す|まとう|この一本/iu.test(last?.narration ?? "") ? 8 : 0) +
+      (productArc.desireCount > 0 ? 7 : 0) +
+      (productArc.finalProductClass === "desire" ? 7 : 0),
   );
   const values = [
     hook,
@@ -106,3 +109,4 @@ function orderedSubsequence(values: Array<string | null | undefined>, expected: 
   for (const value of values) if (value === expected[cursor]) cursor += 1;
   return cursor === expected.length;
 }
+import { evaluateFinalProductArc } from "./product-photo-planner";
