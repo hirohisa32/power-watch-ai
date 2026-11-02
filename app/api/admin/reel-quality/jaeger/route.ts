@@ -42,7 +42,7 @@ const PLAN: readonly PlanItem[] = [
     sourceTitle: "機械に刻まれた系譜",
     finalTitle: "時計の美を予告",
     order: 1,
-    duration: 1.2,
+    duration: 1,
     storyPhase: "hook",
     narration: "",
     subtitle: "",
