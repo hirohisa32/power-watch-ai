@@ -193,6 +193,26 @@ describe("fixed Opening final render", () => {
     expect(cues.map((cue) => cue.text)).toEqual(["GOLD KHANJAR"]);
   });
 
+  it("removes narration subtitles and keeps only concise evidence overlays when disabled", () => {
+    const input = buildFinalRenderInput({
+      language: "ja",
+      bgmKey: "approved",
+      totalSceneCount: 1,
+      narrationSubtitlesEnabled: false,
+      scenes: [
+        {
+          ...scenes[2],
+          subtitle: "CALIBRE 478",
+          narration: "1945年、ルクルトが生んだ名機です。",
+        },
+      ],
+    });
+    expect(input.subtitles).toEqual([]);
+    expect(input.overlays).toContainEqual(
+      expect.objectContaining({ kind: "evidence", primary: "CALIBRE 478" }),
+    );
+  });
+
   it("records the immutable master and zero Opening credits", () => {
     expect(plan()).toMatchObject({
       width: 1080,

@@ -6,6 +6,7 @@ import { estimateOpenAiCost } from "@/lib/storyboard/cost";
 import type { StoryboardDirectorResult } from "@/lib/storyboard/director";
 import type { StoryboardOutput } from "@/lib/storyboard/schema";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
+import { evaluateStoryQuality } from "@/lib/storyboard/story-quality";
 
 export type PersistStoryboardInput = {
   projectId: string;
@@ -62,6 +63,8 @@ export class DrizzleStoryboardPersistence implements StoryboardPersistence {
           version,
           isActive: true,
           totalDuration: input.storyboard.scenes.reduce((sum, scene) => sum + scene.duration, 0),
+          storyQuality: evaluateStoryQuality(input.storyboard.scenes),
+          storyQualityStatus: evaluateStoryQuality(input.storyboard.scenes).status,
         })
         .returning({ id: storyboards.id });
       const productAssets = await transaction

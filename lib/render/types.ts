@@ -28,7 +28,7 @@ export type RenderScene = {
 };
 
 export type TextOverlay = {
-  kind: "brand" | "year-location";
+  kind: "brand" | "year-location" | "evidence";
   startMs: number;
   endMs: number;
   primary: string;
@@ -55,6 +55,7 @@ export type FinalRenderInput = {
   fps: 30;
   language: "ja" | "en" | "zh";
   bgmKey: string;
+  narrationSubtitlesEnabled?: boolean;
   totalDuration: number;
   missingSceneCount: number;
   scenes: RenderScene[];

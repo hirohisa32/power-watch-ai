@@ -22,6 +22,16 @@ export function storyboardFixture(target: 60 | 90): StoryboardOutput {
                       ? "HistoricalCharacter"
                       : "HistoricalEvent",
       title: `Scene ${index + 1}`,
+      storyPhase:
+        index === 0
+          ? "hook"
+          : index === sceneCount - 1
+            ? "payoff"
+            : index < sceneCount / 3
+              ? "context"
+              : index < (sceneCount * 2) / 3
+                ? "evidence"
+                : "reveal",
       duration: 4,
       narration: `Narration for scene ${index + 1}`,
       narrationSegmentId: `segment-${String(index + 1).padStart(2, "0")}`,

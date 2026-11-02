@@ -18,6 +18,7 @@ export function buildFinalRenderInput(input: {
   bgmKey: string;
   scenes: RenderScene[];
   totalSceneCount: number;
+  narrationSubtitlesEnabled?: boolean;
   voiceAssignments?: VoiceAssignment[];
   openingAsset?: RenderSystemAsset | null;
   endingAsset?: RenderSystemAsset | null;
@@ -32,15 +33,18 @@ export function buildFinalRenderInput(input: {
       (scene.visualRelevanceScore != null && scene.visualRelevanceScore < 70),
   );
   if (blockedScene) throw new Error(`VISUAL_RELEVANCE_NG:${blockedScene.sceneId}`);
-  const subtitles = buildSubtitleCues(
-    scenes.map((scene) => ({
-      id: scene.sceneId,
-      duration: scene.duration,
-      narration: scene.narration,
-      narrationSegmentId: scene.narrationSegmentId,
-      subtitle: scene.subtitle,
-    })),
-  );
+  const narrationSubtitlesEnabled = input.narrationSubtitlesEnabled ?? true;
+  const subtitles = narrationSubtitlesEnabled
+    ? buildSubtitleCues(
+        scenes.map((scene) => ({
+          id: scene.sceneId,
+          duration: scene.duration,
+          narration: scene.narration,
+          narrationSegmentId: scene.narrationSegmentId,
+          subtitle: scene.subtitle,
+        })),
+      )
+    : [];
   const overlays: TextOverlay[] = [];
   let cursorMs = 0;
   scenes.forEach((scene) => {
@@ -68,6 +72,13 @@ export function buildFinalRenderInput(input: {
         primary: scene.year || "",
         secondary: scene.location || undefined,
       });
+    if (!narrationSubtitlesEnabled && scene.subtitle.trim())
+      overlays.push({
+        kind: "evidence",
+        startMs: cursorMs + Math.min(500, durationMs * 0.12),
+        endMs: Math.min(cursorMs + 3_200, cursorMs + durationMs - 350),
+        primary: scene.subtitle.trim(),
+      });
     cursorMs += durationMs;
   });
   return {
@@ -76,6 +87,7 @@ export function buildFinalRenderInput(input: {
     fps: 30,
     language: input.language,
     bgmKey: input.bgmKey,
+    narrationSubtitlesEnabled,
     totalDuration:
       (input.openingAsset?.duration ?? 0) +
       scenes.reduce((sum, scene) => sum + scene.duration, 0) +

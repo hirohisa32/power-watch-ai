@@ -17,6 +17,7 @@ import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { buildFinalRenderInput } from "./plan";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
 import { assertProjectAssetIsolation } from "./asset-isolation";
+import { assertStoryQuality, type StoryQualityScores } from "@/lib/storyboard/story-quality";
 
 export class RenderRequestError extends Error {
   name = "RenderRequestError";
@@ -38,6 +39,13 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       .where(and(eq(storyboards.projectId, input.projectId), eq(storyboards.isActive, true)))
       .limit(1);
     if (!storyboard) throw new RenderRequestError("Storyboardが見つかりません");
+    if (storyboard.storyQualityStatus) {
+      try {
+        assertStoryQuality(storyboard.storyQuality as unknown as StoryQualityScores);
+      } catch {
+        throw new RenderRequestError("Story QualityまたはPurchase DesireがFinal基準未満です");
+      }
+    }
     const active = await transaction
       .select({ id: finalRenders.id })
       .from(finalRenders)
@@ -73,7 +81,9 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       )
       .where(eq(scenes.storyboardId, storyboard.id))
       .orderBy(scenes.order);
-    const bodyRows = rows.filter((row) => !isFixedOpeningPreset(row.scene.preset));
+    const bodyRows = rows.filter(
+      (row) => row.scene.includeInFinal && !isFixedOpeningPreset(row.scene.preset),
+    );
     const assetReview = bodyRows.map((row) => {
       if (!row.generationId || !row.generationProjectId || !row.generationSceneId)
         throw new RenderRequestError(`Scene ${row.scene.order}の選択済み映像がありません`);
@@ -248,6 +258,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         bgmKey: project.bgmKey,
         scenes: renderable,
         totalSceneCount: bodyRows.length,
+        narrationSubtitlesEnabled: project.narrationSubtitlesEnabled,
         voiceAssignments,
         openingAsset: openingAsset ? toRenderSystemAsset(openingAsset) : null,
         endingAsset: endingAsset ? toRenderSystemAsset(endingAsset) : null,

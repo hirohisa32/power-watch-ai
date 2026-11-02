@@ -185,7 +185,12 @@ export async function processFinalRenderJob(
           await db.transaction(async (transaction) => {
             await transaction
               .update(audioRecords)
-              .set({ status: "completed", errorCode: null, errorMessage: null, updatedAt: new Date() })
+              .set({
+                status: "completed",
+                errorCode: null,
+                errorMessage: null,
+                updatedAt: new Date(),
+              })
               .where(eq(audioRecords.id, cachedAudio.id));
             await transaction.insert(apiUsage).values({
               projectId: row.render.projectId,
@@ -266,9 +271,7 @@ export async function processFinalRenderJob(
         await writeFile(segmentPath, generated.bytes);
         const durationMs = (await dependencies.probe(segmentPath)) ?? 0;
         const timestamped =
-          "normalizedAlignment" in generated
-            ? (generated as NarrationTimestampResult)
-            : null;
+          "normalizedAlignment" in generated ? (generated as NarrationTimestampResult) : null;
         const providerAlignment = timestamped
           ? (timestamped.normalizedAlignment ?? timestamped.alignment)
           : null;
@@ -529,7 +532,10 @@ export function synchronizeRenderInput(
   return {
     ...input,
     scenes,
-    subtitles: buildAlignedSubtitleCues(narrationScenes, alignment, 75, input.language),
+    subtitles:
+      input.narrationSubtitlesEnabled !== false
+        ? buildAlignedSubtitleCues(narrationScenes, alignment, 75, input.language)
+        : [],
     alignment,
     totalDuration:
       (input.openingAsset?.duration ?? 0) + narrationDurationMs / 1000 + endingDuration,

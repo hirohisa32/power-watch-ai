@@ -157,6 +157,7 @@ export const projects = pgTable(
     }),
     narratorVoiceId: text("narrator_voice_id"),
     narratorSelectionReason: text("narrator_selection_reason"),
+    narrationSubtitlesEnabled: boolean("narration_subtitles_enabled").default(true).notNull(),
     status: projectStatus("status").default("draft").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -226,6 +227,11 @@ export const storyboards = pgTable(
     version: integer("version").notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     totalDuration: integer("total_duration").notNull(),
+    storyQuality: jsonb("story_quality")
+      .$type<Record<string, number | string>>()
+      .default({})
+      .notNull(),
+    storyQualityStatus: text("story_quality_status"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -289,6 +295,8 @@ export const scenes = pgTable(
     year: text("year"),
     location: text("location"),
     selectedGenerationId: uuid("selected_generation_id"),
+    includeInFinal: boolean("include_in_final").default(true).notNull(),
+    storyPhase: text("story_phase"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

@@ -13,6 +13,7 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Subtitle,Noto Sans JP,54,&H00FFFFFF,&H00FFFFFF,&HCC000000,&H9F000000,-1,0,0,0,100,100,1,0,3,2.4,0,2,112,112,370,1
 Style: Meta,Noto Sans JP,60,&H007A9CBF,&H007A9CBF,&HAA000000,&H66000000,-1,0,0,0,100,100,3,0,1,3,0,7,96,96,220,1
 Style: Brand,Noto Sans JP,82,&H00F2E8D6,&H00F2E8D6,&HAA000000,&H22000000,-1,0,0,0,100,100,10,0,1,2,0,5,96,96,0,1
+Style: Evidence,Noto Sans JP,58,&H00FFFFFF,&H00FFFFFF,&H99000000,&H33000000,-1,0,0,0,100,100,4,0,1,2,0,2,110,110,300,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
@@ -23,7 +24,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
     );
   }
   for (const overlay of input.overlays) {
-    const style = overlay.kind === "brand" ? "Brand" : "Meta";
+    const style =
+      overlay.kind === "brand" ? "Brand" : overlay.kind === "evidence" ? "Evidence" : "Meta";
     const text = [overlay.primary, overlay.secondary].filter(Boolean).map(escapeAss).join("\\N");
     events.push(
       `Dialogue: 20,${assTime(overlay.startMs)},${assTime(overlay.endMs)},${style},,0,0,0,,{\\fad(180,220)}${text}`,

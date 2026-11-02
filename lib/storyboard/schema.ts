@@ -3,12 +3,16 @@ import { PRESET_NAMES } from "@/lib/storyboard/presets";
 import { sceneDurationRule } from "@/lib/storyboard/styles/epoca-story";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 import { planProductPhotoUsage, PRODUCT_PHOTO_ROLES } from "@/lib/storyboard/product-photo-planner";
+import { STORY_PHASES } from "@/lib/storyboard/story-quality";
 
 export const storyboardSceneSchema = z
   .object({
     sceneNumber: z.number().int().min(1).max(30),
     preset: z.enum(PRESET_NAMES),
     title: z.string().trim().min(1).max(120),
+    // Backward-compatible default for persisted/fixture storyboards created before the
+    // six-phase Reel structure. New Production prompts always provide an explicit phase.
+    storyPhase: z.enum(STORY_PHASES).default("context"),
     duration: z.number().int().min(3).max(8),
     narration: z.string().trim().min(1).max(1200),
     narrationSegmentId: z.string().trim().min(1).max(80),
@@ -57,6 +61,7 @@ export const editableSceneSchema = storyboardSceneSchema
     historicalPeriod: true,
     characterId: true,
     productPhotoRole: true,
+    storyPhase: true,
     visualType: true,
   })
   .strip();
