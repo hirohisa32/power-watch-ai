@@ -261,15 +261,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await db.transaction(async (transaction) => {
       for (const asset of productAssets) {
-        const role =
-          asset.humanLocked && asset.role
-            ? asset.role
-            : (asset.detectedRole ?? inferProductPhotoRole(asset.humanLabel ?? asset.label));
+        const humanRole = inferProductPhotoRole(asset.humanLabel ?? asset.label);
         await transaction
           .update(assets)
           .set({
-            role,
-            analysis: { ...asset.analysis, inferredRole: role, source: "label-semantic-v1" },
+            analysis: {
+              ...asset.analysis,
+              humanLabelRole: humanRole,
+              assignmentPriority: "human_lock>human_label>eligible_ai>fallback",
+            },
           })
           .where(eq(assets.id, asset.id));
       }

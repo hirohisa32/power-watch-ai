@@ -151,19 +151,64 @@ export type ProductPhotoAssetCandidate = {
   label: string;
   humanLabel?: string | null;
   detectedRole?: string | null;
+  detectionConfidence?: number | null;
   role?: string | null;
   humanLocked?: boolean | null;
+  analysis?: Record<string, unknown> | null;
 };
 
 export function isProductPhotoRole(value: string | null | undefined): value is ProductPhotoRole {
   return PRODUCT_PHOTO_ROLES.includes(value as ProductPhotoRole);
 }
 
-/** Human lock > vision detection > original Human label > fallback. */
+type DetectionCandidate = {
+  role: string;
+  confidence: number;
+  featureGatePassed: boolean;
+};
+
+function analysisCandidates(asset: ProductPhotoAssetCandidate): DetectionCandidate[] {
+  const detection = asset.analysis?.roleDetection;
+  if (!detection || typeof detection !== "object") return [];
+  const candidates = (detection as { candidates?: unknown }).candidates;
+  if (!Array.isArray(candidates)) return [];
+  return candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const value = candidate as Record<string, unknown>;
+    const role = typeof value.role === "string" ? value.role : null;
+    if (!isProductPhotoRole(role) || typeof value.confidence !== "number") return [];
+    return [
+      {
+        role,
+        confidence: value.confidence,
+        featureGatePassed: value.featureGatePassed === true,
+      },
+    ];
+  });
+}
+
+export function automaticDetectedRole(asset: ProductPhotoAssetCandidate): ProductPhotoRole | null {
+  const hasHumanLabel =
+    asset.humanLabel === undefined
+      ? Boolean(asset.label.trim())
+      : Boolean(asset.humanLabel?.trim());
+  if (hasHumanLabel) return null;
+  const candidates = analysisCandidates(asset)
+    .filter((candidate) => candidate.featureGatePassed)
+    .sort((left, right) => right.confidence - left.confidence);
+  const top = candidates[0];
+  const second = candidates[1];
+  if (!top || top.confidence < 0.85) return null;
+  if (second && top.confidence - second.confidence < 0.2) return null;
+  return top.role as ProductPhotoRole;
+}
+
+/** Human lock > Human label > eligible AI suggestion > fallback. */
 export function effectiveProductPhotoRole(asset: ProductPhotoAssetCandidate): ProductPhotoRole {
   if (asset.humanLocked && isProductPhotoRole(asset.role)) return asset.role;
-  if (isProductPhotoRole(asset.detectedRole)) return asset.detectedRole;
-  return inferProductPhotoRole(asset.humanLabel ?? asset.label);
+  const humanLabel = asset.humanLabel === undefined ? asset.label : asset.humanLabel;
+  if (humanLabel?.trim()) return inferProductPhotoRole(humanLabel);
+  return automaticDetectedRole(asset) ?? inferProductPhotoRole(asset.label);
 }
 
 export function shouldUseProductEvidence(context: string) {
@@ -179,6 +224,7 @@ export function planProductPhotoUsage<
     narration: string;
     visualIntent?: string;
     visualSubject?: string;
+    storyPhase?: string | null;
   },
 >(scenes: T[], availableLabels: string[]) {
   return planProductPhotoUsageWithAssets(
@@ -194,12 +240,14 @@ export function planProductPhotoUsageWithAssets<
     narration: string;
     visualIntent?: string;
     visualSubject?: string;
+    storyPhase?: string | null;
   },
 >(scenes: T[], assets: ProductPhotoAssetCandidate[]) {
   const candidates = assets.map((asset) => ({
     label: asset.label,
     role: effectiveProductPhotoRole(asset),
   }));
+  const useCounts = new Map<string, number>();
   let previousLabel: string | null = null;
   let previousRole: ProductPhotoRole | null = null;
   let roleRun = 0;
@@ -209,23 +257,40 @@ export function planProductPhotoUsageWithAssets<
     const requested = desiredProductPhotoRole(
       `${scene.narration} ${scene.visualIntent ?? ""} ${scene.visualSubject ?? ""}`,
     );
-    const permitted = candidates.filter(
-      (candidate) =>
-        candidate.label !== previousLabel && !(candidate.role === previousRole && roleRun >= 2),
-    );
-    const pool = permitted.length
-      ? permitted
-      : candidates.filter((candidate) => candidate.label !== previousLabel);
-    const selected =
-      ROLE_FALLBACKS[requested]
-        .map((role) => pool.find((candidate) => candidate.role === role))
-        .find(Boolean) ??
-      pool.find((candidate) => scene.preferredAssetLabels.includes(candidate.label)) ??
-      pool[0] ??
-      candidates[0];
+    const context = `${scene.narration} ${scene.visualIntent ?? ""} ${scene.visualSubject ?? ""} ${scene.storyPhase ?? ""}`;
+    const fallbacks = ROLE_FALLBACKS[requested];
+    const ranked = candidates
+      .map((candidate) => {
+        const fallbackRank = fallbacks.indexOf(candidate.role);
+        const roleScore = fallbackRank < 0 ? 0 : 60 - fallbackRank * 8;
+        const preferredScore = scene.preferredAssetLabels.includes(candidate.label) ? 12 : 0;
+        const repeatPenalty = candidate.label === previousLabel ? 100 : 0;
+        const roleRunPenalty = candidate.role === previousRole && roleRun >= 2 ? 25 : 0;
+        const usagePenalty = (useCounts.get(candidate.label) ?? 0) * 8;
+        const heroScore =
+          requested === "hero" && ["hero", "full_watch", "front"].includes(candidate.role) ? 15 : 0;
+        const evidenceScore =
+          shouldUseProductEvidence(context) && productPhotoClass(candidate.role) === "evidence"
+            ? 8
+            : 0;
+        return {
+          ...candidate,
+          score:
+            roleScore +
+            preferredScore +
+            heroScore +
+            evidenceScore -
+            repeatPenalty -
+            roleRunPenalty -
+            usagePenalty,
+        };
+      })
+      .sort((left, right) => right.score - left.score || left.label.localeCompare(right.label));
+    const selected = ranked[0] ?? candidates[0];
     roleRun = selected.role === previousRole ? roleRun + 1 : 1;
     previousRole = selected.role;
     previousLabel = selected.label;
+    useCounts.set(selected.label, (useCounts.get(selected.label) ?? 0) + 1);
     return {
       ...scene,
       preferredAssetLabels: [selected.label],

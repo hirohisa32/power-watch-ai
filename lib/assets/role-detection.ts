@@ -4,7 +4,9 @@ import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   effectiveProductPhotoRole,
+  automaticDetectedRole,
   inferProductPhotoRole,
+  isProductPhotoRole,
   type ProductPhotoAssetCandidate,
   type ProductPhotoRole,
 } from "@/lib/storyboard/product-photo-planner";
@@ -54,12 +56,27 @@ export const WATCH_ROLE_LABELS: Record<DetectedWatchRole, string> = {
 };
 
 const responseSchema = z.object({
-  role: z.enum(DETECTABLE_WATCH_ROLES),
-  confidence: z.number().min(0).max(1),
+  candidates: z
+    .array(
+      z.object({
+        role: z.enum(DETECTABLE_WATCH_ROLES),
+        confidence: z.number().min(0).max(1),
+        featureGatePassed: z.boolean(),
+        observedFeatures: z.array(z.string()).max(5),
+        failedFeatures: z.array(z.string()).max(5),
+      }),
+    )
+    .min(1)
+    .max(3),
   reasons: z.array(z.string()).max(4),
 });
 
+export type WatchRoleSuggestion = z.infer<typeof responseSchema>["candidates"][number];
+
 export type WatchRoleDetection = z.infer<typeof responseSchema> & {
+  role: DetectedWatchRole;
+  confidence: number;
+  status: "SUGGESTION" | "HUMAN_REVIEW" | "AUTO_ADOPT_ELIGIBLE";
   model: string;
   requestId: string | null;
   analyzedAt: string;
@@ -83,7 +100,29 @@ export async function detectWatchPhotoRole(input: {
           content: [
             {
               type: "input_text",
-              text: "Classify the primary visible subject of this watch product photograph. Choose exactly one role. Use dial_macro for an extreme close-up of the dial; clous_de_paris only when that texture is the principal subject; hallmark, serial, regulator, engraving, crown or clasp only when that detail is clearly the principal subject. Use hero for a polished beauty composition and full_watch for a neutral full-watch view. Judge pixels only and ignore filenames or labels.",
+              text: `Analyze the visible pixels of this watch product photograph and return up to three ranked role suggestions. Ignore filenames and existing labels. Confidence is comparative evidence strength, not certainty; do not use high confidence when visual evidence is ambiguous.
+
+Apply these mandatory visual feature gates:
+- dial: the dial is the primary subject.
+- dial_macro: dial detail fills most of the frame.
+- movement_wide: the complete movement is visible.
+- movement_detail: a cropped part of the mechanism is enlarged.
+- side_case: the case profile/side is the primary subject.
+- caseback: the exterior caseback is the primary subject.
+- serial: the serial number itself is the primary subject and readable.
+- wrist_shot: a human wrist wearing the watch is visible.
+- full_watch: the complete watch is the primary subject.
+- hero: a polished beauty composition presents the complete or substantially complete watch.
+- clous_de_paris: the Clous de Paris texture is clearly visible and is the principal detail.
+- crown: the crown is the principal subject.
+- bracelet: the bracelet occupies the principal visual area.
+- clasp: the clasp is the principal subject.
+- hallmark: a hallmark is the principal readable detail.
+- regulator: the regulator mechanism is visible and is the principal detail.
+- engraving: an engraving other than a serial or hallmark is the principal readable detail.
+- other: none of the named visual feature gates can be supported.
+
+For every candidate report whether its gate passed and the features observed or missing. Exclude a role when its mandatory feature gate fails. Return distinct roles, ranked by confidence, with confidence values summing to at most 1.`,
             },
             { type: "input_image", image_url: dataUrl, detail: "high" },
           ],
@@ -94,8 +133,25 @@ export async function detectWatchPhotoRole(input: {
     })
     .withResponse();
   if (!response.output_parsed) throw new Error("WATCH_ROLE_RESPONSE_EMPTY");
+  const candidates = response.output_parsed.candidates
+    .filter(
+      (candidate, index, values) =>
+        candidate.featureGatePassed &&
+        values.findIndex((value) => value.role === candidate.role) === index,
+    )
+    .sort((left, right) => right.confidence - left.confidence)
+    .slice(0, 3);
+  if (!candidates.length) throw new Error("WATCH_ROLE_FEATURE_GATE_FAILED");
+  const top = candidates[0];
+  const second = candidates[1];
+  const autoAdoptEligible =
+    top.confidence >= 0.85 && (!second || top.confidence - second.confidence >= 0.2);
   return {
-    ...response.output_parsed,
+    candidates,
+    reasons: response.output_parsed.reasons,
+    role: top.role,
+    confidence: top.confidence,
+    status: autoAdoptEligible ? "AUTO_ADOPT_ELIGIBLE" : "HUMAN_REVIEW",
     model: response.model ?? model,
     requestId: requestId ?? null,
     analyzedAt: new Date().toISOString(),
@@ -105,10 +161,71 @@ export async function detectWatchPhotoRole(input: {
 export function hasRoleMismatch(
   asset: ProductPhotoAssetCandidate & { detectionConfidence?: number | null },
 ) {
-  if (!asset.detectedRole || (asset.detectionConfidence ?? 0) < 0.7) return false;
+  if (!asset.detectedRole) return false;
   return inferProductPhotoRole(asset.humanLabel ?? asset.label) !== asset.detectedRole;
 }
 
 export function assignmentRole(asset: ProductPhotoAssetCandidate): ProductPhotoRole {
   return effectiveProductPhotoRole(asset);
+}
+
+export type DisplayRoleSuggestion = {
+  role: DetectedWatchRole;
+  confidence: number;
+  featureGatePassed: boolean;
+};
+
+export function roleSuggestions(
+  asset: ProductPhotoAssetCandidate & { detectionConfidence?: number | null },
+): DisplayRoleSuggestion[] {
+  const detection = asset.analysis?.roleDetection;
+  const candidates =
+    detection && typeof detection === "object"
+      ? (detection as { candidates?: unknown }).candidates
+      : null;
+  if (Array.isArray(candidates)) {
+    return candidates
+      .flatMap((candidate) => {
+        if (!candidate || typeof candidate !== "object") return [];
+        const value = candidate as Record<string, unknown>;
+        const role = typeof value.role === "string" ? value.role : null;
+        if (!role || !DETECTABLE_WATCH_ROLES.includes(role as DetectedWatchRole)) return [];
+        if (typeof value.confidence !== "number") return [];
+        return [
+          {
+            role: role as DetectedWatchRole,
+            confidence: value.confidence,
+            featureGatePassed: value.featureGatePassed === true,
+          },
+        ];
+      })
+      .filter((candidate) => candidate.featureGatePassed)
+      .slice(0, 3);
+  }
+  if (
+    asset.detectedRole &&
+    DETECTABLE_WATCH_ROLES.includes(asset.detectedRole as DetectedWatchRole) &&
+    typeof asset.detectionConfidence === "number"
+  ) {
+    return [
+      {
+        role: asset.detectedRole as DetectedWatchRole,
+        confidence: asset.detectionConfidence,
+        featureGatePassed: false,
+      },
+    ];
+  }
+  return [];
+}
+
+export function roleReviewStatus(asset: ProductPhotoAssetCandidate) {
+  if (asset.humanLocked && isProductPhotoRole(asset.role)) return "HUMAN_LOCKED" as const;
+  const hasHumanLabel =
+    asset.humanLabel === undefined
+      ? Boolean(asset.label.trim())
+      : Boolean(asset.humanLabel?.trim());
+  if (hasHumanLabel) return "HUMAN_REVIEW" as const;
+  return automaticDetectedRole(asset)
+    ? ("AUTO_ADOPT_ELIGIBLE" as const)
+    : ("HUMAN_REVIEW" as const);
 }

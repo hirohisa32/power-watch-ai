@@ -9,6 +9,7 @@ import {
   inferProductPhotoRole,
   planProductPhotoUsage,
   effectiveProductPhotoRole,
+  automaticDetectedRole,
   planProductPhotoUsageWithAssets,
 } from "@/lib/storyboard/product-photo-planner";
 import { buildFinalRenderInput } from "@/lib/render/plan";
@@ -192,7 +193,7 @@ describe("product photo metadata priority", () => {
     ).toBe("hero");
   });
 
-  it("uses detected role before a misleading Human label", () => {
+  it("uses Human label before an unapproved AI suggestion", () => {
     expect(
       effectiveProductPhotoRole({
         label: "裏蓋",
@@ -200,10 +201,66 @@ describe("product photo metadata priority", () => {
         detectedRole: "clous_de_paris",
         humanLocked: false,
       }),
-    ).toBe("clous_de_paris");
+    ).toBe("caseback");
   });
 
-  it("plans from detected image content", () => {
+  it("uses AI only when label is empty and all automatic gates pass", () => {
+    const eligible = {
+      label: "",
+      humanLabel: "",
+      detectedRole: "dial_macro",
+      detectionConfidence: 0.91,
+      humanLocked: false,
+      analysis: {
+        roleDetection: {
+          candidates: [
+            { role: "dial_macro", confidence: 0.91, featureGatePassed: true },
+            { role: "dial", confidence: 0.08, featureGatePassed: true },
+          ],
+        },
+      },
+    };
+    expect(automaticDetectedRole(eligible)).toBe("dial_macro");
+    expect(effectiveProductPhotoRole(eligible)).toBe("dial_macro");
+    expect(
+      automaticDetectedRole({
+        ...eligible,
+        analysis: {
+          roleDetection: {
+            candidates: [
+              { role: "dial_macro", confidence: 0.84, featureGatePassed: true },
+              { role: "dial", confidence: 0.2, featureGatePassed: true },
+            ],
+          },
+        },
+      }),
+    ).toBeNull();
+    expect(
+      automaticDetectedRole({
+        ...eligible,
+        analysis: {
+          roleDetection: {
+            candidates: [
+              { role: "dial_macro", confidence: 0.9, featureGatePassed: true },
+              { role: "dial", confidence: 0.75, featureGatePassed: true },
+            ],
+          },
+        },
+      }),
+    ).toBeNull();
+    expect(
+      automaticDetectedRole({
+        ...eligible,
+        analysis: {
+          roleDetection: {
+            candidates: [{ role: "dial_macro", confidence: 0.95, featureGatePassed: false }],
+          },
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("plans from Human labels while retaining AI as a suggestion", () => {
     const planned = planProductPhotoUsageWithAssets(
       [
         {
@@ -224,6 +281,6 @@ describe("product photo metadata priority", () => {
       ],
     );
     expect(planned[0].preferredAssetLabels).toEqual(["裏蓋"]);
-    expect(planned[0].productPhotoRole).toBe("clous_de_paris");
+    expect(planned[0].productPhotoRole).toBe("caseback");
   });
 });

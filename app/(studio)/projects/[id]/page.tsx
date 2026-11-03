@@ -16,8 +16,9 @@ import { StoryboardButton } from "./storyboard-button";
 import { AssetMetadataManager } from "./asset-metadata-manager";
 import {
   hasRoleMismatch,
+  roleReviewStatus,
+  roleSuggestions,
   WATCH_ROLE_LABELS,
-  type DetectedWatchRole,
 } from "@/lib/assets/role-detection";
 
 export const metadata: Metadata = { title: "プロジェクト詳細" };
@@ -136,14 +137,20 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
                   id: asset.id,
                   label: asset.label,
                   humanLabel: asset.humanLabel ?? asset.label,
-                  detectedRole: asset.detectedRole,
-                  detectedRoleLabel:
-                    asset.detectedRole && asset.detectedRole in WATCH_ROLE_LABELS
-                      ? WATCH_ROLE_LABELS[asset.detectedRole as DetectedWatchRole]
-                      : asset.detectedRole,
-                  confidence: asset.detectionConfidence,
+                  suggestions: roleSuggestions(asset).map((suggestion) => ({
+                    role: suggestion.role,
+                    label: WATCH_ROLE_LABELS[suggestion.role],
+                    confidence: suggestion.confidence,
+                    featureGatePassed: suggestion.featureGatePassed,
+                  })),
+                  reviewStatus: roleReviewStatus(asset),
                   mismatch: hasRoleMismatch(asset),
                   humanLocked: asset.humanLocked,
+                  lockedRole: asset.role,
+                }))}
+                roleOptions={Object.entries(WATCH_ROLE_LABELS).map(([value, label]) => ({
+                  value,
+                  label,
                 }))}
               />
             )}
