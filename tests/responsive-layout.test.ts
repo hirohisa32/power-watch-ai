@@ -36,7 +36,7 @@ describe("WATCH STORY STUDIO responsive layout", () => {
     expect(storyboardEditor).toContain('role="dialog"');
     expect(storyboardEditor).toContain('aria-modal="true"');
     expect(storyboardEditor).toContain("scene-drawer");
-    expect(storyboardEditor).toContain("Quick actions");
+    expect(storyboardEditor).toContain("かんたん調整");
     expect(css).toContain("grid-template-columns: repeat(4, minmax(0, 1fr))");
     expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
   });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ChevronDown,
   ChevronUp,
+  Check,
   Pencil,
   Plus,
   RefreshCw,
@@ -75,13 +76,13 @@ const blankScene = (): Omit<
   "id" | "order" | "storyboardId" | "projectId" | "createdAt" | "updatedAt" | "selectedGenerationId"
 > => ({
   preset: "HistoricalEvent",
-  title: "New Scene",
+  title: "新しいシーン",
   duration: 5,
   narration: "ナレーションを入力",
   narrationTone: "documentary",
   dialogue: [],
   subtitle: "字幕を入力",
-  visualDescription: "物語の背景を補足する追加Scene",
+  visualDescription: "物語の背景を補足する追加シーン",
   visualPrompt:
     "Cinematic historical event in an era-authentic environment, balanced editorial composition, 50mm lens feel, motivated natural lighting, restrained observational movement, muted period color palette",
   camera: SCENE_PRESETS.HistoricalEvent.camera,
@@ -165,9 +166,7 @@ export function StoryboardEditor({
   const completedSceneCount = initialScenes.filter(
     (scene) =>
       bodySceneIds.has(scene.id) &&
-      Boolean(
-        scene.selectedGenerationId && completedGenerationIds.has(scene.selectedGenerationId),
-      ),
+      Boolean(scene.selectedGenerationId && completedGenerationIds.has(scene.selectedGenerationId)),
   ).length;
   const activeSceneCount = new Set(
     initialGenerations
@@ -260,7 +259,7 @@ export function StoryboardEditor({
       {
         started: "ナレーション・映像・商品写真の一致を確認しています。",
         completed: (body) =>
-          `Story Beat確認完了：PASS ${Number(body.pass ?? 0)}、要確認 ${Number(body.review ?? 0)}、NG ${Number(body.ng ?? 0)}`,
+          `映像内容の確認完了：問題なし ${Number(body.pass ?? 0)}、要確認 ${Number(body.review ?? 0)}、修正が必要 ${Number(body.ng ?? 0)}`,
       },
     );
   }
@@ -288,7 +287,7 @@ export function StoryboardEditor({
   }
   return (
     <>
-      <div className="storyboard-toolbar">
+      <div className="storyboard-toolbar" id="generate-scenes">
         <div>
           <span
             className={`duration-meter ${total === targetDuration || hasCompletedRender ? "valid" : "invalid"}`}
@@ -296,7 +295,7 @@ export function StoryboardEditor({
             {hasCompletedRender ? `${total}秒 · 完成尺` : `${total} / ${targetDuration} 秒`}
           </span>
           <span className="hint">
-            {completedSceneCount} / {bodySceneIds.size} 本編シーン完成 · Opening固定Master
+            {completedSceneCount} / {bodySceneIds.size} 本編シーン完成 · 固定オープニング
             {activeSceneCount > 0 ? ` · ${activeSceneCount}シーンを生成中` : ""}
           </span>
         </div>
@@ -315,25 +314,33 @@ export function StoryboardEditor({
             <RefreshCw size={14} /> 動画構成を作り直す
           </button>
           <button className="btn" disabled={pending} onClick={reconcileStoryBeats}>
-            Story Beatを再評価
+            ナレーションと映像の一致を確認
           </button>
-          <button
-            className="btn btn-primary"
-            disabled={pending || total !== targetDuration}
-            onClick={() =>
-              request(
-                `/api/projects/${projectId}/generate-missing`,
-                { method: "POST" },
-                {
-                  started: "映像生成を開始しています。対象シーンを確認中です。",
-                  completed: (body) =>
-                    `映像生成を開始しました。現在、${Number(body.queued ?? 0)}シーンを生成しています。`,
-                },
-              )
-            }
-          >
-            {pending ? "生成中..." : "未生成シーンの映像を作る"}
-          </button>
+          {completedSceneCount < bodySceneIds.size && (
+            <>
+              <button
+                className="btn btn-primary"
+                disabled={pending || total !== targetDuration}
+                onClick={() =>
+                  request(
+                    `/api/projects/${projectId}/generate-missing`,
+                    { method: "POST" },
+                    {
+                      started: "映像生成を開始しています。対象シーンを確認中です。",
+                      completed: (body) =>
+                        `映像生成を開始しました。現在、${Number(body.queued ?? 0)}シーンを生成しています。`,
+                    },
+                  )
+                }
+              >
+                {pending && <span className="button-spinner" aria-hidden="true" />}
+                {pending ? "生成を開始しています…" : "未生成シーンを作る"}
+              </button>
+              <small className="primary-action-help">
+                画像をもとに各シーンを動画化します。完成まで数分かかる場合があります。
+              </small>
+            </>
+          )}
         </div>
       </div>
       {total !== targetDuration && !hasCompletedRender && (
@@ -342,8 +349,15 @@ export function StoryboardEditor({
         </p>
       )}
       {error && (
-        <p className="error" role="alert">
-          {error}
+        <div className="error action-feedback" role="alert">
+          <strong>処理を完了できませんでした</strong>
+          <span>{error}</span>
+          <span>完成済みのシーンは保持されています。該当シーンだけ、もう一度お試しください。</span>
+        </div>
+      )}
+      {notice && !pending && !hasActiveGeneration && !error && (
+        <p className="success-feedback" role="status">
+          <Check size={14} /> {notice}
         </p>
       )}
       {(pending || hasActiveGeneration) && (
@@ -382,6 +396,9 @@ export function StoryboardEditor({
           <div className="generation-progress-track" aria-label={`全体進捗 ${progressPercent}%`}>
             <span style={{ width: `${progressPercent}%` }} />
           </div>
+          <p className="processing-away-note">
+            この画面を閉じても生成は続行されます。後から戻ると現在の状態を確認できます。
+          </p>
         </section>
       )}
       <div className="scene-list" id="scene-list">
@@ -445,7 +462,7 @@ export function StoryboardEditor({
                   <div className="generation-head">
                     <span>生成動画</span>
                     {fixedOpening ? (
-                      <span className="generation-status completed">固定Master</span>
+                      <span className="generation-status completed">固定オープニング</span>
                     ) : activeGeneration ? (
                       <span className="generation-status active">
                         {GENERATION_STATUS_LABELS[activeGeneration.status]}
@@ -466,11 +483,13 @@ export function StoryboardEditor({
                             バージョン {generation.version} ·{" "}
                             {GENERATION_STATUS_LABELS[generation.status]}
                             {showTechnical && generation.model ? ` · ${generation.model}` : ""}
-                            {showTechnical && generation.actualCostUsd != null
-                              ? ` · $${generation.actualCostUsd.toFixed(2)}`
-                              : generation.estimatedCostUsd != null
-                                ? ` · est. $${generation.estimatedCostUsd.toFixed(2)}`
-                                : ""}
+                            {showTechnical
+                              ? generation.actualCostUsd != null
+                                ? ` · $${generation.actualCostUsd.toFixed(2)}`
+                                : generation.estimatedCostUsd != null
+                                  ? ` · 概算 $${generation.estimatedCostUsd.toFixed(2)}`
+                                  : ""
+                              : ""}
                           </span>
                           <div className="nav-actions">
                             {generation.status === "completed" && (
@@ -518,7 +537,7 @@ export function StoryboardEditor({
                   <div className="card-actions">
                     {!fixedOpening && !completedGeneration && !activeGeneration && (
                       <button
-                        className="btn btn-primary"
+                        className="btn btn-secondary"
                         disabled={pending}
                         onClick={() => generateScene(scene, generations.length > 0)}
                       >
@@ -594,7 +613,7 @@ export function StoryboardEditor({
           >
             <header className="scene-drawer-head">
               <div>
-                <p className="eyebrow">Scene editor</p>
+                <p className="eyebrow">シーン編集</p>
                 <h2 id="scene-drawer-title">
                   {adding ? "シーンを追加" : `シーン ${editing?.order} を編集`}
                 </h2>
@@ -644,7 +663,7 @@ export function StoryboardEditor({
                 ) && (
                   <section className="drawer-regenerate">
                     <div>
-                      <p className="eyebrow">Quick actions</p>
+                      <p className="eyebrow">かんたん調整</p>
                       <h3>映像の仕上がりを調整</h3>
                       <p className="hint">
                         選択した内容は修正指示へ反映されます。必要に応じて文章を追加してください。

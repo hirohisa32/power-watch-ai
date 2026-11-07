@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Film, RefreshCw } from "lucide-react";
+import { Check, Download, Film } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { friendlyError } from "@/lib/ui/presentation";
@@ -60,19 +60,25 @@ export function FinalRenderPanel({
       if (!response.ok) throw new Error(body.error || "最終動画を作成できませんでした");
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? friendlyError(cause.message) : "最終動画を作成できませんでした。もう一度お試しください。");
+      setError(
+        cause instanceof Error
+          ? friendlyError(cause.message)
+          : "最終動画を作成できませんでした。もう一度お試しください。",
+      );
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <section className="final-render-panel">
+    <section className="final-render-panel" id="final-render">
       <div className="final-render-head">
         <div>
           <p className="eyebrow">最終動画</p>
           <h2>{completed ? "動画が完成しました" : "完成動画を作る"}</h2>
-          <p className="hint">選択中のシーンを順番につなぎ、ナレーション・字幕・音楽を仕上げます。</p>
+          <p className="hint">
+            選択中のシーンを順番につなぎ、ナレーション・字幕・音楽を仕上げます。
+          </p>
         </div>
         <form
           action={`/api/projects/${projectId}/renders`}
@@ -82,14 +88,45 @@ export function FinalRenderPanel({
             void startRender();
           }}
         >
-          <button className="btn btn-primary" type="submit" disabled={pending || active}>
-            {active ? <RefreshCw size={14} /> : <Film size={14} />}
-            {active ? "最終動画を仕上げています…" : completed ? "最終動画を作り直す" : "最終動画を作成"}
+          <button
+            className={`btn ${completed ? "btn-secondary" : "btn-primary"}`}
+            type="submit"
+            disabled={pending || active}
+          >
+            {pending || active ? (
+              <span className="button-spinner" aria-hidden="true" />
+            ) : (
+              <Film size={14} />
+            )}
+            {pending
+              ? "作成を開始しています…"
+              : active
+                ? "最終動画を仕上げています…"
+                : completed
+                  ? "最終動画を作り直す"
+                  : "最終動画を作る"}
           </button>
         </form>
       </div>
-      {error && <p className="error">{error}</p>}
-      {active && <div className="render-progress"><span className="loading-bar" />最終動画を仕上げています</div>}
+      {error && (
+        <div className="error action-feedback" role="alert">
+          <strong>最終動画を作成できませんでした</strong>
+          <span>{error}</span>
+          <span>完成済みシーンは保持されています。内容を確認して、もう一度お試しください。</span>
+        </div>
+      )}
+      {(pending || active) && (
+        <div className="render-progress" role="status" aria-live="polite">
+          <span className="loading-bar" />
+          <strong>{pending ? "最終動画の準備中" : "音声・字幕・映像を結合しています"}</strong>
+          <small>この画面を閉じても作成は続行されます。</small>
+        </div>
+      )}
+      {completed && (
+        <p className="success-feedback">
+          <Check size={14} /> 最終動画が完成しました
+        </p>
+      )}
       {visibleRenders.length > 0 && (showTechnical || !completed) && (
         <div className="render-history">
           {visibleRenders.map((render) => (
@@ -100,16 +137,14 @@ export function FinalRenderPanel({
                 {render.durationMs != null ? ` · ${(render.durationMs / 1000).toFixed(1)}秒` : ""}
               </span>
               {render.status === "failed" && (
-                <span className="error">
-                  {friendlyError(render.errorMessage)}
-                </span>
+                <span className="error">{friendlyError(render.errorMessage)}</span>
               )}
             </div>
           ))}
         </div>
       )}
       {completed && (
-        <div className="final-preview">
+        <div className="final-preview" id="completed-video">
           <video
             controls
             playsInline

@@ -19,11 +19,19 @@ type Preview = {
   errorMessage: string | null;
 };
 
-export function OpeningPreviewPanel({ projectId, previews }: { projectId: string; previews: Preview[] }) {
+export function OpeningPreviewPanel({
+  projectId,
+  previews,
+}: {
+  projectId: string;
+  previews: Preview[];
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const active = previews.some((item) => ["queued", "generating", "rendering"].includes(item.status));
+  const active = previews.some((item) =>
+    ["queued", "generating", "rendering"].includes(item.status),
+  );
   const latest = previews[0];
   const completed = useMemo(() => previews.find((item) => item.status === "completed"), [previews]);
   useEffect(() => {
@@ -36,7 +44,9 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
     setPending(true);
     setError("");
     try {
-      const response = await fetch(`/api/projects/${projectId}/opening-previews`, { method: "POST" });
+      const response = await fetch(`/api/projects/${projectId}/opening-previews`, {
+        method: "POST",
+      });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Opening Previewを開始できませんでした");
       router.refresh();
@@ -48,20 +58,20 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
   }
 
   const stage: Record<string, string> = {
-    master: "固定Opening Templateを読込中",
+    master: "固定オープニングを読込中",
     watch: "実物時計を差し替え中",
     "watch-replace": "固定モーションへ実物時計を合成中",
-    "audio-and-render": "固定Audio Masterを合成中",
-    completed: "Human確認待ち",
+    "audio-and-render": "固定音声を合成中",
+    completed: "確認待ち",
   };
   return (
     <section className="final-render-panel">
       <div className="final-render-head">
         <div>
-          <p className="eyebrow">POWER WATCH · Fixed Brand Opening</p>
-          <h2>Opening Master確認用Preview</h2>
+          <p className="eyebrow">POWER WATCH · 固定ブランドオープニング</p>
+          <h2>オープニング確認用プレビュー</h2>
           <p className="hint">
-            扉・古書室・机・ランプ・本・埃・風を固定化し、実物時計部分だけをProjectごとに差し替えます。
+            扉・古書室・机・ランプ・本・埃・風を固定化し、実物時計部分だけを動画ごとに差し替えます。
             85秒本編は作り直しません。
           </p>
         </div>
@@ -75,7 +85,11 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
         >
           <button className="btn btn-primary" type="submit" disabled={pending || active}>
             {active ? <RefreshCw size={14} /> : <DoorOpen size={14} />}
-            {active ? "Openingを制作中…" : completed ? "新しい時計で試作" : "15秒Previewを作成"}
+            {active
+              ? "オープニングを制作中…"
+              : completed
+                ? "新しい時計で試作"
+                : "15秒プレビューを作成"}
           </button>
         </form>
       </div>
@@ -84,22 +98,30 @@ export function OpeningPreviewPanel({ projectId, previews }: { projectId: string
         <div className="render-history">
           <div className="render-row">
             <span>
-              Master v{latest.masterVersion} · {stage[latest.stage] || latest.stage} · 使用時計: {latest.assetLabel}
+              固定素材 v{latest.masterVersion} · {stage[latest.stage] || latest.stage} · 使用時計:{" "}
+              {latest.assetLabel}
             </span>
-            {latest.status === "failed" && <span className="error">{latest.errorMessage || "Opening制作に失敗しました"}</span>}
+            {latest.status === "failed" && (
+              <span className="error">{latest.errorMessage || "Opening制作に失敗しました"}</span>
+            )}
           </div>
         </div>
       )}
       {completed && (
         <div className="final-preview">
-          <video controls playsInline preload="metadata" src={`/api/opening-previews/${completed.id}/video`} />
-          <p className="hint">
-            {(completed.durationMs / 1000).toFixed(1)}秒 · Fixed Opening Template · Runway {completed.runwayCredits.toFixed(0)} credits · AAC stereo
-          </p>
+          <video
+            controls
+            playsInline
+            preload="metadata"
+            src={`/api/opening-previews/${completed.id}/video`}
+          />
+          <p className="hint">{(completed.durationMs / 1000).toFixed(1)}秒 · 固定オープニング</p>
           <div className="nav-actions">
-            <a className="btn" href={`/api/opening-previews/${completed.id}/video`} target="_blank">大きく見る</a>
+            <a className="btn" href={`/api/opening-previews/${completed.id}/video`} target="_blank">
+              大きく見る
+            </a>
             <a className="btn btn-primary" href={`/api/opening-previews/${completed.id}/download`}>
-              <Download size={14} /> Preview MP4をダウンロード
+              <Download size={14} /> 確認用MP4をダウンロード
             </a>
           </div>
         </div>

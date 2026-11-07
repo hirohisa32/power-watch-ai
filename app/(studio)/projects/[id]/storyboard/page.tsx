@@ -13,6 +13,9 @@ import { isAdminEmail } from "@/lib/ui/presentation";
 import { FinalRenderPanel } from "./final-render-panel";
 import { StoryboardEditor } from "./storyboard-editor";
 import { HAYASHI_VOICE } from "@/lib/system-media/config";
+import { ProjectStepper } from "../project-stepper";
+import { projectWorkflow } from "@/lib/ui/project-workflow";
+import { isFixedOpeningPreset } from "@/lib/opening/policy";
 
 export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
@@ -38,9 +41,31 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     listSceneGenerations(id),
     listProjectRenders(id),
   ]);
+  const bodyScenes = active.scenes.filter((scene) => !isFixedOpeningPreset(scene.preset));
+  const bodySceneIds = new Set(bodyScenes.map((scene) => scene.id));
+  const bodyGenerations = generations.filter((generation) => bodySceneIds.has(generation.sceneId));
+  const completedGenerationIds = new Set(
+    bodyGenerations
+      .filter((generation) => generation.status === "completed")
+      .map((generation) => generation.id),
+  );
+  const completedScenes = bodyScenes.filter(
+    (scene) => scene.selectedGenerationId && completedGenerationIds.has(scene.selectedGenerationId),
+  ).length;
+  const workflow = projectWorkflow({
+    hasStoryboard: true,
+    hasAnySceneGeneration: bodyGenerations.length > 0,
+    totalScenes: bodyScenes.length,
+    completedScenes,
+    hasActiveSceneGeneration: bodyGenerations.some((generation) =>
+      ["queued", "generating"].includes(generation.status),
+    ),
+    hasActiveRender: renders.some((render) => ["queued", "rendering"].includes(render.status)),
+    hasCompletedRender: renders.some((render) => render.status === "completed"),
+  });
   return (
     <main className="content storyboard-page">
-      <div className="page-head">
+      <div className="page-head project-page-head">
         <div>
           <Link href={`/projects/${id}`} className="hint">
             <ArrowLeft size={12} /> プロジェクト詳細
@@ -52,6 +77,10 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           </p>
         </div>
       </div>
+      <ProjectStepper
+        currentStep={workflow.currentStep}
+        processing={["wait_for_scenes", "wait_for_render"].includes(workflow.action)}
+      />
       <StoryboardEditor
         projectId={id}
         targetDuration={project.targetDuration}
@@ -73,7 +102,9 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
       <section className="panel fixed-narration-panel">
         <p className="eyebrow">ナレーション</p>
         <h2>{HAYASHI_VOICE.name}</h2>
-        <p className="hint">{HAYASHI_VOICE.model}／通常生成ではこの声に固定されます。別の声への自動変更は行いません。</p>
+        <p className="hint">
+          {HAYASHI_VOICE.model}／通常生成ではこの声に固定されます。別の声への自動変更は行いません。
+        </p>
       </section>
       <FinalRenderPanel
         projectId={id}

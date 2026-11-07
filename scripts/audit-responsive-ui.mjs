@@ -60,6 +60,7 @@ try {
   const pages = {
     home: "/projects",
     wizard: "/projects/new",
+    detail: `/projects/${projectId}`,
     storyboard: `/projects/${projectId}/storyboard`,
     videos: "/videos",
     admin: "/admin",
@@ -93,7 +94,7 @@ try {
       );
       audit.push({ width, page, ...result.result.value });
 
-      if (page === "storyboard" && [1366, 1440, 1920, 390, 430].includes(width)) {
+      if (["detail", "storyboard"].includes(page) && [1366, 1440, 1920, 390, 430].includes(width)) {
         const shot = await cdp.send(
           "Page.captureScreenshot",
           { format: "png", captureBeyondViewport: false },

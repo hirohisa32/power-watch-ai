@@ -60,14 +60,14 @@ export function AssetMetadataManager({
             : item,
         ),
       );
-      setMessage("AI判定をHuman Lockとして採用しました。");
+      setMessage("選択した画像ラベルを確定しました。");
     });
   }
 
   return (
     <div className="asset-metadata-manager">
       <div className="asset-manager-head">
-        <p className="hint">Human Labelを正本として保持し、AI候補は整理の補助にのみ使用します。</p>
+        <p className="hint">現在の画像ラベルを優先し、AI候補は画像整理の補助として表示します。</p>
         <button className="btn btn-small" type="button" onClick={analyze} disabled={pending}>
           <ScanSearch size={14} /> {pending ? "解析中…" : "商品写真を再解析"}
         </button>
@@ -94,10 +94,10 @@ export function AssetMetadataManager({
                 <span>判定状態</span>
                 <strong>
                   {asset.reviewStatus === "HUMAN_LOCKED"
-                    ? "Human Lock"
+                    ? "確定済み"
                     : asset.reviewStatus === "AUTO_ADOPT_ELIGIBLE"
-                      ? "自動採用条件PASS"
-                      : "HUMAN_REVIEW"}
+                      ? "画像内容チェック：問題なし"
+                      : "確認が必要"}
                 </strong>
               </div>
               <div className="asset-suggestions">
@@ -108,8 +108,8 @@ export function AssetMetadataManager({
                       <li key={`${suggestion.role}-${index}`}>
                         <span>{suggestion.label}</span>
                         <small>
-                          AI推定Confidence {Math.round(suggestion.confidence * 100)}%
-                          {!suggestion.featureGatePassed && " · Feature Gate未評価"}
+                          AI推定精度 {Math.round(suggestion.confidence * 100)}%
+                          {!suggestion.featureGatePassed && " · 画像内容チェック未完了"}
                         </small>
                         {!asset.humanLocked && (
                           <button
@@ -129,12 +129,12 @@ export function AssetMetadataManager({
               </div>
               {asset.mismatch && (
                 <p className="asset-role-warning">
-                  <AlertTriangle size={13} /> 要確認：Human LabelとAI候補が矛盾しています
+                  <AlertTriangle size={13} /> 要確認：現在の画像ラベルとAI候補が異なります
                 </p>
               )}
               {!asset.humanLocked && (
                 <div className="asset-manual-role">
-                  <label htmlFor={`role-${asset.id}`}>別Roleを選択</label>
+                  <label htmlFor={`role-${asset.id}`}>別の画像ラベルを選択</label>
                   <select
                     id={`role-${asset.id}`}
                     defaultValue=""
@@ -143,7 +143,7 @@ export function AssetMetadataManager({
                     }}
                     disabled={pending}
                   >
-                    <option value="">選択してHuman Lock</option>
+                    <option value="">選択して確定</option>
                     {roleOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -160,7 +160,7 @@ export function AssetMetadataManager({
             </div>
             {asset.humanLocked && (
               <span className="asset-role-lock">
-                <Check size={13} /> Human Lock：
+                <Check size={13} /> 確定済み：
                 {roleOptions.find((option) => option.value === asset.lockedRole)?.label ??
                   asset.lockedRole}
               </span>

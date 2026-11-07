@@ -29,11 +29,11 @@ export function NarratorVoiceSelector({
         body: JSON.stringify({ role: "narration", voiceId }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Voiceを保存できませんでした");
+      if (!response.ok) throw new Error(body.error || "ナレーター音声を保存できませんでした");
       setSavedVoiceId(voiceId);
-      setMessage("本番Narrator Voiceを保存しました。音声生成はまだ実行していません。");
+      setMessage("本番ナレーター音声を保存しました。音声生成はまだ実行していません。");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Voiceを保存できませんでした");
+      setMessage(error instanceof Error ? error.message : "ナレーター音声を保存できませんでした");
     } finally {
       setSaving(false);
     }
@@ -41,18 +41,31 @@ export function NarratorVoiceSelector({
 
   return (
     <section className="panel">
-      <p className="eyebrow">本番Narration設定</p>
-      <h2>Narrator Voice</h2>
-      <p className="hint">Human承認済みVoiceから選択してください。保存だけではElevenLabs生成を開始しません。</p>
+      <p className="eyebrow">本番ナレーション設定</p>
+      <h2>ナレーター音声</h2>
+      <p className="hint">承認済みの声から選択してください。保存だけでは音声生成を開始しません。</p>
       <div className="field">
-        <label htmlFor="narrator-voice">Voice</label>
-        <select id="narrator-voice" value={voiceId} onChange={(event) => setVoiceId(event.target.value)}>
+        <label htmlFor="narrator-voice">声</label>
+        <select
+          id="narrator-voice"
+          value={voiceId}
+          onChange={(event) => setVoiceId(event.target.value)}
+        >
           <option value="">選択してください</option>
-          {voices.map((voice) => <option key={voice.voiceId} value={voice.voiceId}>{voice.name}</option>)}
+          {voices.map((voice) => (
+            <option key={voice.voiceId} value={voice.voiceId}>
+              {voice.name}
+            </option>
+          ))}
         </select>
       </div>
-      <button className="btn" type="button" disabled={!voiceId || saving || voiceId === savedVoiceId} onClick={() => void save()}>
-        {saving ? "保存中…" : "このVoiceを本番Narratorに設定"}
+      <button
+        className="btn"
+        type="button"
+        disabled={!voiceId || saving || voiceId === savedVoiceId}
+        onClick={() => void save()}
+      >
+        {saving ? "保存中…" : "この声を本番ナレーターに設定"}
       </button>
       {message && <p className="status-message">{message}</p>}
     </section>
