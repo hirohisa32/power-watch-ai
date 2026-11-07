@@ -154,10 +154,13 @@ export function StoryboardEditor({
   const bodySceneIds = new Set(
     initialScenes.filter((scene) => !isFixedOpeningPreset(scene.preset)).map((scene) => scene.id),
   );
-  const hasActiveGeneration = initialGenerations.some(
-    (generation) =>
-      bodySceneIds.has(generation.sceneId) && ["queued", "generating"].includes(generation.status),
-  );
+  const hasActiveGeneration =
+    !hasCompletedRender &&
+    initialGenerations.some(
+      (generation) =>
+        bodySceneIds.has(generation.sceneId) &&
+        ["queued", "generating"].includes(generation.status),
+    );
   const completedGenerationIds = new Set(
     initialGenerations
       .filter((generation) => generation.status === "completed")
@@ -168,19 +171,24 @@ export function StoryboardEditor({
       bodySceneIds.has(scene.id) &&
       Boolean(scene.selectedGenerationId && completedGenerationIds.has(scene.selectedGenerationId)),
   ).length;
-  const activeSceneCount = new Set(
-    initialGenerations
-      .filter(
+  const activeSceneCount = hasCompletedRender
+    ? 0
+    : new Set(
+        initialGenerations
+          .filter(
+            (generation) =>
+              bodySceneIds.has(generation.sceneId) &&
+              ["queued", "generating"].includes(generation.status),
+          )
+          .map((generation) => generation.sceneId),
+      ).size;
+  const activeGeneration = hasCompletedRender
+    ? undefined
+    : initialGenerations.find(
         (generation) =>
           bodySceneIds.has(generation.sceneId) &&
           ["queued", "generating"].includes(generation.status),
-      )
-      .map((generation) => generation.sceneId),
-  ).size;
-  const activeGeneration = initialGenerations.find(
-    (generation) =>
-      bodySceneIds.has(generation.sceneId) && ["queued", "generating"].includes(generation.status),
-  );
+      );
   const activeScene = activeGeneration
     ? initialScenes.find((scene) => scene.id === activeGeneration.sceneId)
     : null;
@@ -316,7 +324,7 @@ export function StoryboardEditor({
           <button className="btn" disabled={pending} onClick={reconcileStoryBeats}>
             ナレーションと映像の一致を確認
           </button>
-          {completedSceneCount < bodySceneIds.size && (
+          {!hasCompletedRender && completedSceneCount < bodySceneIds.size && (
             <>
               <button
                 className="btn btn-primary"
@@ -415,9 +423,11 @@ export function StoryboardEditor({
           const generations = completedGeneration
             ? allGenerations.filter((generation) => generation.status !== "failed")
             : allGenerations;
-          const activeGeneration = generations.find((generation) =>
-            ["queued", "generating"].includes(generation.status),
-          );
+          const activeGeneration = hasCompletedRender
+            ? undefined
+            : generations.find((generation) =>
+                ["queued", "generating"].includes(generation.status),
+              );
           return (
             <article className="scene-card" key={scene.id}>
               <div className="scene-number">

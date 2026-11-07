@@ -31,11 +31,12 @@ export function FinalRenderPanel({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const active = renders.some((render) => ["queued", "rendering"].includes(render.status));
   const completed = useMemo(
     () => renders.find((render) => render.status === "completed"),
     [renders],
   );
+  const active =
+    !completed && renders.some((render) => ["queued", "rendering"].includes(render.status));
   const visibleRenders = completed
     ? renders.filter((render) => render.status === "completed")
     : renders;
@@ -153,7 +154,10 @@ export function FinalRenderPanel({
           />
           <div className="nav-actions">
             <a className="btn" href="#scene-list">
-              シーンを修正
+              このシーンを修正
+            </a>
+            <a className="btn" href={`/projects/${projectId}?section=settings#project-settings`}>
+              設定を確認
             </a>
             <a className="btn btn-primary" href={`/api/renders/${completed.id}/download`}>
               <Download size={14} /> MP4をダウンロード

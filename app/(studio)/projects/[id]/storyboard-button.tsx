@@ -4,9 +4,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Action =
-  "create_storyboard" | "review_storyboard" | "generate_scenes" | "render_final" | "view_final";
+  | "create_storyboard"
+  | "review_storyboard"
+  | "generate_scenes"
+  | "wait_for_scenes"
+  | "render_final"
+  | "wait_for_render"
+  | "view_final";
 
-const ACTION_COPY: Record<Action, { label: string; pending: string; help: string; hash?: string }> =
+const ACTION_COPY: Record<
+  Action,
+  { label: string; pending: string; help: string; hash?: string; disabled?: boolean }
+> =
   {
     create_storyboard: {
       label: "動画構成を作る",
@@ -24,11 +33,23 @@ const ACTION_COPY: Record<Action, { label: string; pending: string; help: string
       help: "画像をもとに各シーンを動画化します。完成まで数分かかる場合があります。",
       hash: "generate-scenes",
     },
+    wait_for_scenes: {
+      label: "シーンを生成しています…",
+      pending: "シーンを生成しています…",
+      help: "この画面を閉じても生成は続行されます。完了すると次の工程へ進めます。",
+      disabled: true,
+    },
     render_final: {
       label: "最終動画を作る",
       pending: "画面を開いています…",
       help: "ナレーション・BGM・Opening・Endingをまとめて完成動画を作成します。",
       hash: "final-render",
+    },
+    wait_for_render: {
+      label: "最終動画を作成しています…",
+      pending: "最終動画を作成しています…",
+      help: "音声・字幕・映像を結合しています。完了後に再生・ダウンロードできます。",
+      disabled: true,
     },
     view_final: {
       label: "完成動画を見る",
@@ -45,6 +66,7 @@ export function StoryboardButton({ projectId, action }: { projectId: string; act
   const copy = ACTION_COPY[action];
 
   function navigate() {
+    if (copy.disabled) return;
     setPending(true);
     const destination = `/projects/${projectId}/storyboard${copy.hash ? `#${copy.hash}` : ""}`;
     window.setTimeout(() => router.push(destination), 80);
@@ -69,7 +91,7 @@ export function StoryboardButton({ projectId, action }: { projectId: string; act
     <div className="action-stack project-primary-action">
       <button
         className="btn btn-primary"
-        disabled={pending}
+        disabled={pending || copy.disabled}
         onClick={action === "create_storyboard" ? generate : navigate}
       >
         {pending && <span className="button-spinner" aria-hidden="true" />}

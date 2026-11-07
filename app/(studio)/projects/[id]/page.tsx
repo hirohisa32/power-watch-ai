@@ -5,12 +5,10 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { assets, projects } from "@/lib/db/schema";
+import { assets, bgmAssets, projects, systemVideoAssets } from "@/lib/db/schema";
 import {
   LANGUAGE_LABELS,
-  PROJECT_STATUS_LABELS,
   STYLE_LABELS,
-  projectProgress,
 } from "@/lib/ui/presentation";
 import { StoryboardButton } from "./storyboard-button";
 import { ProjectStepper } from "./project-stepper";
@@ -26,12 +24,21 @@ import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
 import { projectWorkflow } from "@/lib/ui/project-workflow";
+import { ProjectSubnav } from "./project-subnav";
+import { HAYASHI_VOICE } from "@/lib/system-media/config";
 
 export const metadata: Metadata = { title: "プロジェクト詳細" };
 export const dynamic = "force-dynamic";
 
-export default async function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ section?: string }>;
+}) {
   const { id } = await params;
+  const { section } = await searchParams;
   const user = await requireUser();
   const db = getDb();
   const [project] = await db
@@ -41,10 +48,12 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     .limit(1);
   if (!project) notFound();
   const images = await db.select().from(assets).where(eq(assets.projectId, project.id));
-  const [activeStoryboard, generations, renders] = await Promise.all([
+  const [activeStoryboard, generations, renders, mediaAssets, selectedBgm] = await Promise.all([
     getActiveStoryboard(id),
     listSceneGenerations(id),
     listProjectRenders(id),
+    db.select().from(systemVideoAssets),
+    db.select().from(bgmAssets).where(eq(bgmAssets.key, project.bgmKey)).limit(1),
   ]);
   const bodyScenes =
     activeStoryboard?.scenes.filter((scene) => !isFixedOpeningPreset(scene.preset)) ?? [];
@@ -70,14 +79,10 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     hasCompletedRender: renders.some((render) => render.status === "completed"),
   });
   const completedRender = renders.find((render) => render.status === "completed");
-  const buttonAction =
-    workflow.action === "wait_for_render"
-      ? ("render_final" as const)
-      : workflow.action === "wait_for_scenes"
-        ? ("generate_scenes" as const)
-        : workflow.action;
+  const openingAsset = mediaAssets.find((asset) => asset.id === project.openingAssetId);
+  const endingAsset = mediaAssets.find((asset) => asset.id === project.endingAssetId);
   return (
-    <main className="content">
+    <main className="content project-detail-page">
       <div className="page-head project-page-head">
         <div>
           <Link href="/projects" className="hint">
@@ -86,29 +91,28 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           <p className="eyebrow">動画の詳細</p>
           <h1>{project.title}</h1>
         </div>
-        <StoryboardButton projectId={project.id} action={buttonAction} />
+        <StoryboardButton projectId={project.id} action={workflow.action} />
       </div>
+      <ProjectSubnav
+        projectId={project.id}
+        active={section === "settings" ? "settings" : "overview"}
+        hasCompletedVideo={workflow.phase === "COMPLETED"}
+      />
       <ProjectStepper
         currentStep={workflow.currentStep}
-        processing={["wait_for_scenes", "wait_for_render"].includes(workflow.action)}
+        processing={workflow.phase === "SCENES_GENERATING" || workflow.phase === "FINAL_RENDERING"}
       />
-      <div className="production-progress">
+      <div className={`production-progress phase-${workflow.phase.toLowerCase()}`}>
         <div>
-          <strong>{PROJECT_STATUS_LABELS[project.status]}</strong>
-          <span>{projectProgress(project.status)}%</span>
+          <strong>現在：{workflow.label}</strong>
+          <span>{workflow.progress}%</span>
         </div>
         <div className="progress-track">
-          <span style={{ width: `${projectProgress(project.status)}%` }} />
+          <span style={{ width: `${workflow.progress}%` }} />
         </div>
-        <p>
-          {project.status === "completed"
-            ? "動画が完成しました"
-            : activeStoryboard
-              ? "動画構成を確認し、映像の作成へ進めます。"
-              : "台本と時計画像を確認し、動画構成を作成してください。"}
-        </p>
+        <p>{workflow.description}</p>
       </div>
-      {completedRender && (
+      {workflow.phase === "COMPLETED" && completedRender && (
         <section className="completed-callout" id="completed-video">
           <div>
             <p className="eyebrow">完成動画</p>
@@ -121,8 +125,12 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             </p>
           </div>
           <div className="card-actions">
-            <a className="btn" href={`/api/renders/${completedRender.id}/video`} target="_blank">
-              動画を見る
+            <a
+              className="btn btn-primary"
+              href={`/api/renders/${completedRender.id}/video`}
+              target="_blank"
+            >
+              完成動画を見る
             </a>
             <a className="btn btn-secondary" href={`/api/renders/${completedRender.id}/download`}>
               MP4をダウンロード
@@ -131,12 +139,12 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         </section>
       )}
       <div className="detail-grid">
-        <section className="panel">
+        <section className="panel" id="project-script">
           <h2>台本</h2>
           <p className="script-preview">{project.script}</p>
         </section>
         <aside>
-          <section className="panel">
+          <section className="panel" id="project-settings">
             <h2>動画設定</h2>
             <div className="key-value">
               <span>動画スタイル</span>
@@ -151,9 +159,38 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               <span>{project.targetDuration}秒</span>
             </div>
             <div className="key-value">
-              <span>状態</span>
-              <span>{PROJECT_STATUS_LABELS[project.status]}</span>
+              <span>Opening</span>
+              <span>{openingAsset?.displayName ?? "なし"}</span>
             </div>
+            <div className="key-value">
+              <span>Ending</span>
+              <span>{endingAsset?.displayName ?? "なし"}</span>
+            </div>
+            <div className="key-value">
+              <span>BGM</span>
+              <span>{selectedBgm[0]?.name ?? project.bgmKey}</span>
+            </div>
+            <div className="key-value">
+              <span>ナレーション</span>
+              <span>
+                {project.narratorVoiceId === HAYASHI_VOICE.voiceId
+                  ? HAYASHI_VOICE.name
+                  : project.narratorVoiceId
+                    ? "選択済みナレーター"
+                    : "自動選択"}
+              </span>
+            </div>
+            <div className="key-value">
+              <span>字幕</span>
+              <span>{project.narrationSubtitlesEnabled ? "表示する" : "表示しない"}</span>
+            </div>
+            <div className="key-value">
+              <span>状態</span>
+              <span>{workflow.label}</span>
+            </div>
+            <p className="settings-regeneration-note">
+              設定を変更すると、該当シーンまたは最終動画の作り直しが必要になる場合があります。
+            </p>
           </section>
           <section className="panel" style={{ marginTop: 18 }}>
             <h2>時計画像</h2>

@@ -16,12 +16,20 @@ import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { ProjectStepper } from "../project-stepper";
 import { projectWorkflow } from "@/lib/ui/project-workflow";
 import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { ProjectSubnav } from "../project-subnav";
 
 export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
 
-export default async function StoryboardPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoryboardPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ section?: string }>;
+}) {
   const { id } = await params;
+  const { section } = await searchParams;
   const user = await requireUser();
   const isAdmin = isAdminEmail(user.email);
   const db = getDb();
@@ -77,9 +85,14 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           </p>
         </div>
       </div>
+      <ProjectSubnav
+        projectId={id}
+        active={section === "completed" ? "completed" : "storyboard"}
+        hasCompletedVideo={workflow.phase === "COMPLETED"}
+      />
       <ProjectStepper
         currentStep={workflow.currentStep}
-        processing={["wait_for_scenes", "wait_for_render"].includes(workflow.action)}
+        processing={workflow.phase === "SCENES_GENERATING" || workflow.phase === "FINAL_RENDERING"}
       />
       <StoryboardEditor
         projectId={id}
