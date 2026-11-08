@@ -8,6 +8,8 @@ const storyboardEditor = readFileSync(
   "app/(studio)/projects/[id]/storyboard/storyboard-editor.tsx",
   "utf8",
 );
+const projectCollection = readFileSync("app/(studio)/projects/project-collection.tsx", "utf8");
+const projectList = readFileSync("lib/ui/project-list.ts", "utf8");
 
 describe("completed project navigation", () => {
   it("keeps overview, storyboard, settings, completed video and video list reachable", () => {
@@ -33,5 +35,18 @@ describe("completed project navigation", () => {
     expect(storyboardEditor).toContain(
       "!hasCompletedRender && completedSceneCount < bodySceneIds.size",
     );
+  });
+
+  it("uses the shared workflow resolver on Home and video list cards", () => {
+    expect(projectList).toContain("getProjectWorkflowStatus");
+    expect(projectCollection).toContain("project.workflow.label");
+    expect(projectCollection).not.toContain("project.status");
+  });
+
+  it("hides stale progress for completed cards and exposes the completed video action", () => {
+    expect(projectCollection).toContain("workflowIsProcessing(project.workflow)");
+    expect(projectCollection).toContain('project.workflow.phase === "COMPLETED"');
+    expect(projectCollection).toContain("<span>100%</span>");
+    expect(projectCollection).toContain("ProjectStatusRefresh");
   });
 });

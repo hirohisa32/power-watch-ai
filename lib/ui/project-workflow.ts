@@ -1,3 +1,5 @@
+import { isFixedOpeningPreset } from "@/lib/opening/policy";
+
 export type ProjectWorkflowInput = {
   hasStoryboard: boolean;
   hasAnySceneGeneration: boolean;
@@ -6,6 +8,23 @@ export type ProjectWorkflowInput = {
   hasActiveSceneGeneration: boolean;
   hasActiveRender: boolean;
   hasCompletedRender: boolean;
+};
+
+export type ProjectWorkflowSource = {
+  hasStoryboard: boolean;
+  scenes: Array<{
+    id: string;
+    preset: string;
+    selectedGenerationId: string | null;
+  }>;
+  generations: Array<{
+    id: string;
+    sceneId: string;
+    status: "queued" | "generating" | "completed" | "failed" | "canceled";
+  }>;
+  renders: Array<{
+    status: "queued" | "rendering" | "completed" | "failed";
+  }>;
 };
 
 export type ProjectWorkflow = {
@@ -96,4 +115,49 @@ export function projectWorkflow(input: ProjectWorkflowInput): ProjectWorkflow {
     description: `${input.completedScenes} / ${input.totalScenes} シーンが完成しています。`,
     action: "generate_scenes",
   };
+}
+
+/**
+ * Project status shown to users. Completed renders always win over stale jobs.
+ * Every project screen must use this resolver rather than projects.status or a latest job directly.
+ */
+export function getProjectWorkflowStatus(source: ProjectWorkflowSource): ProjectWorkflow {
+  const bodyScenes = source.scenes.filter((scene) => !isFixedOpeningPreset(scene.preset));
+  const bodySceneIds = new Set(bodyScenes.map((scene) => scene.id));
+  const bodyGenerations = source.generations.filter((generation) =>
+    bodySceneIds.has(generation.sceneId),
+  );
+  const completedGenerationIds = new Set(
+    bodyGenerations
+      .filter((generation) => generation.status === "completed")
+      .map((generation) => generation.id),
+  );
+  const completedScenes = bodyScenes.filter(
+    (scene) => scene.selectedGenerationId && completedGenerationIds.has(scene.selectedGenerationId),
+  ).length;
+
+  return projectWorkflow({
+    hasStoryboard: source.hasStoryboard,
+    hasAnySceneGeneration: bodyGenerations.length > 0,
+    totalScenes: bodyScenes.length,
+    completedScenes,
+    hasActiveSceneGeneration: bodyGenerations.some((generation) =>
+      ["queued", "generating"].includes(generation.status),
+    ),
+    hasActiveRender: source.renders.some((render) =>
+      ["queued", "rendering"].includes(render.status),
+    ),
+    hasCompletedRender: source.renders.some((render) => render.status === "completed"),
+  });
+}
+
+export function workflowStatusClass(workflow: ProjectWorkflow) {
+  if (workflow.phase === "COMPLETED") return "completed";
+  if (workflow.phase === "DRAFT") return "draft";
+  if (workflow.phase === "STORYBOARD_READY") return "storyboard";
+  return "generating";
+}
+
+export function workflowIsProcessing(workflow: ProjectWorkflow) {
+  return workflow.phase === "SCENES_GENERATING" || workflow.phase === "FINAL_RENDERING";
 }

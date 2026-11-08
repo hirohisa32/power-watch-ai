@@ -6,10 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { assets, bgmAssets, projects, systemVideoAssets } from "@/lib/db/schema";
-import {
-  LANGUAGE_LABELS,
-  STYLE_LABELS,
-} from "@/lib/ui/presentation";
+import { LANGUAGE_LABELS, STYLE_LABELS } from "@/lib/ui/presentation";
 import { StoryboardButton } from "./storyboard-button";
 import { ProjectStepper } from "./project-stepper";
 import { AssetMetadataManager } from "./asset-metadata-manager";
@@ -22,8 +19,7 @@ import {
 import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { listSceneGenerations } from "@/lib/video/repository";
 import { listProjectRenders } from "@/lib/render/repository";
-import { isFixedOpeningPreset } from "@/lib/opening/policy";
-import { projectWorkflow } from "@/lib/ui/project-workflow";
+import { getProjectWorkflowStatus } from "@/lib/ui/project-workflow";
 import { ProjectSubnav } from "./project-subnav";
 import { HAYASHI_VOICE } from "@/lib/system-media/config";
 
@@ -55,28 +51,11 @@ export default async function ProjectDetail({
     db.select().from(systemVideoAssets),
     db.select().from(bgmAssets).where(eq(bgmAssets.key, project.bgmKey)).limit(1),
   ]);
-  const bodyScenes =
-    activeStoryboard?.scenes.filter((scene) => !isFixedOpeningPreset(scene.preset)) ?? [];
-  const bodySceneIds = new Set(bodyScenes.map((scene) => scene.id));
-  const bodyGenerations = generations.filter((generation) => bodySceneIds.has(generation.sceneId));
-  const completedIds = new Set(
-    bodyGenerations
-      .filter((generation) => generation.status === "completed")
-      .map((generation) => generation.id),
-  );
-  const completedScenes = bodyScenes.filter(
-    (scene) => scene.selectedGenerationId && completedIds.has(scene.selectedGenerationId),
-  ).length;
-  const workflow = projectWorkflow({
+  const workflow = getProjectWorkflowStatus({
     hasStoryboard: Boolean(activeStoryboard),
-    hasAnySceneGeneration: bodyGenerations.length > 0,
-    totalScenes: bodyScenes.length,
-    completedScenes,
-    hasActiveSceneGeneration: bodyGenerations.some((generation) =>
-      ["queued", "generating"].includes(generation.status),
-    ),
-    hasActiveRender: renders.some((render) => ["queued", "rendering"].includes(render.status)),
-    hasCompletedRender: renders.some((render) => render.status === "completed"),
+    scenes: activeStoryboard?.scenes ?? [],
+    generations,
+    renders,
   });
   const completedRender = renders.find((render) => render.status === "completed");
   const openingAsset = mediaAssets.find((asset) => asset.id === project.openingAssetId);

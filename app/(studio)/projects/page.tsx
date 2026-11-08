@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { listUserProjects } from "@/lib/ui/project-list";
-import { PROJECT_STATUS_LABELS } from "@/lib/ui/presentation";
 import { ProjectCollection } from "./project-collection";
 
 export const metadata: Metadata = { title: "ホーム" };
@@ -12,10 +11,15 @@ export const dynamic = "force-dynamic";
 export default async function ProjectsPage() {
   const user = await requireUser();
   const rows = await listUserProjects(user.id);
-  const counts: Record<string, number> = Object.fromEntries(
-    Object.keys(PROJECT_STATUS_LABELS).map((key) => [key, 0]),
+  const counts = rows.reduce(
+    (result, project) => {
+      if (project.workflow.phase === "COMPLETED") result.completed += 1;
+      else if (project.workflow.phase === "DRAFT") result.draft += 1;
+      else result.inProgress += 1;
+      return result;
+    },
+    { draft: 0, inProgress: 0, completed: 0 },
   );
-  rows.forEach((project) => counts[project.status]++);
   return (
     <main className="content">
       <div className="hero-panel">
@@ -41,7 +45,7 @@ export default async function ProjectsPage() {
           <span>下書き</span>
         </div>
         <div>
-          <strong>{counts.storyboard + counts.generating}</strong>
+          <strong>{counts.inProgress}</strong>
           <span>制作中</span>
         </div>
         <div>

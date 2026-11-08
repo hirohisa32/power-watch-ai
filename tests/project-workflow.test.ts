@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectWorkflow } from "@/lib/ui/project-workflow";
+import { getProjectWorkflowStatus, projectWorkflow } from "@/lib/ui/project-workflow";
 
 const base = {
   hasStoryboard: true,
@@ -78,5 +78,100 @@ describe("project workflow guidance", () => {
       progress: 100,
       action: "view_final",
     });
+  });
+});
+
+describe("shared project workflow status", () => {
+  const scene = {
+    id: "scene-1",
+    preset: "HistoricalCharacter",
+    selectedGenerationId: null as string | null,
+  };
+  const generation = {
+    id: "generation-1",
+    sceneId: scene.id,
+    status: "completed" as const,
+  };
+
+  it.each([
+    {
+      name: "A. Draft",
+      source: { hasStoryboard: false, scenes: [], generations: [], renders: [] },
+      phase: "DRAFT",
+    },
+    {
+      name: "B. Storyboard作成済み",
+      source: { hasStoryboard: true, scenes: [scene], generations: [], renders: [] },
+      phase: "STORYBOARD_READY",
+    },
+    {
+      name: "C. Scene生成中",
+      source: {
+        hasStoryboard: true,
+        scenes: [scene],
+        generations: [{ ...generation, status: "generating" as const }],
+        renders: [],
+      },
+      phase: "SCENES_GENERATING",
+    },
+    {
+      name: "D. Scene完成",
+      source: {
+        hasStoryboard: true,
+        scenes: [{ ...scene, selectedGenerationId: generation.id }],
+        generations: [generation],
+        renders: [],
+      },
+      phase: "SCENES_READY",
+    },
+    {
+      name: "E. Final Render中",
+      source: {
+        hasStoryboard: true,
+        scenes: [{ ...scene, selectedGenerationId: generation.id }],
+        generations: [generation],
+        renders: [{ status: "rendering" as const }],
+      },
+      phase: "FINAL_RENDERING",
+    },
+    {
+      name: "F. Final完成",
+      source: {
+        hasStoryboard: true,
+        scenes: [{ ...scene, selectedGenerationId: generation.id }],
+        generations: [generation],
+        renders: [{ status: "completed" as const }],
+      },
+      phase: "COMPLETED",
+    },
+    {
+      name: "G. Final完成＋過去Stale Jobあり",
+      source: {
+        hasStoryboard: true,
+        scenes: [{ ...scene, selectedGenerationId: generation.id }],
+        generations: [{ ...generation, status: "generating" as const }],
+        renders: [{ status: "completed" as const }, { status: "rendering" as const }],
+      },
+      phase: "COMPLETED",
+    },
+  ])("resolves $name as $phase", ({ source, phase }) => {
+    expect(getProjectWorkflowStatus(source)).toMatchObject({ phase });
+  });
+
+  it("ignores fixed opening scenes when calculating scene progress", () => {
+    expect(
+      getProjectWorkflowStatus({
+        hasStoryboard: true,
+        scenes: [
+          { id: "opening", preset: "Opening", selectedGenerationId: null },
+          { ...scene, selectedGenerationId: generation.id },
+        ],
+        generations: [
+          generation,
+          { id: "opening-generation", sceneId: "opening", status: "generating" },
+        ],
+        renders: [],
+      }),
+    ).toMatchObject({ phase: "SCENES_READY", progress: 80 });
   });
 });

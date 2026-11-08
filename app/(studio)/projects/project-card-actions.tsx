@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function ProjectCardActions({ id }: { id: string }) {
+export function ProjectCardActions({ id, completed }: { id: string; completed: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   async function action(kind: "duplicate" | "rename" | "delete") {
@@ -35,8 +35,22 @@ export function ProjectCardActions({ id }: { id: string }) {
   }
   return (
     <div className="card-actions">
-      <Link className="btn" href={`/projects/${id}`}>
-        開く
+      {completed && (
+        <Link
+          className="btn btn-primary"
+          href={`/projects/${id}/storyboard?section=completed#completed-video`}
+        >
+          完成動画を見る
+        </Link>
+      )}
+      <Link
+        className={completed ? "btn btn-secondary" : "btn btn-primary"}
+        href={`/projects/${id}`}
+      >
+        動画詳細
+      </Link>
+      <Link className="btn" href={`/projects/${id}/storyboard`}>
+        動画構成
       </Link>
       <button className="btn" disabled={pending} onClick={() => action("duplicate")}>
         複製
