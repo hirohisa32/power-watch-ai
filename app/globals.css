@@ -167,6 +167,7 @@ button {
 }
 .video-card {
   min-width: 0;
+  position: relative;
   border: 1px solid var(--line);
   background: var(--panel);
   display: flex;
@@ -224,11 +225,69 @@ button {
   height: 100%;
   background: var(--gold);
 }
-.video-card .card-actions {
-  flex-wrap: wrap;
+.project-card-actions {
+  margin-top: auto;
+  padding-top: 22px;
 }
-.video-card .card-actions .btn {
+.project-card-primary {
+  width: 100%;
+}
+.project-card-menu {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  right: 10px;
+}
+.project-card-more {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(225, 218, 204, 0.24);
+  border-radius: var(--radius-sm);
+  background: rgba(9, 10, 11, 0.88);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+.project-card-more:hover,
+.project-card-more:focus-visible,
+.project-card-more[aria-expanded="true"] {
+  border-color: var(--gold);
+  color: var(--gold-light);
+}
+.project-card-menu-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 176px;
+  padding: 6px;
+  border: 1px solid #45423b;
+  border-radius: var(--radius-sm);
+  background: #171817;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
+}
+.project-card-menu-popover button {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 5px;
   padding: 9px 11px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.project-card-menu-popover button:hover,
+.project-card-menu-popover button:focus-visible {
+  background: #242522;
+}
+.project-card-menu-popover .project-card-menu-danger {
+  color: #edb2ab;
+}
+.project-card-menu-popover .project-card-menu-danger:hover,
+.project-card-menu-popover .project-card-menu-danger:focus-visible {
+  background: rgba(126, 48, 48, 0.24);
 }
 .wizard-shell {
   width: min(900px, 100%);

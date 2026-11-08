@@ -46,7 +46,7 @@ describe("completed project navigation", () => {
   it("hides stale progress for completed cards and exposes the completed video action", () => {
     expect(projectCollection).toContain("workflowIsProcessing(project.workflow)");
     expect(projectCollection).toContain('project.workflow.phase === "COMPLETED"');
-    expect(projectCollection).toContain("<span>100%</span>");
+    expect(projectCollection).toContain("workflow={project.workflow}");
     expect(projectCollection).toContain("ProjectStatusRefresh");
   });
 });

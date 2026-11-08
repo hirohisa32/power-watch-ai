@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CalendarDays, Clock3 } from "lucide-react";
 import type { Project } from "@/lib/db/schema";
-import { LANGUAGE_LABELS } from "@/lib/ui/presentation";
 import {
   type ProjectWorkflow,
   workflowIsProcessing,
@@ -51,8 +50,6 @@ export function ProjectCollection({ rows }: { rows: ProjectCardData[] }) {
                   <Clock3 size={14} />
                   {project.targetDuration}秒
                 </span>
-                <span>{LANGUAGE_LABELS[project.language]}</span>
-                {project.workflow.phase === "COMPLETED" && <span>100%</span>}
               </div>
               {workflowIsProcessing(project.workflow) && (
                 <div
@@ -64,7 +61,8 @@ export function ProjectCollection({ rows }: { rows: ProjectCardData[] }) {
               )}
               <ProjectCardActions
                 id={project.id}
-                completed={project.workflow.phase === "COMPLETED"}
+                title={project.title}
+                workflow={project.workflow}
               />
             </div>
           </article>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getProjectWorkflowStatus, projectWorkflow } from "@/lib/ui/project-workflow";
+import {
+  getProjectWorkflowStatus,
+  projectCardPrimaryAction,
+  projectWorkflow,
+} from "@/lib/ui/project-workflow";
 
 const base = {
   hasStoryboard: true,
@@ -77,6 +81,31 @@ describe("project workflow guidance", () => {
       label: "完成",
       progress: 100,
       action: "view_final",
+    });
+  });
+});
+
+describe("project card primary action", () => {
+  it.each([
+    ["create_storyboard", "/projects/project-1"],
+    ["review_storyboard", "/projects/project-1/storyboard"],
+    ["generate_scenes", "/projects/project-1/storyboard#generate-scenes"],
+    ["wait_for_scenes", "/projects/project-1/storyboard#generate-scenes"],
+    ["render_final", "/projects/project-1/storyboard#final-render"],
+    ["wait_for_render", "/projects/project-1/storyboard#final-render"],
+  ] as const)("maps %s to the next production step", (action, href) => {
+    const workflow = { ...projectWorkflow(base), action };
+    expect(projectCardPrimaryAction("project-1", workflow)).toEqual({
+      label: "続きから作る",
+      href,
+    });
+  });
+
+  it("opens the completed video when the final render exists", () => {
+    const workflow = projectWorkflow({ ...base, hasCompletedRender: true });
+    expect(projectCardPrimaryAction("project-1", workflow)).toEqual({
+      label: "完成動画を見る",
+      href: "/projects/project-1/storyboard?section=completed#completed-video",
     });
   });
 });

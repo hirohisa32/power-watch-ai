@@ -161,3 +161,27 @@ export function workflowStatusClass(workflow: ProjectWorkflow) {
 export function workflowIsProcessing(workflow: ProjectWorkflow) {
   return workflow.phase === "SCENES_GENERATING" || workflow.phase === "FINAL_RENDERING";
 }
+
+export function projectCardPrimaryAction(projectId: string, workflow: ProjectWorkflow) {
+  const base = `/projects/${projectId}`;
+
+  switch (workflow.action) {
+    case "view_final":
+      return {
+        label: "完成動画を見る",
+        href: `${base}/storyboard?section=completed#completed-video`,
+      } as const;
+    case "review_storyboard":
+      return { label: "続きから作る", href: `${base}/storyboard` } as const;
+    case "generate_scenes":
+    case "wait_for_scenes":
+      return { label: "続きから作る", href: `${base}/storyboard#generate-scenes` } as const;
+    case "render_final":
+    case "wait_for_render":
+      return { label: "続きから作る", href: `${base}/storyboard#final-render` } as const;
+    case "create_storyboard":
+    default:
+      // Storyboard generation stays an explicit action on the project detail page.
+      return { label: "続きから作る", href: base } as const;
+  }
+}
