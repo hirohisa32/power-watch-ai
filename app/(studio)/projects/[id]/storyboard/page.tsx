@@ -16,8 +16,12 @@ import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { ProjectStepper } from "../project-stepper";
 import { getProjectWorkflowStatus } from "@/lib/ui/project-workflow";
 import { ProjectSubnav } from "../project-subnav";
-import { calculateStoryBodyDuration } from "@/lib/storyboard/duration";
+import {
+  calculateStoryBodyDuration,
+  effectiveSystemAssetDurationSeconds,
+} from "@/lib/storyboard/duration";
 import { resolveSystemVideoAssetSelection } from "@/lib/system-media/repository";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 
 export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
@@ -57,7 +61,9 @@ export default async function StoryboardPage({
     opening,
     ending,
   );
-  const currentBodyDuration = active.scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const currentBodyDuration = active.scenes
+    .filter((scene) => !isFixedOpeningScene(scene))
+    .reduce((sum, scene) => sum + scene.duration, 0);
   const storyboardTargetDuration =
     currentBodyDuration === project.targetDuration ? project.targetDuration : plannedBodyDuration;
   const workflow = getProjectWorkflowStatus({
@@ -106,6 +112,22 @@ export default async function StoryboardPage({
           updatedAt: generation.updatedAt.toISOString(),
           completedAt: generation.completedAt?.toISOString() ?? null,
         }))}
+        systemMedia={{
+          opening: opening
+            ? {
+                name: opening.displayName,
+                duration: effectiveSystemAssetDurationSeconds(opening),
+                sourceDuration: opening.durationMs / 1_000,
+              }
+            : null,
+          ending: ending
+            ? {
+                name: ending.displayName,
+                duration: effectiveSystemAssetDurationSeconds(ending),
+                sourceDuration: ending.durationMs / 1_000,
+              }
+            : null,
+        }}
         showTechnical={isAdmin}
       />
       <section className="panel fixed-narration-panel">

@@ -5,6 +5,12 @@ import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 import { planProductPhotoUsage, PRODUCT_PHOTO_ROLES } from "@/lib/storyboard/product-photo-planner";
 import { STORY_PHASES } from "@/lib/storyboard/story-quality";
 
+function normalizeSystemAssetPreset(preset: (typeof PRESET_NAMES)[number]) {
+  if (preset === "Ending") return "ProductHero" as const;
+  if (["Opening", "VintageRoom", "OldBook"].includes(preset)) return "HistoricalEvent" as const;
+  return preset;
+}
+
 export const storyboardSceneSchema = z
   .object({
     sceneNumber: z.number().int().min(1).max(30),
@@ -166,10 +172,7 @@ export function validateNarrationContinuity(storyboard: StoryboardOutput) {
       );
     const comparable = narration.toLocaleLowerCase().replace(/[\s。！？.!?]/g, "");
     if (comparable && comparable === previous)
-      throw new StoryboardValidationError(
-        "同じNarrationが連続しています",
-        "duplicate_narration",
-      );
+      throw new StoryboardValidationError("同じNarrationが連続しています", "duplicate_narration");
     previous = comparable;
   }
 }
@@ -186,15 +189,21 @@ export function normalizeStoryboardReferences(
 ): StoryboardOutput {
   const labels = new Set(availableAssetLabels);
   const normalized = storyboard.scenes.map((scene) => {
-    const watchReference =
-      scene.watchReference || REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset);
+    const preset = normalizeSystemAssetPreset(scene.preset);
+    const watchReference = scene.watchReference || REQUIRED_WATCH_REFERENCE_PRESETS.has(preset);
     if (!watchReference)
-      return { ...scene, watchReference: false, preferredAssetLabels: [], productPhotoRole: null };
+      return {
+        ...scene,
+        preset,
+        watchReference: false,
+        preferredAssetLabels: [],
+        productPhotoRole: null,
+      };
 
     const preferredAssetLabels = scene.preferredAssetLabels.filter((label) => labels.has(label));
     if (labels.size > 0 && preferredAssetLabels.length === 0)
       preferredAssetLabels.push(availableAssetLabels[0]);
-    return { ...scene, watchReference: true, preferredAssetLabels };
+    return { ...scene, preset, watchReference: true, preferredAssetLabels };
   });
   return { scenes: planProductPhotoUsage(normalized, availableAssetLabels) };
 }
@@ -222,10 +231,7 @@ export function validateStoryboard(
       ["WatchReveal", "WatchMacro", "ProductHero"].includes(scene.preset),
     )
   )
-    throw new StoryboardValidationError(
-      "時計を主役にしたSceneが必要です",
-      "missing_product_scene",
-    );
+    throw new StoryboardValidationError("時計を主役にしたSceneが必要です", "missing_product_scene");
   const labels = new Set(availableAssetLabels);
   for (const scene of storyboard.scenes) {
     if (scene.preferredAssetLabels.some((label) => !labels.has(label)))
@@ -267,10 +273,7 @@ export function validateStoryboard(
   }
   validateNarrationContinuity(storyboard);
   if (totalStoryboardDuration(storyboard) !== targetDuration)
-    throw new StoryboardValidationError(
-      "Scene合計時間が目標尺と一致しません",
-      "duration_mismatch",
-    );
+    throw new StoryboardValidationError("Scene合計時間が目標尺と一致しません", "duration_mismatch");
   return storyboard;
 }
 

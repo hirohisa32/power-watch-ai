@@ -13,7 +13,7 @@ import { buildVideoPrompt } from "./prompt";
 import { estimateVideoCost, providerDurationForScene } from "./cost";
 import { modelForStyle, videoConfig } from "./config";
 import { pickReferenceAssetIds } from "./orchestration";
-import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 import { PRODUCT_EVIDENCE_MODEL, PRODUCT_EVIDENCE_PROVIDER } from "./product-photo";
 
 export class GenerationRequestError extends Error {
@@ -44,7 +44,7 @@ export async function createGenerationJob(input: {
       )
       .limit(1);
     if (!owned) throw new GenerationRequestError("Sceneが見つかりません");
-    if (isFixedOpeningPreset(owned.scene.preset))
+    if (isFixedOpeningScene(owned.scene))
       throw new GenerationRequestError("Openingは固定System Assetのため生成できません");
     if (
       owned.scene.visualRelevanceStatus === "ng" ||

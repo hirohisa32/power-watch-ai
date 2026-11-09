@@ -6,6 +6,7 @@ import {
   fixedOpeningMasterPath,
   isFixedOpeningPreset,
 } from "@/lib/opening/fixed-master";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 
 describe("POWER WATCH fixed Opening system asset", () => {
   it("stores the Human master byte-for-byte at the protected shared path", async () => {
@@ -32,5 +33,10 @@ describe("POWER WATCH fixed Opening system asset", () => {
       true,
     );
     expect(isFixedOpeningPreset("HistoricalEvent")).toBe(false);
+  });
+
+  it("keeps modern story scenes in the body even when the model selected an Opening preset", () => {
+    expect(isFixedOpeningScene({ preset: "Opening", storyPhase: null })).toBe(true);
+    expect(isFixedOpeningScene({ preset: "Opening", storyPhase: "context" })).toBe(false);
   });
 });

@@ -7,7 +7,7 @@ import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { VercelVideoJobQueue } from "@/lib/video/queue";
 import { createGenerationJob, markEnqueueFailed } from "@/lib/video/repository";
-import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 import { ensureRunwayCredits } from "@/lib/video/balance";
 import { estimateVideoCost, providerDurationForScene } from "@/lib/video/cost";
 
@@ -22,6 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .select({
         id: scenes.id,
         preset: scenes.preset,
+        storyPhase: scenes.storyPhase,
         duration: scenes.duration,
         watchReference: scenes.watchReference,
         selectedGenerationId: scenes.selectedGenerationId,
@@ -54,11 +55,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const queued: string[] = [];
     const targets = candidates.filter(
       (item) =>
-        !isFixedOpeningPreset(item.preset) &&
+        !isFixedOpeningScene(item) &&
         !activeSceneIds.has(item.id) &&
         (!item.selectedGenerationId || !completedGenerationIds.has(item.selectedGenerationId)),
     );
-    const requiredCredits = targets.reduce((sum, scene) => sum + (scene.watchReference ? 0 : (estimateVideoCost("gen4.5", providerDurationForScene(scene.duration)).credits ?? 0)), 0);
+    const requiredCredits = targets.reduce(
+      (sum, scene) =>
+        sum +
+        (scene.watchReference
+          ? 0
+          : (estimateVideoCost("gen4.5", providerDurationForScene(scene.duration)).credits ?? 0)),
+      0,
+    );
     await ensureRunwayCredits(requiredCredits);
     for (const scene of targets) {
       const created = await createGenerationJob({
@@ -76,7 +84,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         );
       }
     }
-    return NextResponse.json({ queued: queued.length, generationIds: queued, requiredCredits }, { status: 202 });
+    return NextResponse.json(
+      { queued: queued.length, generationIds: queued, requiredCredits },
+      { status: 202 },
+    );
   } catch (error) {
     return apiError(error, "未生成Sceneの一括生成を開始できませんでした");
   }

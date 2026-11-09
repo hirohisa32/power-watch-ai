@@ -203,4 +203,22 @@ describe("shared project workflow status", () => {
       }),
     ).toMatchObject({ phase: "SCENES_READY", progress: 80 });
   });
+
+  it("counts an Opening-style body scene when it has a modern story phase", () => {
+    expect(
+      getProjectWorkflowStatus({
+        hasStoryboard: true,
+        scenes: [
+          {
+            id: "story-opening-style",
+            preset: "Opening",
+            storyPhase: "context",
+            selectedGenerationId: generation.id,
+          },
+        ],
+        generations: [{ ...generation, sceneId: "story-opening-style" }],
+        renders: [],
+      }),
+    ).toMatchObject({ phase: "SCENES_READY", progress: 80 });
+  });
 });

@@ -27,6 +27,10 @@ const storyboardRoute = readFileSync(
   resolve(root, "app/api/projects/[id]/storyboard/route.ts"),
   "utf8",
 );
+const sceneRoute = readFileSync(
+  resolve(root, "app/api/projects/[id]/scenes/[sceneId]/route.ts"),
+  "utf8",
+);
 const globalCss = readFileSync(resolve(root, "app/globals.css"), "utf8");
 
 describe("新規動画作成UX", () => {
@@ -76,5 +80,19 @@ describe("新規動画作成UX", () => {
     expect(storyboardEditor).toContain("完了見込み");
     expect(storyboardEditor).toContain("PRODUCTION_STAGES");
     expect(storyboardEditor).toContain("完了見込みは過去の処理時間から算出した目安です");
+  });
+
+  it("固定映像を本編シーンから分離し、生成前の画像確認を案内する", () => {
+    expect(storyboardEditor).toContain("動画構成が完成しました");
+    expect(storyboardEditor).toContain('kind="OPENING"');
+    expect(storyboardEditor).toContain('kind="ENDING"');
+    expect(storyboardEditor).toContain("本編 Scene");
+    expect(storyboardEditor).toContain("画像とシーンの組み合わせを確認してください");
+  });
+
+  it("Human Label変更時は隠れた写真Roleと映像意図も同期する", () => {
+    expect(sceneRoute).toContain("inferProductPhotoRole(selectedAsset.label)");
+    expect(sceneRoute).toContain("visualIntent: input.visualDescription");
+    expect(sceneRoute).toContain("`登録写真「${selectedAsset.label}」の実物時計`");
   });
 });

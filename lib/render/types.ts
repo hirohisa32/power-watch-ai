@@ -6,6 +6,7 @@ export type RenderScene = {
   generationId: string;
   order: number;
   preset: string;
+  storyPhase?: string | null;
   transition?: string;
   duration: number;
   narration: string;

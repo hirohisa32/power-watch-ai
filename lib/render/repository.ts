@@ -15,7 +15,7 @@ import {
 import type { VoiceAssignment } from "@/lib/audio/voices";
 import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { buildFinalRenderInput } from "./plan";
-import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 import { assertProjectAssetIsolation } from "./asset-isolation";
 import { assertStoryQuality, type StoryQualityScores } from "@/lib/storyboard/story-quality";
 
@@ -82,7 +82,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
       .where(eq(scenes.storyboardId, storyboard.id))
       .orderBy(scenes.order);
     const bodyRows = rows.filter(
-      (row) => row.scene.includeInFinal && !isFixedOpeningPreset(row.scene.preset),
+      (row) => row.scene.includeInFinal && !isFixedOpeningScene(row.scene),
     );
     const assetReview = bodyRows.map((row) => {
       if (!row.generationId || !row.generationProjectId || !row.generationSceneId)
@@ -128,6 +128,7 @@ export async function createFinalRenderJob(input: { projectId: string; userId: s
         generationId: row.generationId!,
         order: row.scene.order,
         preset: row.scene.preset,
+        storyPhase: row.scene.storyPhase,
         transition: row.scene.transition,
         duration: row.scene.duration,
         narration: row.scene.narration,

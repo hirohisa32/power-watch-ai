@@ -6,6 +6,8 @@ import { assets, projects, scenes, storyboards } from "@/lib/db/schema";
 import { apiError } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { editableSceneSchema, validateSceneAssetLabels } from "@/lib/storyboard/schema";
+import { inferProductPhotoRole } from "@/lib/storyboard/product-photo-planner";
+import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 
 async function ownedScene(projectId: string, sceneId: string, userId: string) {
   const [row] = await getDb()
@@ -38,24 +40,58 @@ export async function PATCH(
     if (!current) return NextResponse.json({ error: "Sceneが見つかりません" }, { status: 404 });
     const input = editableSceneSchema.parse(await request.json());
     const db = getDb();
-    const labels = await db
-      .select({ label: assets.label })
+    const projectAssets = await db
+      .select({ id: assets.id, label: assets.label })
       .from(assets)
       .where(eq(assets.projectId, id));
     validateSceneAssetLabels(
       input,
-      labels.map((asset) => asset.label),
+      projectAssets.map((asset) => asset.label),
     );
+    const selectedAsset = input.preferredAssetLabels[0]
+      ? projectAssets.find((asset) => asset.label === input.preferredAssetLabels[0])
+      : null;
+    const synchronized = {
+      ...input,
+      productPhotoId: input.watchReference ? (selectedAsset?.id ?? null) : null,
+      productPhotoRole:
+        input.watchReference && selectedAsset ? inferProductPhotoRole(selectedAsset.label) : null,
+      visualType: input.watchReference ? "product_photo" : input.visualType,
+      // The ordinary editor exposes one user-facing visual description. Keep the
+      // machine-facing intent in sync instead of retaining stale planner copy.
+      visualIntent: input.visualDescription,
+      visualSubject:
+        input.watchReference && selectedAsset
+          ? `登録写真「${selectedAsset.label}」の実物時計`
+          : input.visualSubject,
+    };
+    const relevance = evaluateVisualRelevance({
+      narration: synchronized.narration,
+      visualIntent: synchronized.visualIntent,
+      visualSubject: synchronized.visualSubject ?? synchronized.title,
+      historicalPeriod: synchronized.historicalPeriod,
+      year: synchronized.year,
+      location: synchronized.location,
+      characterId: synchronized.characterId,
+      watchReference: synchronized.watchReference,
+      productPhotoRole: synchronized.productPhotoRole,
+      visualType: synchronized.visualType ?? "story",
+    });
     const [updated] = await db.transaction(async (transaction) => {
       const rows = await transaction
         .update(scenes)
-        .set({ ...input, updatedAt: new Date() })
+        .set({
+          ...synchronized,
+          visualRelevanceScore: relevance.score,
+          visualRelevanceStatus: relevance.status,
+          updatedAt: new Date(),
+        })
         .where(eq(scenes.id, sceneId))
         .returning();
       await transaction
         .update(storyboards)
         .set({
-          totalDuration: sql`${storyboards.totalDuration} + ${input.duration - current.scene.duration}`,
+          totalDuration: sql`${storyboards.totalDuration} + ${synchronized.duration - current.scene.duration}`,
           updatedAt: new Date(),
         })
         .where(eq(storyboards.id, current.storyboardId));

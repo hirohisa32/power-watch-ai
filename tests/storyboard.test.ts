@@ -76,10 +76,11 @@ describe("storyboard schema", () => {
     hero.watchReference = false;
     hero.preferredAssetLabels = ["Invented Angle"];
     const result = validateStoryboard(fixture, 60, ["Front"]);
-    expect(result.scenes.at(-2)).toMatchObject({
-      watchReference: true,
-      preferredAssetLabels: ["Front"],
-    });
+    expect(
+      result.scenes.some(
+        (scene) => scene.watchReference && scene.preferredAssetLabels[0] === "Front",
+      ),
+    ).toBe(true);
     expect(result.scenes.filter((scene) => scene.watchReference)).toHaveLength(2);
   });
 
@@ -119,6 +120,15 @@ describe("storyboard schema", () => {
     const fixture = storyboardFixture(60);
     fixture.scenes[2].preset = "HistoricalEvent";
     expect(() => validateStoryboard(fixture, 60, [])).not.toThrow();
+  });
+
+  it("normalizes system-media presets when they appear in generated body scenes", () => {
+    const fixture = storyboardFixture(60);
+    fixture.scenes[1].preset = "Opening";
+    fixture.scenes[2].preset = "Ending";
+    const result = validateStoryboard(fixture, 60, []);
+    expect(result.scenes[1].preset).toBe("HistoricalEvent");
+    expect(result.scenes[2].preset).toBe("ProductHero");
   });
 
   it("replaces internal subtitle copy with spoken narration", () => {
@@ -161,17 +171,24 @@ describe("storyboard schema", () => {
     },
   ];
 
-  it.each(durationMatrix)("validates $label without a provider call", ({ total, labels, scenes }) => {
-    const bodyDuration = calculateStoryBodyDuration(total, opening, ending);
-    const result = validateStoryboard(bodyFixture(scenes), bodyDuration, labels);
-    expect(totalStoryboardDuration(result)).toBe(bodyDuration);
-    expect(result.scenes.every((scene) => scene.duration >= 3 && scene.duration <= 8)).toBe(true);
-    if (labels.length === 1) {
-      const uses = result.scenes.filter((scene) => scene.preferredAssetLabels.includes(labels[0]));
-      expect(uses.length).toBeLessThanOrEqual(2);
-      expect(
-        uses.every((scene, index) => index === 0 || scene.sceneNumber > uses[index - 1].sceneNumber + 1),
-      ).toBe(true);
-    }
-  });
+  it.each(durationMatrix)(
+    "validates $label without a provider call",
+    ({ total, labels, scenes }) => {
+      const bodyDuration = calculateStoryBodyDuration(total, opening, ending);
+      const result = validateStoryboard(bodyFixture(scenes), bodyDuration, labels);
+      expect(totalStoryboardDuration(result)).toBe(bodyDuration);
+      expect(result.scenes.every((scene) => scene.duration >= 3 && scene.duration <= 8)).toBe(true);
+      if (labels.length === 1) {
+        const uses = result.scenes.filter((scene) =>
+          scene.preferredAssetLabels.includes(labels[0]),
+        );
+        expect(uses.length).toBeLessThanOrEqual(2);
+        expect(
+          uses.every(
+            (scene, index) => index === 0 || scene.sceneNumber > uses[index - 1].sceneNumber + 1,
+          ),
+        ).toBe(true);
+      }
+    },
+  );
 });

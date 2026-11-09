@@ -1,4 +1,4 @@
-import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 
 export type ProjectWorkflowInput = {
   hasStoryboard: boolean;
@@ -15,6 +15,7 @@ export type ProjectWorkflowSource = {
   scenes: Array<{
     id: string;
     preset: string;
+    storyPhase?: string | null;
     selectedGenerationId: string | null;
   }>;
   generations: Array<{
@@ -81,9 +82,9 @@ export function projectWorkflow(input: ProjectWorkflowInput): ProjectWorkflow {
     return {
       currentStep: 3,
       phase: "STORYBOARD_READY",
-      label: "動画構成を確認中",
+      label: "動画構成が完成しました",
       progress: 40,
-      description: "動画構成を確認し、シーン作成へ進めます。",
+      description: "画像とシーンの組み合わせを確認し、シーン作成へ進めます。",
       action: "review_storyboard",
     };
   const sceneProgress = input.totalScenes
@@ -122,7 +123,7 @@ export function projectWorkflow(input: ProjectWorkflowInput): ProjectWorkflow {
  * Every project screen must use this resolver rather than projects.status or a latest job directly.
  */
 export function getProjectWorkflowStatus(source: ProjectWorkflowSource): ProjectWorkflow {
-  const bodyScenes = source.scenes.filter((scene) => !isFixedOpeningPreset(scene.preset));
+  const bodyScenes = source.scenes.filter((scene) => !isFixedOpeningScene(scene));
   const bodySceneIds = new Set(bodyScenes.map((scene) => scene.id));
   const bodyGenerations = source.generations.filter((generation) =>
     bodySceneIds.has(generation.sceneId),

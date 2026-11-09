@@ -1,7 +1,7 @@
 import { buildSubtitleCues } from "@/lib/audio/timing";
 import type { VoiceAssignment } from "@/lib/audio/voices";
 import type { FinalRenderInput, RenderScene, RenderSystemAsset, TextOverlay } from "./types";
-import { isFixedOpeningPreset } from "@/lib/opening/fixed-master";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
 
 export const SOUND_EFFECT_BY_PRESET: Record<string, { key: string; frequency: number }> = {
   Opening: { key: "door", frequency: 58 },
@@ -24,7 +24,7 @@ export function buildFinalRenderInput(input: {
   endingAsset?: RenderSystemAsset | null;
 }): FinalRenderInput {
   const scenes = [...input.scenes]
-    .filter((scene) => !isFixedOpeningPreset(scene.preset))
+    .filter((scene) => !isFixedOpeningScene(scene))
     .sort((a, b) => a.order - b.order);
   if (!scenes.length) throw new Error("MISSING_SCENE_VIDEO");
   const blockedScene = scenes.find(

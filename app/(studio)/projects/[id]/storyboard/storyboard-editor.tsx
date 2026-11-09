@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { SCENE_PRESETS, type ScenePresetName } from "@/lib/storyboard/presets";
 import { friendlyError, GENERATION_STATUS_LABELS } from "@/lib/ui/presentation";
-import { isFixedOpeningPreset } from "@/lib/opening/policy";
+import { isFixedOpeningScene } from "@/lib/opening/policy";
+import { inferProductPhotoRole } from "@/lib/storyboard/product-photo-planner";
 
 type EditorScene = {
   id: string;
@@ -27,6 +28,15 @@ type EditorScene = {
   narrationTone: string;
   dialogue: Array<{ speaker: string; text: string; tone: string }>;
   subtitle: string;
+  storyPhase: string | null;
+  visualIntent: string | null;
+  visualSubject: string | null;
+  historicalPeriod: string | null;
+  characterId: string | null;
+  productPhotoRole: string | null;
+  visualType: string | null;
+  visualRelevanceScore: number | null;
+  visualRelevanceStatus: string | null;
   visualDescription: string;
   visualPrompt: string;
   camera: string;
@@ -82,6 +92,15 @@ const blankScene = (): Omit<
   narrationTone: "documentary",
   dialogue: [],
   subtitle: "字幕を入力",
+  storyPhase: "context",
+  visualIntent: "物語の背景を映像で補足する",
+  visualSubject: "時代背景と環境",
+  historicalPeriod: null,
+  characterId: null,
+  productPhotoRole: null,
+  visualType: "story",
+  visualRelevanceScore: null,
+  visualRelevanceStatus: null,
   visualDescription: "物語の背景を補足する追加シーン",
   visualPrompt:
     "Cinematic historical event in an era-authentic environment, balanced editorial composition, 50mm lens feel, motivated natural lighting, restrained observational movement, muted period color palette",
@@ -128,6 +147,11 @@ const PRODUCTION_STAGES = [
   "最終動画",
 ] as const;
 
+type StoryboardSystemMedia = {
+  opening: { name: string; duration: number; sourceDuration: number } | null;
+  ending: { name: string; duration: number; sourceDuration: number } | null;
+};
+
 function formatDuration(seconds: number) {
   if (seconds < 60) return `約${Math.max(1, seconds)}秒`;
   const minutes = Math.floor(seconds / 60);
@@ -143,6 +167,7 @@ export function StoryboardEditor({
   assetLabels,
   initialScenes,
   initialGenerations,
+  systemMedia,
   showTechnical,
 }: {
   projectId: string;
@@ -152,6 +177,7 @@ export function StoryboardEditor({
   assetLabels: string[];
   initialScenes: EditorScene[];
   initialGenerations: EditorGeneration[];
+  systemMedia: StoryboardSystemMedia;
   showTechnical: boolean;
 }) {
   const router = useRouter();
@@ -165,13 +191,22 @@ export function StoryboardEditor({
   const [regenerationInstructions, setRegenerationInstructions] = useState<Record<string, string>>(
     {},
   );
-  const total = useMemo(
-    () => initialScenes.reduce((sum, scene) => sum + scene.duration, 0),
+  const bodyScenes = useMemo(
+    () => initialScenes.filter((scene) => !isFixedOpeningScene(scene)),
     [initialScenes],
   );
-  const bodySceneIds = new Set(
-    initialScenes.filter((scene) => !isFixedOpeningPreset(scene.preset)).map((scene) => scene.id),
+  const total = useMemo(
+    () => bodyScenes.reduce((sum, scene) => sum + scene.duration, 0),
+    [bodyScenes],
   );
+  const bodySceneIds = new Set(bodyScenes.map((scene) => scene.id));
+  const reviewSceneNumbers = bodyScenes.flatMap((scene, index) => {
+    if (!scene.watchReference || !scene.productPhotoRole || !scene.preferredAssetLabels[0])
+      return [];
+    return inferProductPhotoRole(scene.preferredAssetLabels[0]) === scene.productPhotoRole
+      ? []
+      : [index + 1];
+  });
   const hasActiveGeneration =
     !hasCompletedRender &&
     initialGenerations.some(
@@ -362,6 +397,26 @@ export function StoryboardEditor({
   }
   return (
     <>
+      <section className="storyboard-ready-summary" role="status">
+        <div>
+          <span>
+            <Check size={15} /> 動画構成が完成しました
+          </span>
+          <strong>{bodyScenes.length}シーン</strong>
+        </div>
+        <p>
+          本編{targetDuration}秒 · 完成動画{finalDuration}秒
+        </p>
+      </section>
+      <section className="system-media-timeline" aria-label="固定映像と本編の構成">
+        <SystemMediaItem kind="OPENING" media={systemMedia.opening} />
+        <div className="system-media-body">
+          <span>STORY</span>
+          <strong>本編 {bodyScenes.length}シーン</strong>
+          <small>{targetDuration}秒 · AI生成対象</small>
+        </div>
+        <SystemMediaItem kind="ENDING" media={systemMedia.ending} />
+      </section>
       <div className="storyboard-toolbar" id="generate-scenes">
         <div>
           <span
@@ -372,7 +427,9 @@ export function StoryboardEditor({
               : `${total} / ${targetDuration} 秒 · 本編（完成動画 ${finalDuration}秒）`}
           </span>
           <span className="hint">
-            {completedSceneCount} / {bodySceneIds.size} 本編シーン完成 · 固定オープニング
+            本編：{bodySceneIds.size}シーン · Opening：固定 · Ending：固定
+            <br />
+            {completedSceneCount} / {bodySceneIds.size} 本編シーン完成
             {activeSceneCount > 0 ? ` · ${activeSceneCount}シーンを生成中` : ""}
           </span>
         </div>
@@ -424,6 +481,23 @@ export function StoryboardEditor({
         <p className="duration-warning">
           シーンの合計時間が動画の長さと一致していません。各シーンの秒数を調整してください。
         </p>
+      )}
+      {!hasCompletedRender && completedSceneCount < bodySceneIds.size && (
+        <div className={`scene-review-guidance ${reviewSceneNumbers.length ? "review" : ""}`}>
+          <div>
+            <strong>画像とシーンの組み合わせを確認してください</strong>
+            <span>
+              Human Labelを正本として、各シーンの映像内容と使用画像を確認してから生成します。
+            </span>
+          </div>
+          {reviewSceneNumbers.length > 0 && (
+            <p>
+              確認推奨：STORY{" "}
+              {reviewSceneNumbers.map((number) => String(number).padStart(2, "0")).join(", ")}{" "}
+              の映像内容と使用画像の組み合わせを確認してください。
+            </p>
+          )}
+        </div>
       )}
       {error && (
         <div className="error action-feedback" role="alert">
@@ -528,8 +602,7 @@ export function StoryboardEditor({
         </section>
       )}
       <div className="scene-list" id="scene-list">
-        {initialScenes.map((scene, index) => {
-          const fixedOpening = isFixedOpeningPreset(scene.preset);
+        {bodyScenes.map((scene, index) => {
           const allGenerations = initialGenerations.filter(
             (generation) => generation.sceneId === scene.id,
           );
@@ -549,13 +622,13 @@ export function StoryboardEditor({
           return (
             <article className="scene-card" key={scene.id}>
               <div className="scene-number">
-                <span>シーン</span>
-                {String(scene.order).padStart(2, "0")}
+                <span>STORY</span>
+                {String(index + 1).padStart(2, "0")}
               </div>
               <div className="scene-main">
                 <div className="scene-heading">
                   <div>
-                    <span className="pill">シーン {scene.order}</span>
+                    <span className="pill">本編 Scene {index + 1}</span>
                     <h2>{scene.title}</h2>
                   </div>
                   <span className="scene-duration">{scene.duration}s</span>
@@ -589,9 +662,7 @@ export function StoryboardEditor({
                 <div className="generation-panel">
                   <div className="generation-head">
                     <span>生成動画</span>
-                    {fixedOpening ? (
-                      <span className="generation-status completed">固定オープニング</span>
-                    ) : activeGeneration ? (
+                    {activeGeneration ? (
                       <span className="generation-status active">
                         {GENERATION_STATUS_LABELS[activeGeneration.status]}
                       </span>
@@ -663,7 +734,7 @@ export function StoryboardEditor({
                     </p>
                   )}
                   <div className="card-actions">
-                    {!fixedOpening && !completedGeneration && !activeGeneration && (
+                    {!completedGeneration && !activeGeneration && (
                       <button
                         className="btn btn-secondary"
                         disabled={pending}
@@ -672,7 +743,7 @@ export function StoryboardEditor({
                         {generations.length > 0 ? "もう一度試す" : "映像を作る"}
                       </button>
                     )}
-                    {!fixedOpening && completedGeneration && !activeGeneration && (
+                    {completedGeneration && !activeGeneration && (
                       <button className="btn btn-secondary" onClick={() => setEditing(scene)}>
                         <WandSparkles size={14} /> 修正・再生成
                       </button>
@@ -698,7 +769,7 @@ export function StoryboardEditor({
                   </button>
                   <button
                     className="btn"
-                    disabled={pending || index === initialScenes.length - 1}
+                    disabled={pending || index === bodyScenes.length - 1}
                     onClick={() =>
                       request(`/api/projects/${projectId}/scenes/${scene.id}/move`, {
                         method: "POST",
@@ -846,6 +917,28 @@ export function StoryboardEditor({
         </div>
       )}
     </>
+  );
+}
+
+function SystemMediaItem({
+  kind,
+  media,
+}: {
+  kind: "OPENING" | "ENDING";
+  media: StoryboardSystemMedia["opening"];
+}) {
+  const label = kind === "OPENING" ? "固定オープニング" : "固定エンディング";
+  return (
+    <div className="system-media-item">
+      <span>{kind}</span>
+      <strong>{label}</strong>
+      {media ? (
+        <small>✓ 登録済み素材 · {media.duration.toFixed(media.duration % 1 ? 1 : 0)}秒</small>
+      ) : (
+        <small>使用しない · 生成対象外</small>
+      )}
+      {media && <em title={media.name}>{media.name}</em>}
+    </div>
   );
 }
 
