@@ -45,9 +45,12 @@ describe("storyboard schema", () => {
       watchReference: true,
       preferredAssetLabels: ["Invented Angle"],
     };
-    expect(validateStoryboard(fixture, 60, ["Front"]).scenes[2].preferredAssetLabels).toEqual([
-      "Front",
-    ]);
+    const result = validateStoryboard(fixture, 60, ["Front"]);
+    expect(
+      result.scenes
+        .flatMap((scene) => scene.preferredAssetLabels)
+        .every((label) => label === "Front"),
+    ).toBe(true);
   });
 
   it("normalizes required watch references to an available asset", () => {
@@ -60,6 +63,7 @@ describe("storyboard schema", () => {
       watchReference: true,
       preferredAssetLabels: ["Front"],
     });
+    expect(result.scenes.filter((scene) => scene.watchReference)).toHaveLength(2);
   });
 
   it("rejects a missing script before an API call", () => {
@@ -118,5 +122,6 @@ describe("storyboard schema", () => {
     expect(prompt).toContain("Opening and ending are independent pre-made System Assets");
     expect(prompt).toContain("ORIGINAL PRODUCT EVIDENCE");
     expect(prompt).toContain("Never redraw, stylize, reconstruct");
+    expect(prompt).toContain("SINGLE PRODUCT PHOTO RULE");
   });
 });

@@ -65,15 +65,27 @@ export function productPhotoClass(role: string | null | undefined): ProductPhoto
 }
 
 export function evaluateFinalProductArc(
-  scenes: Array<{ watchReference: boolean; productPhotoRole?: string | null }>,
+  scenes: Array<{
+    watchReference: boolean;
+    productPhotoRole?: string | null;
+    preferredAssetLabels?: string[];
+  }>,
 ) {
   const tailSize = Math.max(1, Math.ceil(scenes.length * 0.2));
   const tail = scenes.slice(-tailSize);
+  const productScenes = scenes.filter((scene) => scene.watchReference);
   const productTail = tail.filter((scene) => scene.watchReference);
   const desireCount = productTail.filter(
     (scene) => productPhotoClass(scene.productPhotoRole) === "desire",
   ).length;
   const finalProduct = [...scenes].reverse().find((scene) => scene.watchReference);
+  const usedLabels = productScenes.flatMap(
+    (scene) => scene.preferredAssetLabels?.slice(0, 1) ?? [],
+  );
+  const singlePhotoMode =
+    productScenes.length <= 2 &&
+    usedLabels.length === productScenes.length &&
+    new Set(usedLabels).size === 1;
   return {
     tailSize,
     desireCount,
@@ -81,7 +93,11 @@ export function evaluateFinalProductArc(
       (scene) => productPhotoClass(scene.productPhotoRole) === "evidence",
     ).length,
     finalProductClass: productPhotoClass(finalProduct?.productPhotoRole),
-    passed: desireCount > 0 && productPhotoClass(finalProduct?.productPhotoRole) === "desire",
+    singlePhotoMode,
+    passed:
+      Boolean(finalProduct) &&
+      (singlePhotoMode ||
+        (desireCount > 0 && productPhotoClass(finalProduct?.productPhotoRole) === "desire")),
   };
 }
 
@@ -238,15 +254,31 @@ export function planProductPhotoUsageWithAssets<
     watchReference: boolean;
     preferredAssetLabels: string[];
     narration: string;
+    productPhotoRole?: string | null;
     visualIntent?: string;
     visualSubject?: string;
     storyPhase?: string | null;
+    preset?: string | null;
+    visualType?: string | null;
+    characterId?: string | null;
+    historicalPeriod?: string | null;
+    visualDescription?: string | null;
+    visualPrompt?: string | null;
+    camera?: string | null;
+    shotType?: string | null;
+    lighting?: string | null;
+    motion?: string | null;
+    transition?: string | null;
   },
->(scenes: T[], assets: ProductPhotoAssetCandidate[]) {
+>(
+  scenes: T[],
+  assets: ProductPhotoAssetCandidate[],
+): Array<T & { productPhotoRole: ProductPhotoRole | null }> {
   const candidates = assets.map((asset) => ({
     label: asset.label,
     role: effectiveProductPhotoRole(asset),
   }));
+  if (candidates.length === 1) return planSingleProductPhotoUsage(scenes, candidates[0]);
   const useCounts = new Map<string, number>();
   let previousLabel: string | null = null;
   let previousRole: ProductPhotoRole | null = null;
@@ -296,5 +328,113 @@ export function planProductPhotoUsageWithAssets<
       preferredAssetLabels: [selected.label],
       productPhotoRole: selected.role,
     };
-  });
+  }) as Array<T & { productPhotoRole: ProductPhotoRole | null }>;
+}
+
+const PRODUCT_SCENE_PRESETS = new Set(["WatchReveal", "WristShot", "WatchMacro", "ProductHero"]);
+
+function planSingleProductPhotoUsage<
+  T extends {
+    watchReference: boolean;
+    preferredAssetLabels: string[];
+    narration: string;
+    productPhotoRole?: string | null;
+    visualIntent?: string;
+    visualSubject?: string;
+    storyPhase?: string | null;
+    preset?: string | null;
+    visualType?: string | null;
+    characterId?: string | null;
+    historicalPeriod?: string | null;
+    visualDescription?: string | null;
+    visualPrompt?: string | null;
+    camera?: string | null;
+    shotType?: string | null;
+    lighting?: string | null;
+    motion?: string | null;
+    transition?: string | null;
+  },
+>(
+  scenes: T[],
+  asset: { label: string; role: ProductPhotoRole },
+): Array<T & { productPhotoRole: ProductPhotoRole | null }> {
+  const timeline = scenes
+    .map((scene, index) => ({ scene, index }))
+    .filter(({ scene }) => !["Opening", "Ending"].includes(scene.preset ?? ""));
+  const heroIndex = timeline.at(-1)?.index;
+  if (heroIndex === undefined)
+    return scenes.map((scene) => ({
+      ...scene,
+      productPhotoRole: isProductPhotoRole(scene.productPhotoRole) ? scene.productPhotoRole : null,
+    }));
+
+  const middleTarget = Math.round((timeline[0].index + heroIndex) * 0.55);
+  const evidenceIndex = timeline
+    .filter(({ index }) => index < heroIndex - 1)
+    .sort((left, right) => {
+      const distance = Math.abs(left.index - middleTarget) - Math.abs(right.index - middleTarget);
+      if (distance !== 0) return distance;
+      return Number(right.scene.watchReference) - Number(left.scene.watchReference);
+    })[0]?.index;
+  const selected = new Set(
+    [evidenceIndex, heroIndex].filter((index): index is number => index !== undefined),
+  );
+
+  return scenes.map((scene, index) => {
+    if (selected.has(index)) {
+      const isHero = index === heroIndex;
+      const purpose = isHero ? "物語終盤のHero / Payoff" : "物語中盤のEvidence";
+      return {
+        ...scene,
+        preset: isHero ? "ProductHero" : "WatchReveal",
+        watchReference: true,
+        preferredAssetLabels: [asset.label],
+        productPhotoRole: asset.role,
+        visualType: "product_photo",
+        visualIntent: `${scene.narration}を、登録済みの同一商品写真による${purpose}として示す。`,
+        visualSubject: `登録写真「${asset.label}」の実物時計`,
+        visualDescription: `${asset.label}の元写真をそのまま使用する${purpose}。別の用途や別アングルを作らない。`,
+        visualPrompt:
+          "Use the exact registered product photograph without redrawing, restyling, reconstructing, morphing, generative fill, angle invention, or identity changes. Preserve the original frame and every visible watch detail. Add only restrained camera crop, focus, light, depth, and grain.",
+        camera: isHero
+          ? "Slow final hero dolly within the original frame"
+          : "Restrained evidence push",
+        shotType: isHero ? "Original-photo hero payoff" : "Original-photo documentary evidence",
+        lighting: "Non-generative light overlay matched to the original photograph",
+        motion: "Camera, focus, light and grain only; the watch geometry remains locked",
+        transition: isHero ? "Quiet fade into the ending" : "Documentary match dissolve",
+      };
+    }
+
+    const wasProductScene =
+      scene.watchReference ||
+      scene.visualType === "product_photo" ||
+      PRODUCT_SCENE_PRESETS.has(scene.preset ?? "");
+    if (!wasProductScene) return { ...scene, preferredAssetLabels: [], productPhotoRole: null };
+
+    const characterScene = Boolean(scene.characterId);
+    return {
+      ...scene,
+      preset: characterScene ? "HistoricalCharacter" : "HistoricalEvent",
+      watchReference: false,
+      preferredAssetLabels: [],
+      productPhotoRole: null,
+      visualType: "story",
+      visualIntent: `${scene.narration}の意味を、時計本体を映さない人物・時代・資料のStory Sceneで補強する。`,
+      visualSubject: characterScene
+        ? "物語の中心人物によるSilent Acting"
+        : scene.historicalPeriod
+          ? `${scene.historicalPeriod}の歴史背景`
+          : "物語を支える歴史資料と環境",
+      visualDescription:
+        "商品写真や時計本体を映さず、人物、工房、資料、建築または時代背景だけで物語をつなぐ。",
+      visualPrompt:
+        "Cinematic story scene matching the approved project style and historical context. Show only people, workshop, archival material, architecture, or environment. No watch, dial, case, movement, product photograph, logo, readable text, or invented product angle.",
+      camera: "Measured documentary camera movement",
+      shotType: characterScene
+        ? "Silent character story beat"
+        : "Historical environment story beat",
+      motion: "One restrained story action with environmental movement",
+    };
+  }) as Array<T & { productPhotoRole: ProductPhotoRole | null }>;
 }

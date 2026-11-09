@@ -53,6 +53,7 @@ describe("storyboard save flow", () => {
       scene.watchReference = false;
       scene.preferredAssetLabels = [];
     });
+    invalid.scenes[3].sceneNumber = 5;
     const usage = {
       model: "mock-model",
       inputTokens: 100,
@@ -81,7 +82,7 @@ describe("storyboard save flow", () => {
         director,
         persistence,
       ),
-    ).rejects.toThrow("時計を主役にしたScene");
+    ).rejects.toThrow("Scene番号");
     expect(replace).not.toHaveBeenCalled();
     expect(recordUsage).toHaveBeenCalledWith({
       projectId: "project-1",

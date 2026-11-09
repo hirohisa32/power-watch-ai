@@ -19,6 +19,7 @@ export type StoryQualityScene = {
   narration: string;
   watchReference: boolean;
   productPhotoRole?: string | null;
+  preferredAssetLabels?: string[];
 };
 
 export function evaluateStoryQuality(scenes: StoryQualityScene[]): StoryQualityScores {
@@ -66,8 +67,8 @@ export function evaluateStoryQuality(scenes: StoryQualityScene[]): StoryQualityS
       (phases.includes("reveal") ? 7 : 0) +
       (last?.storyPhase === "payoff" ? 8 : 0) +
       (/特別|美し|宿す|まとう|この一本/iu.test(last?.narration ?? "") ? 8 : 0) +
-      (productArc.desireCount > 0 ? 7 : 0) +
-      (productArc.finalProductClass === "desire" ? 7 : 0),
+      (productArc.desireCount > 0 || productArc.singlePhotoMode ? 7 : 0) +
+      (productArc.finalProductClass === "desire" || productArc.singlePhotoMode ? 7 : 0),
   );
   const values = [
     hook,

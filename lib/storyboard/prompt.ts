@@ -48,6 +48,7 @@ NON-NEGOTIABLE RULES
 16. Viewer-facing text is limited to concise narration subtitles and supported year/location or factual evidence labels. Internal scene labels, descriptions, preset names, prompts and generated readable text must never appear.
 17. Make the real product photograph a story payoff: historical event → evidence transition (letter, gift, archive, box, black/light transition) → original product photo reveal → details → hero. Story scenes explain why the watch matters; the real photo proves what it is.
 18. Historical people use silent acting without lip sync. Recurring characters must keep the same face, age, hair, wardrobe, build and palette across scenes. Animation mode must keep one illustration style across people and backgrounds.
+19. SINGLE PRODUCT PHOTO RULE: when only one watch photograph is supplied, preserve that exact Human Label / Role and use the photograph at most twice: once as non-generative Evidence near the middle and once as the final Hero / Payoff. These uses must never be consecutive. Build every other scene from story, history, character, archive, workshop, architecture or environment without a visible watch. Never invent another role, angle, watch view or product identity, and never stop generation merely because only one photograph exists.
 
 STYLE
 ${styleDirection}
