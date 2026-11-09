@@ -16,6 +16,8 @@ import { HAYASHI_VOICE } from "@/lib/system-media/config";
 import { ProjectStepper } from "../project-stepper";
 import { getProjectWorkflowStatus } from "@/lib/ui/project-workflow";
 import { ProjectSubnav } from "../project-subnav";
+import { calculateStoryBodyDuration } from "@/lib/storyboard/duration";
+import { resolveSystemVideoAssetSelection } from "@/lib/system-media/repository";
 
 export const metadata: Metadata = { title: "動画構成" };
 export const dynamic = "force-dynamic";
@@ -44,10 +46,20 @@ export default async function StoryboardPage({
     .select({ label: assets.label })
     .from(assets)
     .where(eq(assets.projectId, id));
-  const [generations, renders] = await Promise.all([
+  const [generations, renders, opening, ending] = await Promise.all([
     listSceneGenerations(id),
     listProjectRenders(id),
+    resolveSystemVideoAssetSelection(project.openingAssetId, "opening"),
+    resolveSystemVideoAssetSelection(project.endingAssetId, "ending"),
   ]);
+  const plannedBodyDuration = calculateStoryBodyDuration(
+    project.targetDuration as 60 | 90,
+    opening,
+    ending,
+  );
+  const currentBodyDuration = active.scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const storyboardTargetDuration =
+    currentBodyDuration === project.targetDuration ? project.targetDuration : plannedBodyDuration;
   const workflow = getProjectWorkflowStatus({
     hasStoryboard: true,
     scenes: active.scenes,
@@ -79,7 +91,8 @@ export default async function StoryboardPage({
       />
       <StoryboardEditor
         projectId={id}
-        targetDuration={project.targetDuration}
+        targetDuration={storyboardTargetDuration}
+        finalDuration={project.targetDuration}
         hasCompletedRender={renders.some((render) => render.status === "completed")}
         assetLabels={watchAssets.map((asset) => asset.label)}
         initialScenes={active.scenes.map((scene) => ({

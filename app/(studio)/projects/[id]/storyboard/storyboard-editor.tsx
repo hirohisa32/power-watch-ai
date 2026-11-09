@@ -119,9 +119,26 @@ const PIPELINE_STAGE_LABELS: Record<string, string> = {
   error: "エラー",
 };
 
+const PRODUCTION_STAGES = [
+  "台本解析",
+  "画像準備",
+  "シーン画像作成",
+  "映像生成",
+  "ナレーション",
+  "最終動画",
+] as const;
+
+function formatDuration(seconds: number) {
+  if (seconds < 60) return `約${Math.max(1, seconds)}秒`;
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  return remaining ? `約${minutes}分${remaining}秒` : `約${minutes}分`;
+}
+
 export function StoryboardEditor({
   projectId,
   targetDuration,
+  finalDuration,
   hasCompletedRender,
   assetLabels,
   initialScenes,
@@ -130,6 +147,7 @@ export function StoryboardEditor({
 }: {
   projectId: string;
   targetDuration: number;
+  finalDuration: number;
   hasCompletedRender: boolean;
   assetLabels: string[];
   initialScenes: EditorScene[];
@@ -193,12 +211,61 @@ export function StoryboardEditor({
     ? initialScenes.find((scene) => scene.id === activeGeneration.sceneId)
     : null;
   const progressStartedAt = activeGeneration ? Date.parse(activeGeneration.createdAt) : null;
+  const completedDurations = initialGenerations
+    .filter((generation) => generation.status === "completed" && generation.completedAt)
+    .map(
+      (generation) =>
+        (Date.parse(generation.completedAt!) - Date.parse(generation.createdAt)) / 1_000,
+    )
+    .filter((seconds) => seconds > 0 && seconds < 60 * 30);
+  const averageSceneSeconds = completedDurations.length
+    ? completedDurations.reduce((sum, seconds) => sum + seconds, 0) / completedDurations.length
+    : 90;
+  const activeSceneFraction = activeGeneration
+    ? Math.min(0.92, Math.max(0.08, elapsedSeconds / averageSceneSeconds))
+    : 0;
   const progressPercent = bodySceneIds.size
     ? Math.min(
         100,
-        Math.round(((completedSceneCount + activeSceneCount * 0.45) / bodySceneIds.size) * 100),
+        Math.round(((completedSceneCount + activeSceneFraction) / bodySceneIds.size) * 100),
       )
     : 0;
+  const waitingSceneCount = Math.max(0, bodySceneIds.size - completedSceneCount - activeSceneCount);
+  const estimatedRemainingSeconds = Math.max(
+    0,
+    (activeGeneration
+      ? Math.max(averageSceneSeconds * 0.15, averageSceneSeconds - elapsedSeconds)
+      : 0) +
+      waitingSceneCount * averageSceneSeconds,
+  );
+  const etaRange = `${formatDuration(Math.round(estimatedRemainingSeconds * 0.8))}〜${formatDuration(
+    Math.round(estimatedRemainingSeconds * 1.25),
+  )}`;
+  const currentProductionStage = activeGeneration
+    ? ["preparing", "image_creating", "image_quality_gate"].includes(activeGeneration.pipelineStage)
+      ? activeGeneration.pipelineStage === "preparing"
+        ? 1
+        : 2
+      : 3
+    : pending
+      ? 1
+      : 0;
+  const selectedGenerationIds = new Set(
+    initialScenes.map((scene) => scene.selectedGenerationId).filter(Boolean),
+  );
+  const selectedGenerationDurations = initialGenerations
+    .filter(
+      (generation) => selectedGenerationIds.has(generation.id) && generation.status === "completed",
+    )
+    .map((generation) =>
+      generation.completedAt
+        ? (Date.parse(generation.completedAt) - Date.parse(generation.createdAt)) / 1_000
+        : 0,
+    )
+    .filter((seconds) => seconds > 0);
+  const completedGenerationTime = selectedGenerationDurations.length
+    ? selectedGenerationDurations.reduce((sum, seconds) => sum + seconds, 0)
+    : null;
   useEffect(() => {
     if (!hasActiveGeneration) return;
     const timer = window.setTimeout(() => router.refresh(), 7_000);
@@ -300,7 +367,9 @@ export function StoryboardEditor({
           <span
             className={`duration-meter ${total === targetDuration || hasCompletedRender ? "valid" : "invalid"}`}
           >
-            {hasCompletedRender ? `${total}秒 · 完成尺` : `${total} / ${targetDuration} 秒`}
+            {hasCompletedRender
+              ? `${finalDuration}秒 · 完成動画`
+              : `${total} / ${targetDuration} 秒 · 本編（完成動画 ${finalDuration}秒）`}
           </span>
           <span className="hint">
             {completedSceneCount} / {bodySceneIds.size} 本編シーン完成 · 固定オープニング
@@ -374,7 +443,7 @@ export function StoryboardEditor({
             <span className="generation-progress-pulse" aria-hidden="true" />
             <div>
               <strong>映像を生成しています</strong>
-              <p>{notice || `${activeSceneCount}シーンを生成しています。`}</p>
+              <p>{notice || `${completedSceneCount}/${bodySceneIds.size}シーンが完了しました。`}</p>
             </div>
           </div>
           <dl>
@@ -387,11 +456,9 @@ export function StoryboardEditor({
               </dd>
             </div>
             <div>
-              <dt>シーン</dt>
+              <dt>進捗</dt>
               <dd>
-                {activeScene
-                  ? `${activeScene.order} / ${bodySceneIds.size} · ${activeScene.title}`
-                  : "準備中"}
+                完了 {completedSceneCount} · 処理中 {activeSceneCount} · 待機 {waitingSceneCount}
               </dd>
             </div>
             <div>
@@ -400,13 +467,64 @@ export function StoryboardEditor({
                 {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, "0")}
               </dd>
             </div>
+            <div>
+              <dt>完了見込み</dt>
+              <dd>{hasActiveGeneration ? etaRange : "計算中"}</dd>
+            </div>
           </dl>
           <div className="generation-progress-track" aria-label={`全体進捗 ${progressPercent}%`}>
             <span style={{ width: `${progressPercent}%` }} />
           </div>
+          <div className="generation-progress-summary">
+            <strong>{progressPercent}%</strong>
+            <span>
+              {activeScene
+                ? `現在：シーン${activeScene.order}「${activeScene.title}」`
+                : "開始準備中"}
+            </span>
+          </div>
+          <ol className="production-stage-list" aria-label="動画作成工程">
+            {PRODUCTION_STAGES.map((stage, index) => (
+              <li
+                key={stage}
+                className={
+                  index < currentProductionStage
+                    ? "done"
+                    : index === currentProductionStage
+                      ? "active"
+                      : ""
+                }
+              >
+                <span>{index < currentProductionStage ? <Check size={12} /> : index + 1}</span>
+                {stage}
+              </li>
+            ))}
+          </ol>
+          {elapsedSeconds >= 120 && (
+            <p className="generation-long-running">
+              高品質な映像を作成しているため、通常より時間がかかっています。処理は継続中です。
+            </p>
+          )}
+          <small className="eta-note">完了見込みは過去の処理時間から算出した目安です。</small>
           <p className="processing-away-note">
             この画面を閉じても生成は続行されます。後から戻ると現在の状態を確認できます。
           </p>
+        </section>
+      )}
+      {hasCompletedRender && (
+        <section className="generation-complete-summary" role="status">
+          <span>
+            <Check size={16} /> 完成
+          </span>
+          <p>
+            すべてのシーンと最終動画が完成しました
+            {completedGenerationTime != null
+              ? ` · 作成時間 ${formatDuration(Math.round(completedGenerationTime))}`
+              : ""}
+          </p>
+          <a className="btn btn-primary" href="#completed-video">
+            完成動画を見る
+          </a>
         </section>
       )}
       <div className="scene-list" id="scene-list">

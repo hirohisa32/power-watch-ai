@@ -87,49 +87,52 @@ export function AssetMetadataManager({
             </a>
             <div className="asset-role-copy">
               <div>
-                <span>現在ラベル</span>
+                <span>画像の種類</span>
                 <strong>{asset.humanLabel}</strong>
               </div>
               <div>
-                <span>判定状態</span>
+                <span>状態</span>
                 <strong>
                   {asset.reviewStatus === "HUMAN_LOCKED"
-                    ? "確定済み"
+                    ? "✓ 確定済み"
                     : asset.reviewStatus === "AUTO_ADOPT_ELIGIBLE"
-                      ? "画像内容チェック：問題なし"
+                      ? "確認待ち"
                       : "確認が必要"}
                 </strong>
               </div>
-              <div className="asset-suggestions">
-                <span>AI候補</span>
-                {asset.suggestions.length ? (
-                  <ol>
-                    {asset.suggestions.map((suggestion, index) => (
-                      <li key={`${suggestion.role}-${index}`}>
-                        <span>{suggestion.label}</span>
-                        <small>
-                          AI推定精度 {Math.round(suggestion.confidence * 100)}%
-                          {!suggestion.featureGatePassed && " · 画像内容チェック未完了"}
-                        </small>
-                        {!asset.humanLocked && (
-                          <button
-                            type="button"
-                            onClick={() => adopt(asset.id, suggestion.role)}
-                            disabled={pending}
-                          >
-                            この候補を採用
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <strong>未解析</strong>
-                )}
-              </div>
-              {asset.mismatch && (
+              <details className="asset-analysis-details">
+                <summary>AI判定の詳細を見る</summary>
+                <div className="asset-suggestions">
+                  <span>画像整理の候補</span>
+                  {asset.suggestions.length ? (
+                    <ol>
+                      {asset.suggestions.map((suggestion, index) => (
+                        <li key={`${suggestion.role}-${index}`}>
+                          <span>{suggestion.label}</span>
+                          <small>
+                            推定 {Math.round(suggestion.confidence * 100)}%
+                            {!suggestion.featureGatePassed && " · 画像内容の確認が必要"}
+                          </small>
+                          {!asset.humanLocked && (
+                            <button
+                              type="button"
+                              onClick={() => adopt(asset.id, suggestion.role)}
+                              disabled={pending}
+                            >
+                              この候補を採用
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <strong>未解析</strong>
+                  )}
+                </div>
+              </details>
+              {asset.mismatch && !asset.humanLocked && (
                 <p className="asset-role-warning">
-                  <AlertTriangle size={13} /> 要確認：現在の画像ラベルとAI候補が異なります
+                  <AlertTriangle size={13} /> 画像の種類を確認してください
                 </p>
               )}
               {!asset.humanLocked && (
@@ -160,9 +163,7 @@ export function AssetMetadataManager({
             </div>
             {asset.humanLocked && (
               <span className="asset-role-lock">
-                <Check size={13} /> 確定済み：
-                {roleOptions.find((option) => option.value === asset.lockedRole)?.label ??
-                  asset.lockedRole}
+                <Check size={13} /> 確定済み
               </span>
             )}
           </article>

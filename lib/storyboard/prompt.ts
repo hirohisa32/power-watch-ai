@@ -5,7 +5,8 @@ type StoryboardPromptInput = {
   script: string;
   style: "cinematic_real" | "animation";
   language: "ja" | "en" | "zh";
-  targetDuration: 60 | 90;
+  targetDuration: number;
+  finalDuration?: 60 | 90;
   assetLabels: string[];
   openingSelected?: boolean;
   endingSelected?: boolean;
@@ -19,7 +20,7 @@ export function buildStoryboardPrompt(input: StoryboardPromptInput) {
     input.style === "cinematic_real"
       ? "Photorealistic cinematic historical documentary, natural people and lighting, large-format cinema camera language, restrained film grain, mature luxury documentary tone."
       : "Cinematic illustrated animation made like a professional editorial illustrator's work: sophisticated Japanese animation-inspired visual language, elegant linework, painterly but controlled shading, carefully drawn mature faces, textured premium magazine illustration, cinematic light, and one consistent hand-crafted style. Never childish, chibi, comic, cheap anime, fantasy, game CG, glossy 3D character art, or watercolor-only ambiguity.";
-  const sceneRange = input.targetDuration === 60 ? "10-14" : "15-20";
+  const sceneRange = input.targetDuration <= 45 ? "8-11" : "12-18";
   const durationGuide = Object.entries(EPOCA_STORY_STYLE.sceneDurationRules)
     .map(([preset, rule]) => `${preset}=${rule.min}-${rule.max}s (preferred ${rule.preferred}s)`)
     .join(", ");
@@ -60,7 +61,8 @@ EPOCA STORY STYLE
 ${serializeEpocaStoryStyle()}`,
     user: JSON.stringify({
       project: {
-        targetDuration: input.targetDuration,
+        storyBodyDuration: input.targetDuration,
+        completedVideoDuration: input.finalDuration ?? input.targetDuration,
         style: input.style,
         outputLanguage: languageName[input.language],
         availableWatchAssetLabels: input.assetLabels,

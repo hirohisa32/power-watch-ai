@@ -9,7 +9,9 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Clock3,
   ImagePlus,
+  LoaderCircle,
   Star,
   X,
 } from "lucide-react";
@@ -25,6 +27,7 @@ import { HAYASHI_VOICE, SYSTEM_VIDEO_ASSET_IDS } from "@/lib/system-media/config
 
 type WatchFile = { file: File; label: string; preview: string };
 type Draft = WizardDraft;
+type SubmissionPhase = "idle" | "saving" | "saved" | "navigating";
 type SystemVideoAsset = {
   id: string;
   type: "opening" | "ending";
@@ -66,6 +69,8 @@ export function NewProjectForm() {
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>("idle");
+  const [submissionElapsed, setSubmissionElapsed] = useState(0);
   const [systemVideos, setSystemVideos] = useState<SystemVideoAsset[]>([]);
   const [bgms, setBgms] = useState<
     Array<{ key: string; name: string; genre: string; mood: string }>
@@ -129,6 +134,15 @@ export function NewProjectForm() {
     }, 450);
     return () => window.clearTimeout(timer);
   }, [files, filesLoaded]);
+  useEffect(() => {
+    if (!pending) return;
+    const startedAt = Date.now() - submissionElapsed * 1000;
+    const timer = window.setInterval(
+      () => setSubmissionElapsed(Math.floor((Date.now() - startedAt) / 1000)),
+      1_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [pending, submissionElapsed]);
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
     setSaveState("saving");
@@ -163,6 +177,8 @@ export function NewProjectForm() {
   }
   async function submit() {
     setPending(true);
+    setSubmissionElapsed(0);
+    setSubmissionPhase("saving");
     setError("");
     try {
       const response = await fetch("/api/projects", {
@@ -192,8 +208,11 @@ export function NewProjectForm() {
         if (!uploaded.ok)
           throw new Error("画像のアップロードに失敗しました。動画は下書きとして保存されています。");
       }
+      setSubmissionPhase("saved");
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
       window.localStorage.removeItem(STORAGE_KEY);
       await clearWizardFiles();
+      setSubmissionPhase("navigating");
       const storyboard = await fetch(`/api/projects/${result.id}/storyboard`, { method: "POST" });
       if (!storyboard.ok) {
         router.push(`/projects/${result.id}`);
@@ -203,6 +222,7 @@ export function NewProjectForm() {
       router.push(`/projects/${result.id}/storyboard`);
       router.refresh();
     } catch (cause) {
+      setSubmissionPhase("idle");
       setError(
         cause instanceof Error
           ? cause.message
@@ -258,6 +278,32 @@ export function NewProjectForm() {
               {draft.script.length.toLocaleString()} / 30,000文字
             </span>
           </div>
+          <fieldset className="duration-selector">
+            <legend>完成動画の長さ</legend>
+            <p>
+              オープニングと締め動画を含む、完成動画全体の長さです。固定オープニング約15秒を差し引いて本編を構成します。
+            </p>
+            <div>
+              {(
+                [
+                  [60, "60秒", "SNS向け。テンポよく商品ストーリーを伝えます。"],
+                  [90, "90秒", "歴史や背景まで、より深く紹介します。"],
+                ] as const
+              ).map(([value, label, description]) => (
+                <label key={value} className={draft.targetDuration === value ? "selected" : ""}>
+                  <input
+                    type="radio"
+                    name="完成動画の長さ"
+                    value={value}
+                    checked={draft.targetDuration === value}
+                    onChange={() => update("targetDuration", value)}
+                  />
+                  <strong>{label}</strong>
+                  <span>{description}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </section>
       )}
       {step === 2 && (
@@ -376,15 +422,6 @@ export function NewProjectForm() {
               ]}
             />
             <Choice
-              title="本編の長さ"
-              value={String(draft.targetDuration)}
-              onChange={(value) => update("targetDuration", Number(value) as 60 | 90)}
-              options={[
-                ["60", "60秒"],
-                ["90", "90秒"],
-              ]}
-            />
-            <Choice
               title="オープニング"
               value={draft.openingAssetId}
               onChange={(value) => update("openingAssetId", value)}
@@ -412,7 +449,7 @@ export function NewProjectForm() {
             <small>{HAYASHI_VOICE.model}／通常生成はこの声で固定されます</small>
           </div>
           <MediaPreview
-          title="オープニングのプレビュー"
+            title="オープニングのプレビュー"
             id={draft.openingAssetId}
             assets={systemVideos}
           />
@@ -467,6 +504,39 @@ export function NewProjectForm() {
           </button>
         )}
       </div>
+      {pending && (
+        <div className="save-progress-backdrop" role="status" aria-live="polite">
+          <section className="save-progress-card">
+            <LoaderCircle className="save-progress-spinner" size={28} aria-hidden="true" />
+            <div>
+              <p className="eyebrow">新しい動画を準備中</p>
+              <h2>
+                {submissionPhase === "saving"
+                  ? "設定を保存しています"
+                  : submissionPhase === "saved"
+                    ? "保存完了"
+                    : "画像確認画面へ移動しています"}
+              </h2>
+              <p>
+                {submissionPhase === "saving"
+                  ? "設定と時計画像を安全に保存しています。"
+                  : submissionPhase === "saved"
+                    ? "設定と時計画像を保存しました。"
+                    : "動画構成を準備しています。完了すると自動で移動します。"}
+              </p>
+            </div>
+            <span className="save-progress-time">
+              <Clock3 size={14} /> {Math.floor(submissionElapsed / 60)}:
+              {String(submissionElapsed % 60).padStart(2, "0")}
+            </span>
+            {submissionElapsed >= 20 && (
+              <p className="save-progress-slow">
+                通常より時間がかかっています。このままお待ちください。エラーが表示された場合は、ページを再読み込みしてもう一度お試しください。
+              </p>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

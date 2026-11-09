@@ -89,7 +89,7 @@ export function totalStoryboardDuration(storyboard: StoryboardOutput) {
 
 export function rebalanceStoryboardDuration(
   storyboard: StoryboardOutput,
-  targetDuration: 60 | 90,
+  targetDuration: number,
 ): StoryboardOutput {
   const scenes = storyboard.scenes.map((scene, index) => {
     const rule = sceneDurationRule(scene.preset);
@@ -168,7 +168,7 @@ export function normalizeStoryboardReferences(
 
 export function validateStoryboard(
   value: unknown,
-  targetDuration: 60 | 90,
+  targetDuration: number,
   availableAssetLabels: string[],
 ) {
   const parsed = storyboardOutputSchema.safeParse(value);

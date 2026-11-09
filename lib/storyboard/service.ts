@@ -8,7 +8,8 @@ export type GenerateStoryboardInput = {
   script: string;
   style: "cinematic_real" | "animation";
   language: "ja" | "en" | "zh";
-  targetDuration: 60 | 90;
+  targetDuration: number;
+  finalDuration?: 60 | 90;
   assetLabels: string[];
   openingSelected?: boolean;
   endingSelected?: boolean;

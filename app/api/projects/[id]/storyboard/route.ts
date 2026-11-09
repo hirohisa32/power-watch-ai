@@ -8,6 +8,8 @@ import { OpenAIStoryboardDirector, StoryboardDirectorError } from "@/lib/storybo
 import { DrizzleStoryboardPersistence } from "@/lib/storyboard/repository";
 import { StoryboardValidationError } from "@/lib/storyboard/schema";
 import { generateAndSaveStoryboard } from "@/lib/storyboard/service";
+import { calculateStoryBodyDuration } from "@/lib/storyboard/duration";
+import { resolveSystemVideoAssetSelection } from "@/lib/system-media/repository";
 
 export const maxDuration = 70;
 
@@ -33,16 +35,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .select({ label: assets.label })
       .from(assets)
       .where(eq(assets.projectId, id));
+    const [opening, ending] = await Promise.all([
+      resolveSystemVideoAssetSelection(project.openingAssetId, "opening"),
+      resolveSystemVideoAssetSelection(project.endingAssetId, "ending"),
+    ]);
+    const bodyDuration = calculateStoryBodyDuration(project.targetDuration, opening, ending);
     const result = await generateAndSaveStoryboard(
       {
         projectId: id,
         script: project.script,
         style: project.style,
         language: project.language,
-        targetDuration: project.targetDuration,
+        targetDuration: bodyDuration,
+        finalDuration: project.targetDuration,
         assetLabels: watchAssets.map((asset) => asset.label),
-        openingSelected: Boolean(project.openingAssetId),
-        endingSelected: Boolean(project.endingAssetId),
+        openingSelected: Boolean(opening),
+        endingSelected: Boolean(ending),
       },
       new OpenAIStoryboardDirector(),
       new DrizzleStoryboardPersistence(),
