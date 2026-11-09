@@ -27,6 +27,7 @@ const storyboardRoute = readFileSync(
   resolve(root, "app/api/projects/[id]/storyboard/route.ts"),
   "utf8",
 );
+const globalCss = readFileSync(resolve(root, "app/globals.css"), "utf8");
 
 describe("新規動画作成UX", () => {
   it("完成尺からOpeningとEndingを差し引いて本編尺を決める", () => {
@@ -46,6 +47,9 @@ describe("新規動画作成UX", () => {
     expect(newProjectForm).toContain("SNS向け。テンポよく商品ストーリーを伝えます。");
     expect(newProjectForm).toContain("歴史や背景まで、より深く紹介します。");
     expect(newProjectForm).toContain("完成動画全体の長さ");
+    expect(globalCss).toMatch(
+      /\.duration-selector input\s*\{[^}]*width:\s*1px;[^}]*height:\s*1px;/s,
+    );
   });
 
   it("保存中から画面移動まで現在地を表示する", () => {
