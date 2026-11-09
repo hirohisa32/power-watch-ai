@@ -59,10 +59,21 @@ const ACTION_COPY: Record<
     },
   };
 
-export function StoryboardButton({ projectId, action }: { projectId: string; action: Action }) {
+export function StoryboardButton({
+  projectId,
+  action,
+  initialFailed = false,
+}: {
+  projectId: string;
+  action: Action;
+  initialFailed?: boolean;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    initialFailed ? "動画構成の作成に失敗しました" : "",
+  );
+  const [failed, setFailed] = useState(initialFailed);
   const copy = ACTION_COPY[action];
 
   function navigate() {
@@ -75,6 +86,7 @@ export function StoryboardButton({ projectId, action }: { projectId: string; act
   async function generate() {
     setPending(true);
     setError("");
+    setFailed(false);
     try {
       const response = await fetch(`/api/projects/${projectId}/storyboard`, { method: "POST" });
       const body = await response.json();
@@ -82,7 +94,8 @@ export function StoryboardButton({ projectId, action }: { projectId: string; act
       router.push(`/projects/${projectId}/storyboard`);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "生成できませんでした");
+      setFailed(true);
+      setError(cause instanceof Error ? cause.message : "動画構成の作成に失敗しました");
     } finally {
       setPending(false);
     }
@@ -95,10 +108,15 @@ export function StoryboardButton({ projectId, action }: { projectId: string; act
         onClick={action === "create_storyboard" ? generate : navigate}
       >
         {pending && <span className="button-spinner" aria-hidden="true" />}
-        {pending ? copy.pending : copy.label}
+        {pending ? copy.pending : failed ? "もう一度試す" : copy.label}
       </button>
       <small>{copy.help}</small>
-      {error && <span className="error">{error}</span>}
+      {error && (
+        <div className="storyboard-error" role="alert">
+          <strong>{error}</strong>
+          <span>入力内容は保存されています。</span>
+        </div>
+      )}
     </div>
   );
 }

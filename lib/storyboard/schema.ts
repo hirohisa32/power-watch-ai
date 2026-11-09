@@ -69,8 +69,28 @@ export const editableSceneSchema = storyboardSceneSchema
 export type StoryboardSceneInput = z.infer<typeof storyboardSceneSchema>;
 export type StoryboardOutput = z.infer<typeof storyboardOutputSchema>;
 
+export type StoryboardValidationCode =
+  | "invalid_schema"
+  | "scene_order"
+  | "duration_unreachable"
+  | "missing_product_scene"
+  | "unknown_asset"
+  | "unexpected_asset"
+  | "missing_asset"
+  | "product_duration"
+  | "missing_watch_reference"
+  | "generated_brand_text"
+  | "visual_relevance"
+  | "internal_narration"
+  | "scene_copy_narration"
+  | "duplicate_narration"
+  | "duration_mismatch";
+
 export class StoryboardValidationError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly code: StoryboardValidationCode = "invalid_schema",
+  ) {
     super(message);
     this.name = "StoryboardValidationError";
   }
@@ -119,7 +139,11 @@ export function rebalanceStoryboardDuration(
     }
     if (remaining === 0) break;
   }
-  if (remaining !== 0) throw new StoryboardValidationError("Scene数では目標尺へ調整できません");
+  if (remaining !== 0)
+    throw new StoryboardValidationError(
+      "Scene数では目標尺へ調整できません",
+      "duration_unreachable",
+    );
   return { scenes };
 }
 
@@ -131,12 +155,21 @@ export function validateNarrationContinuity(storyboard: StoryboardOutput) {
   for (const scene of storyboard.scenes) {
     const narration = scene.narration.replace(/\s+/g, " ").trim();
     if (INTERNAL_NARRATION_PATTERN.test(narration))
-      throw new StoryboardValidationError("Narrationに内部Sceneラベルを含めることはできません");
+      throw new StoryboardValidationError(
+        "Narrationに内部Sceneラベルを含めることはできません",
+        "internal_narration",
+      );
     if (narration === scene.title.trim() || narration === scene.visualDescription.trim())
-      throw new StoryboardValidationError("NarrationにScene説明をそのまま使用できません");
+      throw new StoryboardValidationError(
+        "NarrationにScene説明をそのまま使用できません",
+        "scene_copy_narration",
+      );
     const comparable = narration.toLocaleLowerCase().replace(/[\s。！？.!?]/g, "");
     if (comparable && comparable === previous)
-      throw new StoryboardValidationError("同じNarrationが連続しています");
+      throw new StoryboardValidationError(
+        "同じNarrationが連続しています",
+        "duplicate_narration",
+      );
     previous = comparable;
   }
 }
@@ -172,10 +205,11 @@ export function validateStoryboard(
   availableAssetLabels: string[],
 ) {
   const parsed = storyboardOutputSchema.safeParse(value);
-  if (!parsed.success) throw new StoryboardValidationError("Storyboardの形式が不正です");
+  if (!parsed.success)
+    throw new StoryboardValidationError("Storyboardの形式が不正です", "invalid_schema");
   for (const [index, scene] of parsed.data.scenes.entries()) {
     if (scene.sceneNumber !== index + 1)
-      throw new StoryboardValidationError("Scene番号が連続していません");
+      throw new StoryboardValidationError("Scene番号が連続していません", "scene_order");
   }
   const storyboard = narrationOnlySubtitles(
     normalizeStoryboardReferences(
@@ -188,30 +222,55 @@ export function validateStoryboard(
       ["WatchReveal", "WatchMacro", "ProductHero"].includes(scene.preset),
     )
   )
-    throw new StoryboardValidationError("時計を主役にしたSceneが必要です");
+    throw new StoryboardValidationError(
+      "時計を主役にしたSceneが必要です",
+      "missing_product_scene",
+    );
   const labels = new Set(availableAssetLabels);
   for (const scene of storyboard.scenes) {
     if (scene.preferredAssetLabels.some((label) => !labels.has(label)))
-      throw new StoryboardValidationError("存在しない時計画像Labelが指定されています");
+      throw new StoryboardValidationError(
+        "存在しない時計画像Labelが指定されています",
+        "unknown_asset",
+      );
     if (!scene.watchReference && scene.preferredAssetLabels.length > 0)
-      throw new StoryboardValidationError("Reference不要Sceneに時計画像が指定されています");
+      throw new StoryboardValidationError(
+        "Reference不要Sceneに時計画像が指定されています",
+        "unexpected_asset",
+      );
     if (scene.watchReference && labels.size > 0 && scene.preferredAssetLabels.length === 0)
-      throw new StoryboardValidationError("時計SceneのReference画像が指定されていません");
+      throw new StoryboardValidationError(
+        "時計SceneのReference画像が指定されていません",
+        "missing_asset",
+      );
     if (scene.watchReference && scene.duration > 6)
-      throw new StoryboardValidationError("同一商品写真を6秒を超えて連続表示できません");
+      throw new StoryboardValidationError(
+        "同一商品写真を6秒を超えて連続表示できません",
+        "product_duration",
+      );
     if (REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset) && !scene.watchReference)
-      throw new StoryboardValidationError("時計を表示するPresetにはReference指定が必要です");
+      throw new StoryboardValidationError(
+        "時計を表示するPresetにはReference指定が必要です",
+        "missing_watch_reference",
+      );
     if (/power\s*watch/i.test(scene.visualPrompt))
-      throw new StoryboardValidationError("POWER WATCH文字は映像Promptへ含められません");
+      throw new StoryboardValidationError(
+        "POWER WATCH文字は映像Promptへ含められません",
+        "generated_brand_text",
+      );
     const relevance = evaluateVisualRelevance(scene);
     if (relevance.status === "ng")
       throw new StoryboardValidationError(
         `Scene ${scene.sceneNumber}はNarrationとVisualの関連性が不足しています (${relevance.score}/100)`,
+        "visual_relevance",
       );
   }
   validateNarrationContinuity(storyboard);
   if (totalStoryboardDuration(storyboard) !== targetDuration)
-    throw new StoryboardValidationError("Scene合計時間が目標尺と一致しません");
+    throw new StoryboardValidationError(
+      "Scene合計時間が目標尺と一致しません",
+      "duration_mismatch",
+    );
   return storyboard;
 }
 
@@ -221,9 +280,18 @@ export function validateSceneAssetLabels(
 ) {
   const labels = new Set(availableAssetLabels);
   if (scene.preferredAssetLabels.some((label) => !labels.has(label)))
-    throw new StoryboardValidationError("存在しない時計画像Labelが指定されています");
+    throw new StoryboardValidationError(
+      "存在しない時計画像Labelが指定されています",
+      "unknown_asset",
+    );
   if (!scene.watchReference && scene.preferredAssetLabels.length > 0)
-    throw new StoryboardValidationError("Reference不要Sceneに時計画像が指定されています");
+    throw new StoryboardValidationError(
+      "Reference不要Sceneに時計画像が指定されています",
+      "unexpected_asset",
+    );
   if (REQUIRED_WATCH_REFERENCE_PRESETS.has(scene.preset) && !scene.watchReference)
-    throw new StoryboardValidationError("時計を表示するPresetにはReference指定が必要です");
+    throw new StoryboardValidationError(
+      "時計を表示するPresetにはReference指定が必要です",
+      "missing_watch_reference",
+    );
 }

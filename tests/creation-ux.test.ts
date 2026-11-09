@@ -19,6 +19,14 @@ const storyboardEditor = readFileSync(
   resolve(root, "app/(studio)/projects/[id]/storyboard/storyboard-editor.tsx"),
   "utf8",
 );
+const storyboardButton = readFileSync(
+  resolve(root, "app/(studio)/projects/[id]/storyboard-button.tsx"),
+  "utf8",
+);
+const storyboardRoute = readFileSync(
+  resolve(root, "app/api/projects/[id]/storyboard/route.ts"),
+  "utf8",
+);
 
 describe("新規動画作成UX", () => {
   it("完成尺からOpeningとEndingを差し引いて本編尺を決める", () => {
@@ -45,6 +53,17 @@ describe("新規動画作成UX", () => {
     expect(newProjectForm).toContain("保存完了");
     expect(newProjectForm).toContain("画像確認画面へ移動しています");
     expect(newProjectForm).toContain("通常より時間がかかっています");
+  });
+
+  it("失敗時は保存済みであることと再試行導線を表示する", () => {
+    expect(storyboardButton).toContain("動画構成の作成に失敗しました");
+    expect(storyboardButton).toContain("入力内容は保存されています。");
+    expect(storyboardButton).toContain("もう一度試す");
+  });
+
+  it("成功済みStoryboardは再生成せず既存結果を返す", () => {
+    expect(storyboardRoute).toContain("const existing = await getActiveStoryboard(id)");
+    expect(storyboardRoute).toContain("deduplicated: true");
   });
 
   it("確定画像は簡潔にし、生成進捗にはETAと工程を表示する", () => {

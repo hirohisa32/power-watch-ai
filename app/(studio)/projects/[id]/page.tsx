@@ -31,10 +31,10 @@ export default async function ProjectDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ section?: string }>;
+  searchParams: Promise<{ section?: string; storyboard?: string }>;
 }) {
   const { id } = await params;
-  const { section } = await searchParams;
+  const { section, storyboard } = await searchParams;
   const user = await requireUser();
   const db = getDb();
   const [project] = await db
@@ -70,7 +70,11 @@ export default async function ProjectDetail({
           <p className="eyebrow">動画の詳細</p>
           <h1>{project.title}</h1>
         </div>
-        <StoryboardButton projectId={project.id} action={workflow.action} />
+        <StoryboardButton
+          projectId={project.id}
+          action={workflow.action}
+          initialFailed={storyboard === "failed"}
+        />
       </div>
       <ProjectSubnav
         projectId={project.id}

@@ -1,7 +1,7 @@
 import type { StoryboardDirector } from "@/lib/storyboard/director";
 import type { StoryboardPersistence } from "@/lib/storyboard/repository";
 import { buildStoryboardPrompt } from "@/lib/storyboard/prompt";
-import { validateStoryboard } from "@/lib/storyboard/schema";
+import { StoryboardValidationError, validateStoryboard } from "@/lib/storyboard/schema";
 
 export type GenerateStoryboardInput = {
   projectId: string;
@@ -26,9 +26,11 @@ export async function generateAndSaveStoryboard(
   try {
     storyboard = validateStoryboard(generated.storyboard, input.targetDuration, input.assetLabels);
   } catch (error) {
+    const validationCode =
+      error instanceof StoryboardValidationError ? error.code : "invalid_schema";
     await persistence.recordUsage({
       projectId: input.projectId,
-      operation: "storyboard_generation_failed",
+      operation: `storyboard_generation_failed:${validationCode}`,
       usage: generated.usage,
     });
     throw error;

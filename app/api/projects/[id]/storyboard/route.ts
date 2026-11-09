@@ -6,6 +6,7 @@ import { assets, projects } from "@/lib/db/schema";
 import { assertSameOrigin } from "@/lib/security";
 import { OpenAIStoryboardDirector, StoryboardDirectorError } from "@/lib/storyboard/director";
 import { DrizzleStoryboardPersistence } from "@/lib/storyboard/repository";
+import { getActiveStoryboard } from "@/lib/storyboard/repository";
 import { StoryboardValidationError } from "@/lib/storyboard/schema";
 import { generateAndSaveStoryboard } from "@/lib/storyboard/service";
 import { calculateStoryBodyDuration } from "@/lib/storyboard/duration";
@@ -31,6 +32,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Storyboard生成には台本が必要です" }, { status: 400 });
     if (project.targetDuration !== 60 && project.targetDuration !== 90)
       return NextResponse.json({ error: "動画尺を確認してください" }, { status: 400 });
+    const existing = await getActiveStoryboard(id);
+    if (existing)
+      return NextResponse.json({
+        storyboardId: existing.storyboard.id,
+        version: existing.storyboard.version,
+        totalDuration: existing.storyboard.totalDuration,
+        sceneCount: existing.scenes.length,
+        deduplicated: true,
+      });
     const watchAssets = await db
       .select({ label: assets.label })
       .from(assets)
@@ -81,14 +91,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     console.error("Storyboard generation failed", {
       projectId: id,
+      stage: error instanceof StoryboardValidationError ? "story_quality_gate" : "unknown",
+      validationCode: error instanceof StoryboardValidationError ? error.code : undefined,
       error: error instanceof Error ? error.message : "unknown",
     });
     const invalid = error instanceof StoryboardValidationError;
     return NextResponse.json(
       {
-        error: invalid
-          ? "生成された動画構成を検証できませんでした。再度お試しください。"
-          : "動画構成の生成に失敗しました。しばらくしてから再度お試しください。",
+        error: "動画構成の作成に失敗しました",
+        inputSaved: true,
+        retryable: true,
+        code: invalid ? "STORYBOARD_QUALITY_GATE_FAILED" : "STORYBOARD_GENERATION_FAILED",
       },
       { status: 502 },
     );

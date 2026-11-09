@@ -5,6 +5,7 @@ import { apiUsage, assets, projects, scenes, storyboards } from "@/lib/db/schema
 import { estimateOpenAiCost } from "@/lib/storyboard/cost";
 import type { StoryboardDirectorResult } from "@/lib/storyboard/director";
 import type { StoryboardOutput } from "@/lib/storyboard/schema";
+import type { StoryboardValidationCode } from "@/lib/storyboard/schema";
 import { evaluateVisualRelevance } from "@/lib/storyboard/visual-relevance";
 import { evaluateStoryQuality } from "@/lib/storyboard/story-quality";
 import { planProductPhotoUsageWithAssets } from "@/lib/storyboard/product-photo-planner";
@@ -17,7 +18,7 @@ export type PersistStoryboardInput = {
 
 export type RecordStoryboardUsageInput = {
   projectId: string;
-  operation: "storyboard_generation_failed";
+  operation: `storyboard_generation_failed:${StoryboardValidationCode}`;
   usage: StoryboardDirectorResult["usage"];
 };
 

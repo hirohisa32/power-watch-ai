@@ -86,7 +86,7 @@ describe("storyboard save flow", () => {
     expect(replace).not.toHaveBeenCalled();
     expect(recordUsage).toHaveBeenCalledWith({
       projectId: "project-1",
-      operation: "storyboard_generation_failed",
+      operation: "storyboard_generation_failed:scene_order",
       usage,
     });
   });

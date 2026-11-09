@@ -215,7 +215,7 @@ export function NewProjectForm() {
       setSubmissionPhase("navigating");
       const storyboard = await fetch(`/api/projects/${result.id}/storyboard`, { method: "POST" });
       if (!storyboard.ok) {
-        router.push(`/projects/${result.id}`);
+        router.push(`/projects/${result.id}?storyboard=failed`);
         router.refresh();
         return;
       }

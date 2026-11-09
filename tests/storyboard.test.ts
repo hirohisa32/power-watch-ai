@@ -7,7 +7,24 @@ import {
   validateStoryboard,
 } from "@/lib/storyboard/schema";
 import { EPOCA_STORY_STYLE } from "@/lib/storyboard/styles/epoca-story";
+import { calculateStoryBodyDuration } from "@/lib/storyboard/duration";
 import { storyboardFixture } from "./fixtures/storyboard";
+
+function bodyFixture(sceneCount: 10 | 15) {
+  const source = storyboardFixture(60).scenes;
+  const selected =
+    sceneCount === 10 ? [...source.slice(0, 8), source.at(-2)!, source.at(-1)!] : source;
+  return {
+    scenes: selected.map((scene, index) => ({
+      ...scene,
+      sceneNumber: index + 1,
+      narration: `Narration for scene ${index + 1}`,
+      narrationSegmentId: `segment-${String(index + 1).padStart(2, "0")}`,
+      visualIntent: `Show evidence for narration scene ${index + 1}`,
+      visualSubject: `Narration scene ${index + 1} subject`,
+    })),
+  };
+}
 
 describe("storyboard schema", () => {
   it("validates structured storyboard output", () => {
@@ -123,5 +140,38 @@ describe("storyboard schema", () => {
     expect(prompt).toContain("ORIGINAL PRODUCT EVIDENCE");
     expect(prompt).toContain("Never redraw, stylize, reconstruct");
     expect(prompt).toContain("SINGLE PRODUCT PHOTO RULE");
+  });
+
+  const opening = { durationMs: 15_100 };
+  const ending = { durationMs: 3_500 };
+  const durationMatrix = [
+    { label: "60秒 × 写真1枚", total: 60 as const, labels: ["正面"], scenes: 10 as const },
+    {
+      label: "60秒 × 写真複数",
+      total: 60 as const,
+      labels: ["正面", "文字盤", "裏蓋"],
+      scenes: 10 as const,
+    },
+    { label: "90秒 × 写真1枚", total: 90 as const, labels: ["正面"], scenes: 15 as const },
+    {
+      label: "90秒 × 写真複数",
+      total: 90 as const,
+      labels: ["正面", "文字盤", "裏蓋"],
+      scenes: 15 as const,
+    },
+  ];
+
+  it.each(durationMatrix)("validates $label without a provider call", ({ total, labels, scenes }) => {
+    const bodyDuration = calculateStoryBodyDuration(total, opening, ending);
+    const result = validateStoryboard(bodyFixture(scenes), bodyDuration, labels);
+    expect(totalStoryboardDuration(result)).toBe(bodyDuration);
+    expect(result.scenes.every((scene) => scene.duration >= 3 && scene.duration <= 8)).toBe(true);
+    if (labels.length === 1) {
+      const uses = result.scenes.filter((scene) => scene.preferredAssetLabels.includes(labels[0]));
+      expect(uses.length).toBeLessThanOrEqual(2);
+      expect(
+        uses.every((scene, index) => index === 0 || scene.sceneNumber > uses[index - 1].sceneNumber + 1),
+      ).toBe(true);
+    }
   });
 });

@@ -2955,3 +2955,18 @@ h3 {
     text-align: left;
   }
 }
+.storyboard-error {
+  display: grid;
+  gap: 4px;
+  max-width: 340px;
+  padding: 12px 14px;
+  border: 1px solid rgba(211, 171, 101, 0.32);
+  border-radius: 12px;
+  background: rgba(211, 171, 101, 0.08);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.storyboard-error span {
+  color: var(--text-muted);
+}
