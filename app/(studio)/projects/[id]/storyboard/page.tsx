@@ -94,6 +94,7 @@ export default async function StoryboardPage({
       <ProjectStepper
         currentStep={workflow.currentStep}
         processing={workflow.phase === "SCENES_GENERATING" || workflow.phase === "FINAL_RENDERING"}
+        statusLabel={workflow.label}
       />
       <StoryboardEditor
         projectId={id}

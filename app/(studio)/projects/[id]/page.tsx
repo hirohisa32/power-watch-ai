@@ -84,6 +84,7 @@ export default async function ProjectDetail({
       <ProjectStepper
         currentStep={workflow.currentStep}
         processing={workflow.phase === "SCENES_GENERATING" || workflow.phase === "FINAL_RENDERING"}
+        statusLabel={workflow.label}
       />
       <div className={`production-progress phase-${workflow.phase.toLowerCase()}`}>
         <div>

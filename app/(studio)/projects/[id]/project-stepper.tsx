@@ -15,9 +15,11 @@ const STEPS = [
 export function ProjectStepper({
   currentStep,
   processing = false,
+  statusLabel,
 }: {
   currentStep: number;
   processing?: boolean;
+  statusLabel?: string;
 }) {
   const [showCoachMark, setShowCoachMark] = useState(false);
 
@@ -39,7 +41,9 @@ export function ProjectStepper({
         <div>
           <p className="eyebrow">動画完成までのステップ</p>
           <h2>
-            {processing ? "処理を進めています" : `現在：${STEPS[currentStep - 1]?.[0] ?? "確認"}`}
+            {processing
+              ? "処理を進めています"
+              : statusLabel || `現在：${STEPS[currentStep - 1]?.[0] ?? "確認"}`}
           </h2>
         </div>
         <details className="workflow-help">

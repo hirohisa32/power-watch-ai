@@ -487,7 +487,7 @@ export function StoryboardEditor({
           <div>
             <strong>画像とシーンの組み合わせを確認してください</strong>
             <span>
-              Human Labelを正本として、各シーンの映像内容と使用画像を確認してから生成します。
+              登録済みの画像ラベルを正本として、各シーンの映像内容と使用画像を確認してから生成します。
             </span>
           </div>
           {reviewSceneNumbers.length > 0 && (
